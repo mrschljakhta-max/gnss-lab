@@ -91,7 +91,8 @@
   return options;
  }
  function layout(shapes,texts,options={}){
-  const result=[],placed=[],sz=options.font||14;
+  const result=[],placed=[...(options.reserved||[])],sz=options.font||14;
+  const obstacles=[...(options.obstacles||[]),...shapes];
   if(!Array.isArray(shapes))return result;
   // Stable ordering: existing labels retain preference; new one avoids them.
   for(let i=0;i<shapes.length;i++){
@@ -101,7 +102,7 @@
    let best=null,score=Infinity;
    for(const candidate of candidates){
     const box=bounds(candidate.x,candidate.y,label,sz);
-    const value=candidate.base+boxPenalty(box,shapes,placed);
+    const value=candidate.base+boxPenalty(box,obstacles,placed);
     if(value<score){score=value;best={x:candidate.x,y:candidate.y,box,score:value};}
     if(value<15)break;
    }
