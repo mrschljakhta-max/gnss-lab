@@ -48,6 +48,7 @@ container.innerHTML=`
     <div class="eng-tools" id="engTools">
       <button type="button" data-tool="ruler" title="Лінійка"><span class="eng-tool-icon">▤</span><small>Лінійка</small></button>
       <button type="button" data-tool="line" title="Провести відрізок"><span class="eng-tool-icon">╱</span><small>Лінія</small></button>
+      <button type="button" data-tool="rectangle" title="Прямокутник: протягни діагональ, Ctrl — квадрат" aria-label="Прямокутник, Ctrl — квадрат"><span class="eng-tool-icon">▭</span><small>Прямокутник</small></button>
       <button type="button" data-tool="compass" title="Накреслити коло"><span class="eng-tool-icon">◉</span><small>Циркуль</small></button>
       <button type="button" data-tool="caliper" title="Виміряти діаметр"><span class="eng-tool-icon">⊣</span><small>Штангенциркуль</small></button>
       <button type="button" data-tool="eraser" title="Видалити елемент"><span class="eng-tool-icon">⌫</span><small>Гумка</small></button>
@@ -85,8 +86,37 @@ function expectedLines(){const x=rect.x,y=rect.y,w=rect.w,h=rect.h;return [
  {type:'line',x1:x+w,y1:y+h,x2:x,y2:y+h},{type:'line',x1:x,y1:y+h,x2:x,y2:y}];}
 function pt(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const tr=svg.getScreenCTM();return tr?p.matrixTransform(tr.inverse()):{x:0,y:0}}
 function validLine(a,b){if(dist(a,b)<25)return false;return true}
+// One continuous diagonal drag; Ctrl constrains both sides to the same length.
+function rectPoint(p){
+ return {x:clamp(Math.round(p.x/state.scale)*state.scale,18,1182),
+  y:clamp(Math.round(p.y/state.scale)*state.scale,18,642)};
+}
+function rectFromDiagonal(a,b,lockSquare=false){
+ let dx=b.x-a.x,dy=b.y-a.y;
+ if(lockSquare){
+  const side=Math.min(Math.abs(dx),Math.abs(dy));
+  dx=(Math.sign(dx)||1)*side;
+  dy=(Math.sign(dy)||1)*side;
+ }
+ return {type:'rect',x:Math.min(a.x,a.x+dx),y:Math.min(a.y,a.y+dy),
+  w:Math.abs(dx),h:Math.abs(dy)};
+}
+function rectEdges(shape){
+ const {x,y,w,h}=shape;
+ return [
+  {type:'line',x1:x,y1:y,x2:x+w,y2:y},
+  {type:'line',x1:x+w,y1:y,x2:x+w,y2:y+h},
+  {type:'line',x1:x+w,y1:y+h,x2:x,y2:y+h},
+  {type:'line',x1:x,y1:y+h,x2:x,y2:y}
+ ];
+}
+function pointSegmentDistance(p,s){
+ const dx=s.x2-s.x1,dy=s.y2-s.y1;
+ const u=clamp(((p.x-s.x1)*dx+(p.y-s.y1)*dy)/Math.max(1,dx*dx+dy*dy),0,1);
+ return dist(p,{x:s.x1+u*dx,y:s.y1+u*dy});
+}
 function fmt(num){const n=state.measureUnit==='cm'?num/10:num;return `${(Math.round(n*10)/10).toLocaleString('uk-UA')} ${state.measureUnit}`}
-function currentLength(){if(state.pending){if(state.pending.type==='line')return dist({x:state.pending.x1,y:state.pending.y1},{x:state.pending.x2,y:state.pending.y2})/state.scale;if(state.pending.type==='circle')return state.pending.r*2/state.scale}
+function currentLength(){if(state.pending){if(state.pending.type==='line')return dist({x:state.pending.x1,y:state.pending.y1},{x:state.pending.x2,y:state.pending.y2})/state.scale;if(state.pending.type==='circle')return state.pending.r*2/state.scale;if(state.pending.type==='rect')return state.pending.w/state.scale}
  if(typeof state.measure==='number')return state.measure;
  if(state.mode==='quest'&&state.stage===1)return circle.r*2/state.scale;
  return rect.w/state.scale;
@@ -98,16 +128,20 @@ function addShape(root,shape,opts={}){
  const common={class:cls,'data-shape':opts.clickable?'1':undefined};
  delete common['data-shape'];
  let el;if(shape.type==='line')el=svgEl('line',{x1:shape.x1,y1:shape.y1,x2:shape.x2,y2:shape.y2,class:cls});
- else el=svgEl('circle',{cx:shape.x,cy:shape.y,r:shape.r,class:cls});
+ else if(shape.type==='circle')el=svgEl('circle',{cx:shape.x,cy:shape.y,r:shape.r,class:cls});
+ else if(shape.type==='rect')el=svgEl('rect',{x:shape.x,y:shape.y,width:shape.w,height:shape.h,class:cls});
+ else return null;
  root.append(el);return el;
 }
 function dimensionText(shape){
- return shape.type==='line'
-  ?fmt(Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)/state.scale)
-  :'Ø '+fmt(shape.r*2/state.scale);
+ if(shape.type==='rect')return fmt(shape.w/state.scale)+' × '+fmt(shape.h/state.scale);
+ if(shape.type==='line')return fmt(Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)/state.scale);
+ return 'Ø '+fmt(shape.r*2/state.scale);
 }
 function addDraftMeasure(root,shape,position){
- const fallback=shape.type==='line'
+ const fallback=shape.type==='rect'
+  ?{x:shape.x+shape.w/2,y:shape.y<48?shape.y+shape.h+27:shape.y-18}
+  :shape.type==='line'
   ?{x:(shape.x1+shape.x2)/2,y:(shape.y1+shape.y2)/2-29}
   :{x:shape.x,y:shape.y-shape.r-28};
  const p=position||fallback;
@@ -147,8 +181,8 @@ function rulerShape(root){
 }
 // Animated eraser owns a single record; it is not deleted until the last frame.
 let eraserVisual=null;
-const measureShapeLength=shape=>shape.type==='circle'?Math.PI*2*shape.r:
- Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
+const measureShapeLength=shape=>shape.type==='rect'?2*(shape.w+shape.h):
+ shape.type==='circle'?Math.PI*2*shape.r:Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
 function applyEraserVisual(shape,path,label,visual){
  if(!visual||!path)return;
  const progress=clamp(visual.progress,0,1),L=measureShapeLength(shape);
@@ -174,11 +208,9 @@ function recordAtPoint(p){
  state.records.forEach((shape,index)=>{
   let d;
   if(shape.type==='circle')d=Math.abs(dist(p,shape)-shape.r);
-  else{
-   const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1;
-   const t=clamp(((p.x-shape.x1)*dx+(p.y-shape.y1)*dy)/Math.max(1,dx*dx+dy*dy),0,1);
-   d=dist(p,{x:shape.x1+t*dx,y:shape.y1+t*dy});
-  }
+  else if(shape.type==='rect')d=Math.min(...rectEdges(shape).map(edge=>pointSegmentDistance(p,edge)));
+  else if(shape.type==='line')d=pointSegmentDistance(p,shape);
+  else return;
   if(d<best){best=d;match={index,shape:{...shape},at:{...p}}}
  });
  return match;
@@ -190,7 +222,9 @@ function draw(){
  const saved=state.layerDrawing?state.records:[];
  const measureShapes=state.pending?[...saved,state.pending]:[...saved];
  const measurePositions=window.GNSSDimensions?.layout(
-  measureShapes,measureShapes.map(dimensionText),{font:13}
+  measureShapes.map(s=>s.type==='rect'?null:s),
+  measureShapes.map(s=>s.type==='rect'?'':dimensionText(s)),
+  {font:13,obstacles:measureShapes.filter(s=>s.type==='rect').flatMap(rectEdges)}
  )||[];
  window.GNSSPublishedShapes=saved.map(shape=>({...shape}));
  if(state.layerDrawing){
@@ -305,6 +339,11 @@ function handleDown(e){
  if(target){state.pointer={kind:'ruler',start:p,x:state.ruler.x,y:state.ruler.y};}
  else if(state.tool==='line'){state.pointer={kind:'line',start:{x:snap(p.x),y:snap(p.y)}};
   state.pending={type:'line',x1:snap(p.x),y1:snap(p.y),x2:snap(p.x),y2:snap(p.y)};}
+ else if(state.tool==='rectangle'&&state.mode==='explore'){
+  const start=rectPoint(p);
+  state.pointer={kind:'rectangle',start,last:start,ctrl:!!e.ctrlKey};
+  state.pending=rectFromDiagonal(start,start,false);
+ }
  else if(state.tool==='compass'){state.pointer={kind:'circle',start:{x:snap(p.x),y:snap(p.y)}};
   state.pending={type:'circle',x:snap(p.x),y:snap(p.y),r:0};}
  else if(state.tool==='eraser'){
@@ -333,11 +372,26 @@ function handleMove(e){
  if(!state.pointer)return;const p=pt(e),q=state.pointer;
  if(q.kind==='line'){let x=snap(p.x),y=snap(p.y);if(e.shiftKey){if(Math.abs(x-q.start.x)>Math.abs(y-q.start.y))y=q.start.y;else x=q.start.x}
   state.pending.x2=clamp(x,18,1182);state.pending.y2=clamp(y,18,642);}
+ if(q.kind==='rectangle'){q.last=rectPoint(p);q.ctrl=!!e.ctrlKey;state.pending=rectFromDiagonal(q.start,q.last,q.ctrl)}
  if(q.kind==='circle'){state.pending.r=clamp(snap(dist(p,q.start)),5,255)}
  if(q.kind==='ruler'){state.ruler.x=clamp(q.x+p.x-q.start.x,12,920);state.ruler.y=clamp(q.y+p.y-q.start.y,40,620)}
  draw();
 }
-function handleUp(){if(!state.pointer)return;
+function handleUp(e){if(!state.pointer)return;
+ if(state.pointer.kind==='rectangle'){
+  const q=state.pointer;
+  const released=e?.type==='pointercancel';
+  const end=!released&&Number.isFinite(e?.clientX)&&Number.isFinite(e?.clientY)
+   ?rectPoint(pt(e)):q.last;
+  const constrained=typeof e?.ctrlKey==='boolean'?e.ctrlKey:q.ctrl;
+  const shape=rectFromDiagonal(q.start,end,constrained);
+  if(!released&&shape.w>=state.scale*2&&shape.h>=state.scale*2){
+   saveHistory();state.records.push(shape);
+  }
+  state.pending=null;state.pointer=null;
+  svg.classList.remove('eng-grab');
+  draw();return;
+ }
  if(state.pending&&state.pending.type==='line'&&!validLine({x:state.pending.x1,y:state.pending.y1},{x:state.pending.x2,y:state.pending.y2}))state.pending=null;
  if(state.pending&&state.pending.type==='circle'&&state.pending.r<15)state.pending=null;
  if(state.pointer.kind==='ruler'&&state.mode==='quest'&&state.stage===2){
@@ -460,9 +514,22 @@ right.addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn)
  if(btn.dataset.view==='objects'){toast('⬡ 3D наступним етапом')}if(btn.dataset.view==='blueprint'){toast('▣ 2D')}
 });
 window.addEventListener('keydown',e=>{if(lesson()!==0||mode()==='demo')return;
- if(e.key==='Escape'){state.pending=null;draw()}
+ if(e.key==='Control'&&state.pointer?.kind==='rectangle'){
+  state.pointer.ctrl=true;
+  state.pending=rectFromDiagonal(state.pointer.start,state.pointer.last,true);draw();
+ }
+ if(e.key==='Escape'){
+  if(state.pointer?.kind==='rectangle'){state.pointer=null;svg.classList.remove('eng-grab')}
+  state.pending=null;draw();
+ }
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo()}
  if(e.key==='Enter'&&state.pending){e.preventDefault();commit()}
+});
+window.addEventListener('keyup',e=>{
+ if(e.key==='Control'&&state.pointer?.kind==='rectangle'){
+  state.pointer.ctrl=false;
+  state.pending=rectFromDiagonal(state.pointer.start,state.pointer.last,false);draw();
+ }
 });
 let last=0;
 function frame(now){requestAnimationFrame(frame);
