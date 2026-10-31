@@ -15,7 +15,7 @@ const icons=['▤','╱','◉','⊣','▱'];
 const ids=['ruler','line','compass','caliper','eraser'];
 const key='gnss-lab-draft-v1';
 const state={mode:'demo',tool:'line',measureUnit:'mm',layerGrid:true,layerGuide:true,layerDrawing:true,pending:null,
- records:[],history:[],future:[],pointer:null,measure:null,ruler:{x:230,y:565,angle:0},stage:0,segment:0,
+ records:[],history:[],future:[],pointer:null,measure:null,ruler:{x:72,y:124,angle:0},stage:0,segment:0,
  saved:0,demoStart:0,demoPlaying:true,lastMode:null,complete:false,hasTouch:false,status:'',scale:3};
 try{state.saved=clamp(Number(localStorage.getItem(key))||0,0,3)}catch{}
 const container=document.createElement('section');
