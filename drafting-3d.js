@@ -868,27 +868,52 @@ function cancelErase(){
  document.body.classList.remove('gnss-draft-animating','gnss-eraser-active');
  document.dispatchEvent(new CustomEvent('gnss:erase-cancel'));
 }
-function eraserPathPosition(data,t){
- const shape=data.shape,travel=clamp((t-.13)/.73,0,1),enter=ease(t/.13),exit=ease((t-.86)/.14);
- if(shape.type==='line'){
-  const a={x:shape.x1,y:shape.y1},b={x:shape.x2,y:shape.y2};
-  const angle=Math.atan2(b.y-a.y,b.x-a.x);
-  const x=lerp(lerp(data.at.x,a.x,enter),b.x,travel);
-  const y=lerp(lerp(data.at.y,a.y,enter),b.y,travel);
-  // Small cross-axis scrubbing is independent of the amount of ink removed.
-  const wobble=travel>0&&travel<1?Math.sin(travel*13*Math.PI)*2.0:0;
-  return {x:x-Math.sin(angle)*wobble+Math.cos(angle)*exit*24,
-    y:y+Math.cos(angle)*wobble+Math.sin(angle)*exit*24,
-    angle:angle+.2+Math.sin(travel*9*Math.PI)*.027,
-    progress:travel,lift:(1-enter)*13+exit*17};
+// Keep animation coordinates finite even if pointer metadata is incomplete.
+// A shape's stored geometry, not the hit click, defines the physical wiping path.
+function validatedEraseHit(data){
+ const source=data?.shape;
+ if(!source||!['line','circle'].includes(source.type))return null;
+ const shape={...source};
+ const keys=shape.type==='line'?['x1','y1','x2','y2']:['x','y','r'];
+ if(keys.some(key=>!Number.isFinite(shape[key])))return null;
+ if(shape.type==='line'&&Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)<1)return null;
+ if(shape.type==='circle'&&shape.r<=0)return null;
+ let at={...data?.at};
+ if(!Number.isFinite(at.x)||!Number.isFinite(at.y)){
+  at=shape.type==='line'?{x:shape.x1,y:shape.y1}:{x:shape.x+shape.r,y:shape.y};
  }
- const a=Math.atan2(data.at.y-shape.y,data.at.x-shape.x);
- const angle=a+travel*Math.PI*2;
- const rad=shape.r;
- return {x:shape.x+rad*Math.cos(angle)+Math.cos(angle)*exit*23,
-  y:shape.y+rad*Math.sin(angle)+Math.sin(angle)*exit*23,
+ if(shape.type==='line'){
+  const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1;
+  const dot=((at.x-shape.x1)*dx+(at.y-shape.y1)*dy)/(dx*dx+dy*dy);
+  const u=clamp(Number.isFinite(dot)?dot:0,0,1);
+  at={x:shape.x1+dx*u,y:shape.y1+dy*u};
+ }else{
+  const angle=Math.atan2(at.y-shape.y,at.x-shape.x);
+  at={x:shape.x+shape.r*Math.cos(angle),y:shape.y+shape.r*Math.sin(angle)};
+ }
+ return {shape,at};
+}
+function eraserPathPosition(data,time){
+ const shape=data.shape,at=data.at,t=clamp(Number.isFinite(time)?time:0,0,1);
+ const travel=clamp((t-.13)/.73,0,1);
+ const enter=ease(t/.13),exiting=ease((t-.86)/.14);
+ if(shape.type==='line'){
+  const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1;
+  const angle=Math.atan2(dy,dx);
+  const x=lerp(lerp(at.x,shape.x1,enter),shape.x2,travel);
+  const y=lerp(lerp(at.y,shape.y1,enter),shape.y2,travel);
+  const wobble=travel>0&&travel<1?Math.sin(travel*13*Math.PI)*2:0;
+  return {x:x-Math.sin(angle)*wobble+Math.cos(angle)*exiting*24,
+   y:y+Math.cos(angle)*wobble+Math.sin(angle)*exiting*24,
+   angle:angle+.2+Math.sin(travel*9*Math.PI)*.027,
+   progress:travel,lift:(1-enter)*13+exiting*17};
+ }
+ const initialAngle=Math.atan2(at.y-shape.y,at.x-shape.x);
+ const angle=initialAngle+travel*Math.PI*2;
+ return {x:shape.x+shape.r*Math.cos(angle)+Math.cos(angle)*exiting*23,
+  y:shape.y+shape.r*Math.sin(angle)+Math.sin(angle)*exiting*23,
   angle:angle+Math.PI/2+.2,
-  progress:travel,lift:(1-enter)*12+exit*20};
+  progress:travel,lift:(1-enter)*12+exiting*20};
 }
 function paintEraserFallback(pose){
  if(!ctx)ctx=fallback.getContext('2d');
@@ -935,11 +960,11 @@ function paintEraseDust(pose,t){
 }
 function beginErase(data){
  if(eraserMotion||motion||mode==='demo'||tool!=='eraser'||complete)return false;
- const shape=data.shape;
- if(!shape||!['line','circle'].includes(shape.type)||!Number.isInteger(data.index))return false;
+ const verified=validatedEraseHit(data);
+ if(!verified||!Number.isInteger(data.index)||data.index<0)return false;
  // Reduced-motion mode keeps the wipe visual but compresses its duration.
  const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?220:1050;
- const active={index:data.index,shape:{...shape},at:{...data.at},duration,start:performance.now(),frame:0};
+ const active={index:data.index,shape:verified.shape,at:verified.at,duration,start:performance.now(),frame:0};
  eraserMotion=active;preview.replaceChildren();showStage();
  document.body.classList.add('gnss-draft-animating','gnss-eraser-active');
  document.dispatchEvent(new CustomEvent('gnss:erase-progress',{
@@ -947,28 +972,40 @@ function beginErase(data){
  }));
  function frame(now){
   if(eraserMotion!==active)return;
-  const t=clamp((now-active.start)/duration,0,1),pose=eraserPathPosition(active,t);
-  document.dispatchEvent(new CustomEvent('gnss:erase-progress',{
-   detail:{index:active.index,progress:pose.progress,at:active.at}
-  }));
-  if(renderer&&three&&eraser){
-   ruler.visible=pencil.visible=compass.visible=false;
-   eraser.visible=true;eraser.scale.setScalar(unitScale());
-   const xy=screen(pose);
-   eraser.position.set(xy.x,xy.y,10+pose.lift);
-   eraser.rotation.set(0,0,pose.angle);
-   renderer.render(scene,camera);
-  }else paintEraserFallback(pose);
-  paintEraseDust(pose,t);
-  if(t>=1){
-   eraserMotion=null;preview.replaceChildren();finishScene();
-   document.body.classList.remove('gnss-draft-animating','gnss-eraser-active');
-   document.dispatchEvent(new CustomEvent('gnss:erase-commit',{
-    detail:{index:active.index,shape:active.shape}
+  try{
+   const elapsed=Number.isFinite(now)?now-active.start:performance.now()-active.start;
+   const t=clamp(elapsed/duration,0,1);
+   const pose=eraserPathPosition(active,t);
+   if(![pose.x,pose.y,pose.angle,pose.lift,pose.progress].every(Number.isFinite)){
+    throw new Error('Invalid eraser animation coordinates');
+   }
+   document.dispatchEvent(new CustomEvent('gnss:erase-progress',{
+    detail:{index:active.index,progress:pose.progress,at:active.at}
    }));
-   return;
+   if(renderer&&three&&eraser){
+    ruler.visible=pencil.visible=compass.visible=false;
+    eraser.visible=true;eraser.scale.setScalar(unitScale());
+    const xy=screen(pose);
+    if(!Number.isFinite(xy.x)||!Number.isFinite(xy.y))
+     throw new Error('Eraser screen transform not finite');
+    eraser.position.set(xy.x,xy.y,10+pose.lift);
+    eraser.rotation.set(0,0,pose.angle);
+    renderer.render(scene,camera);
+   }else paintEraserFallback(pose);
+   paintEraseDust(pose,t);
+   if(t>=1){
+    eraserMotion=null;preview.replaceChildren();finishScene();
+    document.body.classList.remove('gnss-draft-animating','gnss-eraser-active');
+    document.dispatchEvent(new CustomEvent('gnss:erase-commit',{
+     detail:{index:active.index,shape:active.shape}
+    }));
+    return;
+   }
+   active.frame=requestAnimationFrame(frame);
+  }catch(error){
+   console.error('GNSS LAB: eraser animation cancelled safely',error);
+   cancelErase();
   }
-  active.frame=requestAnimationFrame(frame);
  }
  active.frame=requestAnimationFrame(frame);
  return true;
