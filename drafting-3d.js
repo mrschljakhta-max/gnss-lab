@@ -24,7 +24,7 @@ canvas.setAttribute('aria-hidden','true');fallback.setAttribute('aria-hidden','t
 stageEl.append(canvas,fallback);board.append(stageEl);
 const hint=document.createElement('div');hint.className='gnss-draft-feedback';board.append(hint);
 let mode='demo',tool='line',step=0,complete=false,first=null,cursor=null,motion=null;
-let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null;
+let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null,eraser=null,eraserMotion=null;
 let ctx=null,ratio=1,w=0,h=0;
 const COMPASS_INITIAL=20;
 // Orthographic calibration: 1 mm = 3 SVG units, exactly 150 mm on one ruler.
@@ -84,7 +84,8 @@ const kind=()=>tool==='compass'?'circle':'line';
 window.GNSSDrafting3D={
  get intercepts(){return interactive()},
  get demoRunning(){return !!motion?.demo},
- get animating(){return !!motion},
+ get animating(){return !!motion||!!eraserMotion},
+ get erasing(){return !!eraserMotion},
  cancel(){cancel()},
 };
 function node(tag,attrs={},text){
@@ -191,6 +192,7 @@ function valid(shape){
 }
 function clear(){first=null;cursor=null;preview.replaceChildren()}
 function cancel(){
+ if(eraserMotion)cancelErase();
  const previous=motion;motion=null;cancelAnimationFrame(animationHandle);
  if(previous)finishScene();
  clear();
@@ -271,8 +273,8 @@ async function init3D(){
   scene.add(new three.AmbientLight(0xcce7ff,1.8));
   light=new three.DirectionalLight(0xffffff,3.0);
   light.position.set(-300,-320,700);scene.add(light);
-  ruler=buildRuler();pencil=buildPencil();compass=buildCompass();
-  scene.add(ruler,pencil,compass);ruler.visible=pencil.visible=compass.visible=false;
+  ruler=buildRuler();pencil=buildPencil();compass=buildCompass();eraser=buildEraser();
+  scene.add(ruler,pencil,compass,eraser);ruler.visible=pencil.visible=compass.visible=eraser.visible=false;
   fallback.style.display='none';canvas.style.display='block';resize();
  }catch(err){
   renderer=null;three=null;
@@ -597,6 +599,54 @@ function buildCompass(){
  g.visible=false;
  return g;
 }
+/* Premium drafting eraser. True 3D rubber with softly beveled corners
+ * and a deep blue wrap, seen orthographically from the fixed top camera.
+ */
+function buildEraser(){
+ const T=three,g=new T.Group();
+ const offWhite=new T.MeshStandardMaterial({color:0xe4e9e5,roughness:.84,metalness:0});
+ const edgeRubber=new T.MeshStandardMaterial({color:0xbfc8c7,roughness:.95,metalness:0});
+ const navy=new T.MeshStandardMaterial({color:0x17385e,roughness:.58,metalness:.08});
+ const navySide=new T.MeshStandardMaterial({color:0x09233f,roughness:.6,metalness:.05});
+ const rounded=(left,right,top,bottom,r,z,height,mat)=>{
+  const sh=new T.Shape();
+  sh.moveTo(left+r,top);sh.lineTo(right-r,top);sh.quadraticCurveTo(right,top,right,top+r);
+  sh.lineTo(right,bottom-r);sh.quadraticCurveTo(right,bottom,right-r,bottom);
+  sh.lineTo(left+r,bottom);sh.quadraticCurveTo(left,bottom,left,bottom-r);
+  sh.lineTo(left,top+r);sh.quadraticCurveTo(left,top,left+r,top);sh.closePath();
+  const obj=new T.Mesh(new T.ExtrudeGeometry(sh,{
+   depth:height,bevelEnabled:true,bevelThickness:1.6,
+   bevelSize:1.5,bevelSegments:3,steps:1,curveSegments:12
+  }),mat);
+  obj.position.z=z;g.add(obj);return obj;
+ };
+ // 87 × 39 × 11 mm: white rubber nose + removable midnight-blue sleeve.
+ rounded(-47,42,-19,19,5,10,9,offWhite);
+ rounded(-15,44,-20.2,20.2,3.8,15,4,navy);
+ const stripe=new T.Mesh(new T.BoxGeometry(49,1.1,.35),
+  new T.MeshBasicMaterial({color:0x7c9eb9}));
+ stripe.position.set(13,-13,21);g.add(stripe);
+ // Label is physically printed on the upper face, never a UI card.
+ const texCanvas=document.createElement('canvas');
+ texCanvas.width=512;texCanvas.height=180;
+ const ct=texCanvas.getContext('2d');
+ if(ct){
+  ct.clearRect(0,0,512,180);ct.fillStyle='#e8f4f1';ct.font='600 54px Arial,sans-serif';
+  ct.textAlign='center';ct.textBaseline='middle';ct.fillText('ERASER',256,82);
+  ct.fillStyle='#8dabbf';ct.font='400 26px Arial,sans-serif';ct.fillText('GNSS LAB',256,136);
+ }
+ const labelTex=new T.CanvasTexture(texCanvas);labelTex.colorSpace=T.SRGBColorSpace;
+ const label=new T.Mesh(new T.PlaneGeometry(47,16),
+  new T.MeshBasicMaterial({map:labelTex,transparent:true,depthWrite:false,side:T.DoubleSide}));
+ label.position.set(13,2,22.35);g.add(label);
+ // A thin low-opacity contact shadow, hidden when no animation is active.
+ const shade=new T.Mesh(new T.PlaneGeometry(87,41),
+  new T.MeshBasicMaterial({color:0x011d30,transparent:true,opacity:.13,depthWrite:false}));
+ shade.position.set(4,3,7.5);g.add(shade);
+ g.userData={design:'technical-eraser-v1',orthographic:true};
+ g.visible=false;
+ return g;
+}
 function showStage(){
  stageEl.classList.add('is-playing');
  if(renderer){canvas.style.display='block';fallback.style.display='none'}
@@ -607,6 +657,7 @@ function finishScene(){
  if(ruler)ruler.visible=false;
  if(pencil)pencil.visible=false;
  if(compass)compass.visible=false;
+ if(eraser)eraser.visible=false;
  if(ctx)ctx.clearRect(0,0,w,h);
 }
 /* Timed measured passes: the ruler is always exactly 150 mm long.
