@@ -122,6 +122,7 @@ function questGuide(root){
   root.append(svgEl('circle',{cx:circle.x,cy:circle.y,r:circle.r,class:'eng-focus'}));}
 }
 function rulerShape(root){
+ if(window.GNSSPhysicalTools && state.mode!=='demo')return;
  if(state.mode==='demo'||state.tool==='ruler'||(state.mode==='quest'&&state.stage===2)){
   const grp=svgEl('g',{class:'eng-ruler',transform:`translate(${state.ruler.x} ${state.ruler.y}) rotate(${state.ruler.angle})`,'data-drag':'ruler'});
   grp.append(svgEl('rect',{x:0,y:-13,width:460,height:35,rx:4,fill:'#e5e9e1',stroke:'#829ba0','stroke-width':2,'data-drag':'ruler'}));
@@ -146,6 +147,14 @@ function draw(){
  }
  drawHUD();
 }
+let lastPublished='';
+function publishDraftState(){
+ const data={mode:state.mode,tool:state.tool,stage:state.stage,segment:state.segment,measure:state.measure,complete:state.complete};
+ const k=JSON.stringify(data);
+ if(k===lastPublished)return;
+ lastPublished=k;
+ document.dispatchEvent(new CustomEvent('gnss:draft-state',{detail:data}));
+}
 function drawHUD(){
  const v=currentLength();readout.textContent=fmt(v);
  const lbl=qs('#engUnitIcon',container);if(lbl)lbl.textContent=state.measureUnit;
@@ -161,6 +170,7 @@ function drawHUD(){
  right.querySelectorAll('[data-layer]').forEach(b=>{const v=state['layer'+b.dataset.layer];b.classList.toggle('off',!v);b.classList.toggle('on',!!v);b.setAttribute('aria-pressed',String(v))});
  paper.style.backgroundImage=state.layerGrid?"url('./assets/blueprint-paper.svg')":'none';
  stepNote.textContent=state.mode==='quest'?`${Math.min(3,state.stage+1)} / 3`:'A3 · SCALE 1:1';
+ publishDraftState();
 }
 function checkTarget(p){
  if(state.mode!=='quest'||state.stage>=3)return true;
@@ -266,6 +276,47 @@ cmd.addEventListener('click',e=>{const b=e.target.closest('[data-cmd]');if(!b)re
  if(a==='play'){if(!state.demoPlaying){state.demoStart=performance.now();state.records=[]}state.demoPlaying=!state.demoPlaying}
  if(a==='next'){state.demoStart=performance.now()-1.4*(Math.min(4,Math.floor((performance.now()-state.demoStart)/1400)+1))*1000;state.demoPlaying=true}
  draw();});
+// Physical instrument layer actions share the same geometry and quest scoring.
+function erasePoint(p){
+ let nearest=-1,shortest=16;
+ state.records.forEach((shape,i)=>{
+  let d;
+  if(shape.type==='circle')d=Math.abs(dist(p,shape)-shape.r);
+  else{
+   const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1,mag=Math.max(1,dx*dx+dy*dy);
+   const t=clamp(((p.x-shape.x1)*dx+(p.y-shape.y1)*dy)/mag,0,1);
+   d=Math.hypot(p.x-(shape.x1+t*dx),p.y-(shape.y1+t*dy));
+  }
+  if(d<shortest){nearest=i;shortest=d}
+ });
+ if(nearest===-1)return false;
+ saveHistory();state.records.splice(nearest,1);draw();
+ return true;
+}
+document.addEventListener('gnss:table-action',e=>{
+ if(lesson()!==0||state.mode==='demo'||state.complete)return;
+ const a=e.detail||{},p={x:a.x||0,y:a.y||0};
+ if(a.type==='ruler'){
+  state.ruler.x=clamp(p.x-230,12,920);
+  state.ruler.y=clamp(p.y-4,40,620);
+  state.ruler.angle=Number(a.angle)||0;
+  if(a.end&&state.mode==='quest'&&state.stage===2&&
+    Math.abs(state.ruler.y-(rect.y+rect.h+35))<28&&Math.abs(state.ruler.x-rect.x)<32){
+   state.measure='rect';finishMeasurement();
+  }
+  draw();
+ }else if(a.type==='circle'&&state.tool==='compass'){
+  state.pending={type:'circle',x:snap(p.x),y:snap(p.y),r:clamp(snap(a.r||0),5,255)};
+  draw();
+ }else if(a.type==='caliper'&&state.tool==='caliper'&&a.end){
+  if(Math.hypot(p.x-circle.x,p.y-circle.y)<150&&Math.abs((a.gap||0)-64)<=3){
+   if(state.mode==='quest'&&state.stage===2&&state.measure==='rectDone')finishMeasurement();
+   else {state.measure=64;toast('Ø '+fmt(64));draw()}
+  }else toast('↔ Сумісти губки');
+ }else if(a.type==='erase'&&state.tool==='eraser'){
+  if(erasePoint(p))document.dispatchEvent(new CustomEvent('gnss:eraser-contact',{detail:p}));
+ }
+});
 right.addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn)return;
  if(btn.dataset.layer){state['layer'+btn.dataset.layer]=!state['layer'+btn.dataset.layer];draw()}
  if(btn.dataset.cmd==='undo')undo();if(btn.dataset.cmd==='redo')redo();if(btn.dataset.cmd==='clear')clear();
