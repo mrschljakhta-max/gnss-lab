@@ -1,0 +1,57 @@
+
+/* GNSS LAB · minimal viewport UX */
+.topbar{display:none!important}
+.main{padding:17px clamp(12px,2.5vw,38px) 20px!important;max-width:none!important}
+#modeTabsAnchor #expModes{margin:0 0 12px!important;gap:10px!important}
+#modeTabsAnchor .exp-mode{min-height:56px!important;padding:11px 14px!important;justify-content:center;gap:5px!important;border-radius:10px!important}
+#modeTabsAnchor .exp-mode b,#modeTabsAnchor .exp-mode small{display:none!important}
+#modeTabsAnchor .exp-mode strong{font-size:14px!important}
+.intro{padding:0!important;margin:0!important;border:0!important}
+.intro .eyebrow,.intro-row,.intro .kicker,.intro h1,.intro-desc,.intro-symbol{display:none!important}
+#modePanelAnchor,.lab-head .lab-head-copy p,.lab-head .lab-badge,.scene-footer,.canvas-meta,.site-footer,.observation,.mission,.control-label{display:none!important}
+.stage-tabs{margin:0 0 12px!important;min-height:0!important}
+.stage-tab{padding:8px 12px!important;min-height:35px!important}
+.lab-shell{margin:0!important;border-radius:13px!important;overflow:hidden}
+.lab-head{min-height:44px!important;padding:8px 13px!important}
+.lab-head h2{font-size:13px!important;margin:0!important}
+.lab-body{min-height:0!important}
+.scene{height:min(77dvh,780px)!important;min-height:420px!important}
+.canvas-column{position:relative!important;padding:0!important;overflow:hidden!important}
+.control-column{padding:13px!important}
+.sidebar .brand-sub,.sidebar .side-heading{display:none!important}
+body.gnss-workshop #experimentTabs,body.gnss-workshop .lab-head,body.gnss-workshop .control-column{display:none!important}
+body.gnss-workshop .lab-body{display:block!important}
+body.gnss-workshop .canvas-column{width:100%!important}
+body.gnss-workshop #scene{height:calc(100dvh - 118px)!important;min-height:480px!important;visibility:hidden!important}
+#gnss-three-root{position:absolute;inset:0;z-index:8;overflow:hidden;background:radial-gradient(circle at 60% 50%,#1a3139,#07131a 75%)}
+#gnss-three-root canvas{display:block;width:100%!important;height:100%!important;touch-action:none}
+.three-hud{position:absolute;z-index:10;display:flex;gap:8px;align-items:center;color:#dcece4;pointer-events:none}
+.three-hud>*{pointer-events:auto}
+.three-hud button{background:#10232add;border:1px solid #3c5b60;color:#dfefe0;border-radius:8px;min-height:39px;padding:7px 11px;cursor:pointer;backdrop-filter:blur(10px);font-weight:650}
+.three-hud button:hover,.three-hud button:focus-visible,.three-hud button.active{border-color:#b1f378;background:#214633;color:#def8cf}
+.three-readout{left:17px;top:17px;font:700 20px ui-monospace,monospace;color:#b1f378;padding:10px 15px;border:1px solid #38545a;border-radius:10px;background:#10232add;backdrop-filter:blur(12px)}
+.three-play{right:16px;top:16px}
+.three-toolbar{left:50%;bottom:18px;transform:translateX(-50%);border:1px solid #35515a;border-radius:13px;padding:6px;background:#0c1e26eb;max-width:calc(100% - 22px);flex-wrap:wrap;justify-content:center}
+.three-toolbar .three-tool.active{border-color:#b1f378;background:#274633}
+.three-toolbar .three-jaw{display:flex;gap:7px;align-items:center;font-size:11px;background:#122a31;border:1px solid #426068;padding:6px 9px;border-radius:8px}
+.three-toolbar input{width:105px;accent-color:#b1f378}
+.three-quest{top:72px;left:17px;background:#10232ad9;padding:9px 13px;border:1px solid #446857;border-radius:10px;backdrop-filter:blur(12px);font:650 12px ui-sans-serif,sans-serif}
+.three-quest button{min-height:31px;background:#b1f378;color:#15311c}
+.three-quest strong{max-width:280px;line-height:1.4}
+.three-hint{position:absolute;bottom:17px;left:17px;color:#85a5ab;font:11px ui-monospace,monospace;z-index:10}
+@media(max-width:650px){
+.topbar{display:flex!important;height:0!important;min-height:0!important;padding:0!important;border:0!important;overflow:visible!important}
+.topbar .crumb,.topbar .top-right{display:none!important}
+.mobile-sidebar-trigger{display:inline-flex!important;position:fixed!important;left:8px!important;top:8px!important;z-index:101!important}
+.main{padding:53px 9px 15px!important}
+#modeTabsAnchor #expModes{gap:4px!important;margin-bottom:8px!important}
+#modeTabsAnchor .exp-mode{min-height:45px!important;padding:6px 4px!important}
+#modeTabsAnchor .exp-mode strong{font-size:11px!important}
+body.gnss-workshop #scene{height:calc(100dvh - 117px)!important;min-height:460px!important}
+.three-readout{top:11px;left:10px;font-size:14px;padding:7px}
+.three-play{top:10px;right:9px}
+.three-toolbar{bottom:9px}
+.three-toolbar button{font-size:11px;padding:6px}
+.three-quest{left:10px;top:55px;padding:7px}
+.three-hint{display:none}
+}
