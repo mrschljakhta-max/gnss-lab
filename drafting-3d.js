@@ -141,6 +141,7 @@ function display(shape,progress=null){
   if(r>1){
    const a0=Number.isFinite(shape.startAngle)?shape.startAngle:-Math.PI/2;
    preview.append(node('line',{x1:x,y1:y,x2:x+r*Math.cos(a0),y2:y+r*Math.sin(a0),class:'gnss-radius'}));
+   preview.append(node('circle',{cx:x+r*Math.cos(a0),cy:y+r*Math.sin(a0),r:4.2,class:'gnss-point'}));
    if(progress===null){
     preview.append(node('circle',{cx:x,cy:y,r,class:'gnss-guide'}));
    }else{
@@ -153,7 +154,10 @@ function display(shape,progress=null){
     preview.append(node('path',{d,class:'gnss-drawn'}));
    }
    const dp=previewDimensionPosition(shape)||{x,y:y-r-28};
-   preview.append(node('text',{x:dp.x,y:dp.y,class:'gnss-dimension','text-anchor':'middle'},previewDimensionText(shape)));
+   preview.append(node('text',{x:dp.x,y:dp.y,class:'gnss-dimension','text-anchor':'middle'},
+    progress===null
+      ?'R '+(r/SCALE).toLocaleString('uk-UA',{maximumFractionDigits:1})+' мм'
+      :previewDimensionText(shape)));
   }
   return;
  }
