@@ -18,8 +18,10 @@ function object(w,h,d,color,x=0,y=0,z=0){
 }
 function pick(group,name){group.traverse(x=>{if(x.isMesh)x.userData.action=name})}
 function updateCamera(){
- camera.position.set(Math.sin(angle)*Math.cos(elevation)*distance,Math.sin(elevation)*distance+1,Math.cos(angle)*Math.cos(elevation)*distance);
- camera.lookAt(0,.2,0)
+ // A fixed, top-down drafting camera. Only objects move, never the workspace.
+ camera.up.set(0,0,-1);
+ camera.position.set(0,12,0.0001);
+ camera.lookAt(0,.05,0);
 }
 function reset(m){
  P.mode=m;P.length=1.25;P.ruler=-1.85;P.calX=1.98;P.calZ=-1.26;P.gap=.55;P.instrument='ruler';P.time=0;P.playing=true;P.passed=false;
@@ -87,22 +89,28 @@ function buildHUD(){
  });
 }
 function createScene(){
- scene=new T.Scene();scene.background=new T.Color(0x0a1b22);scene.fog=new T.Fog(0x0a1b22,7,18);
- camera=new T.PerspectiveCamera(40,1,.1,60);
- renderer=new T.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+ scene=new T.Scene();scene.background=null;
+ camera=new T.OrthographicCamera(-4.4,4.4,2.55,-2.55,.1,60);
+ renderer=new T.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
  renderer.setPixelRatio(Math.min(window.devicePixelRatio||1,1.65));
  renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;
  renderer.outputColorSpace=T.SRGBColorSpace;
- renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.65;
+ renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.4;
+ renderer.setClearColor(0x000000,0);
  const canvas=renderer.domElement;canvas.setAttribute('aria-label','3D-стіл: перетягніть лінійку, зелену ручку бруска або штангенциркуль');canvas.tabIndex=0;root.prepend(canvas);
  scene.add(new T.HemisphereLight(0xc3e0ed,0x183c36,2.4));
  const sun=new T.DirectionalLight(0xffe9cb,3.4);sun.position.set(-2,7,4);sun.castShadow=true;sun.shadow.mapSize.set(1024,1024);
  sun.shadow.camera.left=-6;sun.shadow.camera.right=6;sun.shadow.camera.top=6;sun.shadow.camera.bottom=-6;scene.add(sun);
  const rim=new T.PointLight(0x73dec5,8,9);rim.position.set(3,2,-2);scene.add(rim);
- scene.add(object(8.5,.22,5.5,0x112d34,0,-.16,0));
- grid=new T.GridHelper(8.3,38,0x385961,0x284750);grid.position.y=-.04;scene.add(grid);
- scene.add(object(8.55,.12,.06,0x45636a,0,-.27,2.74));
- scene.add(object(24,.04,24,0x081115,0,-.42,0));
+ // The former solid tabletop and teal grid are gone.
+ // The true drafting paper is a crisp, fixed SVG underneath the transparent canvas.
+ // A transparent shadow catcher grounds the measuring tools on the paper.
+ const shadowSurface=new T.Mesh(new T.PlaneGeometry(24,24),
+   new T.ShadowMaterial({color:0x001526,opacity:.24}));
+ shadowSurface.rotation.x=-Math.PI/2;
+ shadowSurface.position.y=-.045;
+ shadowSurface.receiveShadow=true;
+ scene.add(shadowSurface);
  block=new T.Group();scene.add(block);
  body=object(1,.39,.56,0xc9a57b);body.userData.action='grip';block.add(body);
  body.add(new T.LineSegments(new T.EdgesGeometry(body.geometry),new T.LineBasicMaterial({color:0xffe5ad,transparent:true,opacity:.3})));
@@ -129,8 +137,18 @@ function createScene(){
  guide.rotation.x=-Math.PI/2;guide.position.set(1.25,.04,-.63);guide.name='guide';scene.add(guide);
  ray=new T.Raycaster();plane=new T.Plane(new T.Vector3(0,1,0),-.12);
  canvas.addEventListener('pointerdown',down);canvas.addEventListener('pointermove',move);canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
- canvas.addEventListener('wheel',e=>{e.preventDefault();distance=clamp(distance+e.deltaY*.004,3.5,10);updateCamera()},{passive:false});
- let adjust=()=>{if(!root||!renderer)return;let w=Math.max(1,root.clientWidth),h=Math.max(1,root.clientHeight);renderer.setSize(w,h,false);camera.aspect=w/h;camera.updateProjectionMatrix()};
+ 
+ let adjust=()=>{
+  if(!root||!renderer)return;
+  const w=Math.max(1,root.clientWidth),h=Math.max(1,root.clientHeight),aspect=w/h;
+  renderer.setSize(w,h,false);
+  // Keep the drafting sheet and its objects stationary when the viewport changes.
+  const halfH=aspect<1?3.65:4.25/aspect;
+  camera.left=-halfH*aspect;camera.right=halfH*aspect;
+  camera.top=halfH;camera.bottom=-halfH;
+  camera.updateProjectionMatrix();
+  updateCamera();
+ };
  resizeObserver=new ResizeObserver(adjust);resizeObserver.observe(root);adjust();updateCamera();
  clock=new T.Clock();
 }
@@ -141,7 +159,8 @@ function worldPoint(e){
 function down(e){
  if(P.mode==='demo')return;
  let v=worldPoint(e),hit=ray.intersectObjects([handle,body,ruler,caliper],true).find(x=>x.object.userData.action);
- drag=hit?hit.object.userData.action:'orbit';
+ drag=hit?hit.object.userData.action:null;
+ if(!drag)return;
  if(P.mode==='quest'&&((drag==='ruler'&&P.step!==0)||(drag==='grip'&&P.step!==1)||(drag==='caliper'&&P.step!==2)))drag='orbit';
  if(v){offset.x=drag==='ruler'?v.x-P.ruler:drag==='caliper'?v.x-P.calX:0;offset.z=v.z-P.calZ}
  offset.px=e.clientX;offset.py=e.clientY;
@@ -150,8 +169,7 @@ function down(e){
 }
 function move(e){
  if(!drag)return;
- if(drag==='orbit'){angle-=(e.clientX-offset.px)*.006;elevation=clamp(elevation+(e.clientY-offset.py)*.004,.15,1.1);updateCamera()}
- else{
+ if(drag){
   let v=worldPoint(e);
   if(v){
    if(drag==='ruler')P.ruler=clamp(Math.round((v.x-offset.x)*100)/100,-2.4,.5);
@@ -181,7 +199,7 @@ function tick(t){
   P.calX=interp(1.98,1.42,(P.time-6)/2.8);
   P.calZ=interp(-1.26,-.63,(P.time-6)/2.8);
   P.gap=interp(.55,.34,(P.time-6)/2.8);
-  if(!reduced.matches){angle=.64+Math.sin(t*.0002)*.04;updateCamera()}
+  // Camera never drifts: blueprint is an anchored drafting surface.
   let v=P.length*(P.unit==='cm'?100:P.unit==='mm'?1000:1);
   readout.textContent=showNum(v,P.unit==='m'?2:0)+' '+P.unit
  }
