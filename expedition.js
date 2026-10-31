@@ -111,7 +111,7 @@ function label(){return Array.from({length:3},(_,i)=>`<i class="${i<(mode==='dem
 function prepareQuest(){
 passed=false;interacted=false;
 const step=count(active);if(step>=3)return;
-const [exp,,,,start]=Q[active][step];
+const [exp,,,start]=Q[active][step];
 expt=exp;const defaults=Object.fromEntries(topics[active].exps[exp].params.map(p=>[p.key,p.initial]));
 states[active][exp]={...defaults,...start};
 }
@@ -170,7 +170,7 @@ if(mode==='demo')play()
 function onInteraction(){
 if(mode!=='quest'||passed||count(active)===3)return;
 interacted=true;
-const [requiredExp,,,,,rules]=Q[active][count(active)];
+const [requiredExp,,,,rules]=Q[active][count(active)];
 if(expt===requiredExp&&rulesOkay(getState(),rules)){passed=true;drawPanel();toast('◆ Місію виконано! Тисни «Далі».')}
 }
 tabs.addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(b)switchMode(b.dataset.mode)});
