@@ -1,0 +1,67 @@
+/* GNSS LAB · Practical route 01 — immersive, not cards inside cards */
+body.lab01-route .eng-geometry{visibility:hidden!important;pointer-events:none!important}
+body.lab01-route #engDock,body.lab01-route #engFloats,
+body.lab01-route #engCommand,body.lab01-route #engStatus,
+body.lab01-route #engReadout{display:none!important}
+body.lab01-route .gnss-3d-stage{display:none!important}
+#lab01Journey{position:absolute;inset:0;z-index:30;color:#eff9f7;font-family:Inter,system-ui,Arial,sans-serif;pointer-events:auto;user-select:none}
+#lab01Journey[hidden]{display:none}
+#lab01Journey .journey-sketch{position:absolute;inset:0;width:100%;height:100%;touch-action:none;overflow:hidden}
+#lab01Journey .journey-sketch .j-primary{stroke:#eaf9fb;stroke-width:2.7;fill:none;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 3px #8de8f366)}
+#lab01Journey .journey-sketch .j-ghost{stroke:#9fea7e;stroke-width:2;fill:none;stroke-dasharray:8 9;opacity:.72}
+#lab01Journey .journey-sketch .j-point{fill:#bafd8a;stroke:#184b58;stroke-width:3;filter:drop-shadow(0 0 5px #91f77899)}
+#lab01Journey .journey-sketch .j-handle{fill:#b8f784;stroke:#124253;stroke-width:3;cursor:grab;filter:drop-shadow(0 0 5px #abfc8199)}
+#lab01Journey .journey-sketch .j-handle:active{cursor:grabbing}
+#lab01Journey .journey-sketch .j-dimension{font:700 16px ui-monospace,Consolas,monospace;fill:#edfaff;paint-order:stroke fill;stroke:#0c4063;stroke-width:4;stroke-linejoin:round;pointer-events:none}
+#lab01Journey .journey-sketch .j-secondary{font:500 12px ui-monospace,Consolas,monospace;fill:#a8cad8;pointer-events:none}
+#lab01Journey .journey-sketch .j-area{fill:#b9f989;fill-opacity:.095;stroke:#dcefff;stroke-width:2.4}
+#lab01Journey .journey-sketch .j-measure{stroke:#a0e6e3;stroke-width:1.5;fill:none;stroke-dasharray:5 7}
+#lab01Journey .journey-nav{position:absolute;top:67px;left:50%;transform:translateX(-50%);z-index:34;min-width:182px;text-align:center}
+#lab01Journey button{font:inherit;cursor:pointer}
+#lab01Journey .journey-nav-toggle{background:rgba(5,29,44,.84);backdrop-filter:blur(12px);border:0;border-bottom:1px solid #81cba962;color:#dcf9f2;padding:9px 16px;font-size:12px;font-weight:750;letter-spacing:.02em;white-space:nowrap}
+#lab01Journey .journey-nav-toggle:hover{color:#b6fb88}
+#lab01Journey .journey-step-list{position:absolute;top:100%;left:50%;transform:translateX(-50%);width:min(765px,calc(100vw - 95px));padding:12px 14px;background:rgba(5,28,42,.95);box-shadow:0 16px 45px #00132178;display:flex;flex-wrap:wrap;justify-content:center;gap:4px;backdrop-filter:blur(16px)}
+#lab01Journey .journey-step-list[hidden]{display:none}
+#lab01Journey .journey-step-list button{background:transparent;border:0;color:#abc5cf;padding:11px 12px;white-space:nowrap;font-size:12px;border-bottom:2px solid transparent}
+#lab01Journey .journey-step-list button[aria-current="step"]{border-color:#b7fb88;color:#eaffef}
+#lab01Journey .journey-step-list button:hover,#lab01Journey .journey-step-list button:focus-visible{color:#c1fb97}
+#lab01Journey .j-hud{position:absolute;top:24px;left:28px;z-index:32;pointer-events:none}
+#lab01Journey .j-id{font:650 10px ui-monospace,Consolas,monospace;letter-spacing:1.35px;color:#b6dbdb}
+#lab01Journey .j-hud-title{font-size:clamp(19px,2vw,30px);font-weight:720;letter-spacing:-.03em;margin-top:6px}
+#lab01Journey .j-hud-task{font-size:13px;color:#bbd6dc;margin-top:6px;max-width:480px;line-height:1.4}
+#lab01Journey .j-metrics{position:absolute;left:30px;bottom:67px;z-index:32;display:flex;flex-wrap:wrap;align-items:center;gap:20px;pointer-events:none;max-width:calc(100% - 330px)}
+#lab01Journey .j-metric{display:flex;flex-direction:column;gap:4px}
+#lab01Journey .j-metric strong{font:700 clamp(16px,2.1vw,25px) ui-monospace,Consolas,monospace;white-space:nowrap;color:#ebfbfb}
+#lab01Journey .j-metric small{font:600 10px ui-monospace,Consolas,monospace;letter-spacing:.8px;color:#b0d0d9}
+#lab01Journey .j-footer{position:absolute;inset:auto 23px 16px 23px;z-index:33;display:flex;align-items:center;justify-content:space-between;gap:8px;pointer-events:none}
+#lab01Journey .j-footer>div{display:flex;align-items:center;gap:6px;pointer-events:auto}
+#lab01Journey .j-action{background:rgba(5,34,50,.75);border:1px solid #7ca5aa77;color:#e1f5f6;padding:10px 14px;border-radius:5px;font-size:12px;font-weight:670;white-space:nowrap}
+#lab01Journey .j-action:hover{background:#16465b;color:#c5f994}
+#lab01Journey .j-action.j-primary-action{background:#b7f786;color:#103327;border-color:transparent}
+#lab01Journey .j-action.j-primary-action:hover{background:#d0ff9f}
+#lab01Journey .j-action:disabled{opacity:.4;cursor:not-allowed}
+#lab01Journey .j-units{position:absolute;top:117px;right:27px;z-index:33;display:flex;gap:5px}
+#lab01Journey .j-units[hidden]{display:none}
+#lab01Journey .j-units button{border:0;border-bottom:2px solid transparent;padding:8px 12px;background:rgba(5,31,46,.7);color:#c9e0e8;font:700 12px ui-monospace,Consolas,monospace}
+#lab01Journey .j-units button[aria-pressed="true"]{color:#b5fa84;border-color:#b5fa84}
+#lab01Journey .j-notice{position:absolute;top:167px;right:27px;z-index:33;color:#bdff95;font:650 12px ui-monospace,Consolas,monospace;max-width:280px;text-align:right;pointer-events:none}
+#lab01Journey .j-notice:empty{display:none}
+#lab01Journey .j-progress{display:flex;gap:5px;align-items:center}
+#lab01Journey .j-progress i{width:21px;height:3px;background:#86afbd5a}
+#lab01Journey .j-progress i.done{background:#bbf788}
+#lab01Journey .j-progress i.active{background:#f2fbf6}
+#lab01Journey .j-object-hit{cursor:pointer;outline:none}
+#lab01Journey .j-object-hit:focus{filter:drop-shadow(0 0 8px #b8f785)}
+body.lab01-route .mode-peek{z-index:90}
+@media(max-width:780px){
+ #lab01Journey .j-hud{top:70px;left:17px}
+ #lab01Journey .journey-nav{top:10px;left:52%;min-width:155px}
+ #lab01Journey .j-hud-title{font-size:19px}
+ #lab01Journey .j-hud-task{font-size:11px;max-width:250px}
+ #lab01Journey .j-metrics{left:16px;bottom:90px;max-width:calc(100% - 25px);gap:11px}
+ #lab01Journey .j-metric strong{font-size:17px}
+ #lab01Journey .j-footer{bottom:14px;left:12px;right:12px}
+ #lab01Journey .j-action{padding:10px 9px;font-size:11px}
+ #lab01Journey .j-units{top:183px;right:10px}
+ #lab01Journey .j-progress{display:none}
+}
