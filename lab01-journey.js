@@ -88,7 +88,7 @@ function scene(){
   s+=H(x+width,y+height,'corner')+L(x,y-18,x+width,y-18,'j-measure')+L(x-17,y,x-17,y+height,'j-measure');
   s+=T(x+width/2,y-30,fmt(width/n)+' мм')+T(x-45,y+height/2,fmt(height/n)+' мм');
   if(stage===5)s+=T(x+width/2,y+height/2,fmt(width*height/9,0)+' мм²')+
-    T(x+width/2,y+height/2+30,fmt(width*height/900,1)+' см²','j-secondary');
+    T(x+width/2,y+height/2+30,fmt(width*height/900,1)+' клітинок по 1 см²','j-secondary');
   else s+=T(x+width/2,y+height/2,'P = '+fmt(2*(width+height)/n)+' мм');
  }else{
   const block=object==='block',accent='#bafa84';
