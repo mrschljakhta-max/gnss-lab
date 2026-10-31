@@ -65,7 +65,7 @@ function buildHUD(){
  +'<div class="three-hud three-play" id="threePlay"><button type="button" data-restart aria-label="Повторити показ">↻</button><button type="button" data-play aria-label="Пауза або відтворення">⏸</button><button type="button" data-forward aria-label="Наступний кадр">→</button></div>'
  +'<div class="three-hud three-quest" id="threeQuest" aria-live="polite" hidden></div>'
  +'<div class="three-hud three-toolbar" id="threeTools"><button type="button" data-tool="ruler" aria-label="Обрати лінійку">▥ Лінійка</button><button type="button" data-tool="caliper" aria-label="Обрати штангенциркуль">⊣ Штангенциркуль</button><span class="three-jaw" hidden><span id="workshopJawValue">Ø 55 см</span><input type="range" id="workshopJaw" aria-label="Розкриття губок" min=".18" max=".70" step=".01" value=".55"></span><button type="button" data-unit="m">м</button><button type="button" data-unit="cm">см</button><button type="button" data-unit="mm">мм</button><button type="button" data-reset aria-label="Скинути сцену">↻</button></div>'
- +'<span class="three-hint">↔ Перетягуй предмети · Обертай сцену · Коліщатко — масштаб</span>';
+ +'<span class="three-hint" aria-hidden="true"></span>';
  host.append(root);
  readout=root.querySelector('#threeReadout');tools=root.querySelector('#threeTools');playbar=root.querySelector('#threePlay');questbar=root.querySelector('#threeQuest');
  tools.addEventListener('click',e=>{
