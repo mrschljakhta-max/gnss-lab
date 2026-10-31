@@ -1,0 +1,312 @@
+/* GNSS LAB — frameless CAD surface / 2026-10.
+   One work surface; controls float over the blueprint only when requested.
+   Deliberately scoped to lesson 01, preserving other eight laboratories. */
+
+body.engineering-live,
+body.engineering-live .workspace,
+body.engineering-live .main {
+  background: #104775 !important;
+}
+body.engineering-live .main {
+  padding: 0 !important;
+  margin: 0 !important;
+}
+body.engineering-live #engWorkspace {
+  height: 100dvh !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+body.engineering-live #engBoard.eng-board {
+  inset: 0;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  background: #0f4b7c !important;
+}
+body.engineering-live .eng-paper {
+  inset: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background-color: #164d77 !important;
+}
+body.engineering-live .eng-paper::after {
+  box-shadow: none !important;
+  background: none !important;
+}
+body.engineering-live .sidebar {
+  border-right: 0 !important;
+  box-shadow: none !important;
+  background: linear-gradient(90deg,rgba(4,15,23,.98),rgba(4,15,23,.92)) !important;
+}
+body.engineering-live .sidebar .side-entry {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  position: relative;
+}
+body.engineering-live .sidebar .side-entry:is(:hover,:focus-visible) {
+  background: rgba(183,242,148,.08) !important;
+}
+body.engineering-live .sidebar .side-entry.active {
+  background: rgba(183,242,148,.075) !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+body.engineering-live .sidebar .side-entry.active::before {
+  content:"";
+  position:absolute;
+  left: 1px;
+  top: 13px;
+  bottom: 13px;
+  width: 2px;
+  background:#b4f58e;
+  border-radius: 2px;
+  box-shadow:0 0 8px rgba(172,242,119,.32);
+}
+
+/* Floating mode switch: a text control, not a rounded dashboard card */
+body.engineering-live #modeTabsAnchor .mode-peek {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  backdrop-filter: none !important;
+  color: #ddf4f2 !important;
+  text-shadow: 0 1px 9px #041a2d;
+  padding: 7px 13px;
+  height: 36px;
+}
+body.engineering-live #modeTabsAnchor .mode-peek:hover,
+body.engineering-live #modeTabsAnchor .mode-peek:focus-visible {
+  background: rgba(6,22,34,.38) !important;
+  border-radius: 7px !important;
+}
+body.engineering-live #modeTabsAnchor #expModes {
+  gap: 0 !important;
+  overflow: hidden;
+  border-radius: 9px;
+  background: rgba(5,20,31,.94) !important;
+  box-shadow: 0 12px 35px rgba(0,13,25,.28) !important;
+  filter:none !important;
+  backdrop-filter: blur(14px);
+}
+body.engineering-live #modeTabsAnchor #expModes .exp-mode {
+  border:0 !important;
+  border-right: 1px solid rgba(255,255,255,.06) !important;
+  border-radius: 0 !important;
+  box-shadow:none !important;
+  background:transparent !important;
+  min-height:55px !important;
+}
+body.engineering-live #modeTabsAnchor #expModes .exp-mode:last-child {
+  border-right:0 !important;
+}
+body.engineering-live #modeTabsAnchor #expModes .exp-mode.active {
+  background: rgba(159,234,111,.09) !important;
+}
+body.engineering-live #modeTabsAnchor #expModes .exp-mode.active::after {
+  height: 2px !important;
+  bottom: 0 !important;
+  left: 13px !important;
+  right: 13px !important;
+  background:#b1f278 !important;
+}
+
+/* Open-air instrument row. No cards inside a card. */
+body.engineering-live .eng-dock {
+  bottom: 67px !important;
+  width: min(704px, calc(100vw - 104px)) !important;
+  min-height: 92px !important;
+  padding: 10px 14px 6px !important;
+  gap: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: linear-gradient(
+    90deg,
+    rgba(3,19,28,0) 0%,
+    rgba(5,24,35,.58) 14%,
+    rgba(5,24,35,.75) 50%,
+    rgba(5,24,35,.58) 86%,
+    rgba(3,19,28,0) 100%
+  ) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(6px);
+}
+body.engineering-live .eng-tools {
+  gap: 8px !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  scrollbar-width: thin;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real,
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real.eng-selected {
+  position:relative;
+  flex: 0 0 120px !important;
+  min-width: 120px !important;
+  width: 120px !important;
+  height: 105px !important;
+  padding: 5px 6px 7px !important;
+  margin: 0 !important;
+  gap: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  outline-offset: 2px;
+  background:transparent !important;
+  box-shadow:none !important;
+  overflow:visible !important;
+  isolation:isolate;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real::before {
+  content:none !important;
+  animation:none !important;
+  display:none !important;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real::after {
+  content:"";
+  pointer-events:none;
+  position:absolute;
+  bottom:4px;left:50%;
+  width:5px;height:5px;
+  border-radius:50%;
+  background:#b9f28c;
+  opacity:0;
+  transform:translateX(-50%);
+  box-shadow:0 0 8px #b9f28ca3,0 0 22px #a3ef7a73;
+  transition:opacity .2s ease;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real.eng-selected::after {
+  opacity:1;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real .eng-tool-art.eng-tool-photo {
+  height:78px !important;
+  min-height:78px !important;
+  width:116px !important;
+  overflow:visible !important;
+  transition:transform .26s cubic-bezier(.2,.85,.2,1), filter .26s ease !important;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real .eng-tool-art.eng-tool-photo img {
+  max-height:75px;
+  filter:drop-shadow(0 7px 6px rgba(0,0,0,.45));
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real.eng-selected .eng-tool-art.eng-tool-photo {
+  transform:translateY(-4px) scale(1.045);
+  filter:drop-shadow(0 8px 9px rgba(0,0,0,.45)) drop-shadow(0 0 9px rgba(157,240,111,.25));
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real:hover .eng-tool-art.eng-tool-photo,
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real:focus-visible .eng-tool-art.eng-tool-photo {
+  transform:translateY(-9px) rotate(-3deg) scale(1.065) !important;
+  filter:drop-shadow(0 14px 13px rgba(0,0,0,.5)) drop-shadow(0 0 9px rgba(157,240,111,.22)) !important;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real small {
+  color:#d9e9ed !important;
+  font-size:10px !important;
+  font-weight:500 !important;
+  text-shadow:0 1px 5px #001726;
+  opacity:.82;
+  transition:opacity .16s,color .16s;
+}
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real.eng-selected small,
+body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real:hover small {
+  color:#d3fcb9 !important;
+  opacity:1;
+}
+
+/* Unframed quick actions and demo controls */
+body.engineering-live .eng-float-btn,
+body.engineering-live .eng-command button {
+  border:0 !important;
+  border-radius:50% !important;
+  background:rgba(4,22,31,.36) !important;
+  color:#e2f3f5;
+  box-shadow:none !important;
+  backdrop-filter:blur(3px);
+}
+body.engineering-live .eng-float-btn:hover,
+body.engineering-live .eng-float-btn:focus-visible,
+body.engineering-live .eng-command button:hover,
+body.engineering-live .eng-command button:focus-visible {
+  background:rgba(8,34,41,.75) !important;
+  color:#b9f48c !important;
+  box-shadow: 0 0 15px rgba(157,239,115,.14) !important;
+}
+body.engineering-live .eng-float-btn.is-active {
+  color:#baf78a !important;
+}
+body.engineering-live .eng-float-btn.eng-float-confirm.is-visible {
+  background:#bbf58b !important;
+  color:#102d20 !important;
+  box-shadow:0 5px 15px rgba(0,0,0,.12) !important;
+}
+
+/* Measurements should read like CAD annotations, not metric cards. */
+body.engineering-live .eng-readout {
+  background:rgba(2,18,31,.12) !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  padding:4px 7px !important;
+  min-width:0 !important;
+  font-size:17px !important;
+}
+body.engineering-live .eng-topline span {
+  border:0 !important;
+  border-radius:0 !important;
+  background:rgba(3,20,32,.35) !important;
+}
+
+/* Mobile: no nested rectangles and no board margins */
+@media(max-width:1100px) {
+  body.engineering-live .eng-dock {
+    width:min(660px,calc(100vw - 100px)) !important;
+  }
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real,
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real.eng-selected {
+    min-width:104px !important;
+    width:104px !important;
+    flex-basis:104px !important;
+  }
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real .eng-tool-art.eng-tool-photo {
+    width:100px !important;
+  }
+}
+@media(max-width:650px) {
+  body.engineering-live .main {padding:43px 0 0 !important;}
+  body.engineering-live #engWorkspace {height:calc(100dvh - 43px) !important;}
+  body.engineering-live .eng-dock {
+    left:50% !important;
+    bottom:60px !important;
+    width:100vw !important;
+    max-height:170px !important;
+    padding:7px 10px !important;
+  }
+  body.engineering-live .eng-tools {justify-content:flex-start !important;}
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real,
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real.eng-selected {
+    height:89px !important;
+    min-width:87px !important;
+    width:87px !important;
+    flex-basis:87px !important;
+  }
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real .eng-tool-art.eng-tool-photo {
+    height:62px !important;
+    min-height:62px !important;
+    width:83px !important;
+  }
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real small {font-size:9px !important;}
+  body.engineering-live #modeTabsAnchor #expModes {border-radius:6px;}
+  body.engineering-live #modeTabsAnchor #expModes .exp-mode {
+    border:0 !important;
+    border-bottom:1px solid rgba(255,255,255,.06) !important;
+  }
+}
+@media(prefers-reduced-motion:reduce) {
+  body.engineering-live .eng-tools .eng-tool-art,
+  body.engineering-live .eng-tools button.eng-illustrated.eng-photo-real::after {transition:none !important;}
+}
