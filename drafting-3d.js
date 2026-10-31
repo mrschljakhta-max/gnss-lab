@@ -420,6 +420,8 @@ document.addEventListener('gnss:draft-state',e=>{
  if(e.detail?.mode!=='demo')demoInit=false;
 });
 init3D();
+// On reload, read the already-selected mode/tool even if its initial event fired earlier.
+document.dispatchEvent(new CustomEvent('gnss:request-draft-state'));
 document.body.classList.toggle('gnss-draft-working',interactive());
 setTimeout(()=>{if(mode==='demo')startDemo()},310);
 })();
