@@ -357,19 +357,12 @@ cmd.addEventListener('click',e=>{const b=e.target.closest('[data-cmd]');if(!b)re
  draw();});
 // Physical instrument layer actions share the same geometry and quest scoring.
 function erasePoint(p){
- let nearest=-1,shortest=16;
- state.records.forEach((shape,i)=>{
-  let d;
-  if(shape.type==='circle')d=Math.abs(dist(p,shape)-shape.r);
-  else{
-   const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1,mag=Math.max(1,dx*dx+dy*dy);
-   const t=clamp(((p.x-shape.x1)*dx+(p.y-shape.y1)*dy)/mag,0,1);
-   d=Math.hypot(p.x-(shape.x1+t*dx),p.y-(shape.y1+t*dy));
-  }
-  if(d<shortest){nearest=i;shortest=d}
- });
- if(nearest===-1)return false;
- saveHistory();state.records.splice(nearest,1);draw();
+ if(eraserVisual)return false;
+ const hit=recordAtPoint(p);
+ if(!hit)return false;
+ const detail={...hit,accepted:false};
+ document.dispatchEvent(new CustomEvent('gnss:erase-start',{detail}));
+ if(!detail.accepted){saveHistory();state.records.splice(hit.index,1);draw()}
  return true;
 }
 // Ruler's two-point workflow asks the original drawing engine to validate
