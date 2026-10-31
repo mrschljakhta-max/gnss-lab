@@ -151,7 +151,7 @@ function drawHUD(){
  const label=state.status||(state.mode==='demo'?'● '+['Прямокутник','Прямокутник','Прямокутник','Прямокутник','Коло'][Math.min(4,Math.floor((performance.now()-state.demoStart)/1400))]:
  state.mode==='quest'?['01 / '+states[0],'02 / '+states[1],'03 / '+states[2],'✓ Усі побудови'][state.stage]:'');
  status.replaceChildren();if(label){const chip=document.createElement('span');chip.textContent=label;if(state.complete||state.stage>=3)chip.className='eng-success';status.append(chip)}
- confirm.disabled=!state.pending;
+ confirm.disabled=state.mode==='demo'||!state.pending;
  tools.querySelectorAll('[data-tool]').forEach(b=>b.classList.toggle('eng-selected',b.dataset.tool===state.tool));
  const play=cmd.querySelector('[data-cmd="play"]');play.textContent=state.demoPlaying?'Ⅱ':'▶';
  cmd.style.display=state.mode==='demo'?'flex':'none';
