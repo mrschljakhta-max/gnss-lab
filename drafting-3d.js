@@ -244,9 +244,9 @@ function buildPencil(){
  const barrel=cylinder(8,8,83,0x184f7c);barrel.position.set(0,-74,25);g.add(barrel);
  const nose=cylinder(8,5.4,34,0xb9ced2);nose.position.set(0,-19,25);g.add(nose);
  const tip=new T.Mesh(new T.ConeGeometry(5.2,16,16),material(0xdee7e7,.83,.21));
- tip.position.set(0,-1,25);g.add(tip);
+ tip.position.set(0,-8,25);g.add(tip);
  const graphite=new T.Mesh(new T.ConeGeometry(1.4,6,12),material(0x1a2027,.4,.37));
- graphite.position.set(0,7,25);g.add(graphite);
+ graphite.position.set(0,-3,25);g.add(graphite);
  const ring=cylinder(8.4,8.4,6,0xeff4e9);ring.position.set(0,-36,25);g.add(ring);
  const cap=cylinder(7.8,8,13,0xc4d1d2);cap.position.set(0,-120,25);g.add(cap);
  const clip=new T.Mesh(new T.BoxGeometry(3,48,2),material(0xe5eff4,.9,.16));
