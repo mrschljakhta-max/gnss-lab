@@ -1,0 +1,120 @@
+/* GNSS LAB / tactile drafting tools — photorealistic sprites over fixed blue paper */
+body.engineering-live #engBoard {isolation:isolate}
+.gnss-paper-tools{
+ position:absolute;inset:0;z-index:6;pointer-events:none;overflow:hidden;
+}
+.gnss-physical-guides{
+ position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;
+}
+.gnss-guide-circle{fill:none;stroke:#bdf78e;stroke-opacity:.83;stroke-width:1.8;stroke-dasharray:7 6;filter:drop-shadow(0 0 3px #b3f77a55)}
+.gnss-guide-dot{fill:#b8f484;stroke:#0b4561;stroke-width:2}
+.gnss-physical-item{
+ position:absolute;left:0;top:0;display:none;align-items:center;justify-content:center;
+ height:130px;max-height:21dvh;transform:translate(-50%,-50%);
+ pointer-events:auto;touch-action:none;cursor:grab;user-select:none;
+ outline:none;-webkit-user-select:none;
+}
+.gnss-physical-item.is-visible{display:flex}
+.gnss-physical-item.is-dragging{cursor:grabbing;z-index:8}
+.gnss-physical-item:focus-visible{outline:1px dashed #c3fd9a;outline-offset:3px;border-radius:8px}
+.gnss-physical-item .gnss-physical-shadow{
+ position:absolute;bottom:8%;left:8%;width:84%;height:26%;
+ pointer-events:none;transform:translate(5px,4px) scale(.93);
+ background:radial-gradient(ellipse at center,#001c2c77 0%,#001a2f38 39%,transparent 72%);
+ filter:blur(8px);
+ opacity:.72;
+ transition:transform .23s ease,opacity .23s ease,filter .23s ease;
+}
+.gnss-physical-asset{
+ position:relative;width:100%;height:100%;display:grid;place-items:center;
+ transform:translateY(0) rotate(var(--tool-angle,0deg)) scale(1);
+ transform-origin:center;
+ filter:drop-shadow(4px 7px 6px #00152388);
+ transition:transform .22s cubic-bezier(.18,.76,.2,1),filter .22s ease;
+ will-change:transform;
+}
+.gnss-physical-asset img{
+ display:block;max-width:100%;max-height:100%;width:auto;height:auto;object-fit:contain;
+ -webkit-user-drag:none;pointer-events:none;
+}
+.gnss-physical-item:is(:hover,:focus-visible) .gnss-physical-asset{
+ transform:translateY(-8px) rotate(var(--tool-angle,0deg)) scale(1.035);
+ filter:drop-shadow(6px 15px 9px #001523a9) drop-shadow(0 0 8px #b3f87d30);
+}
+.gnss-physical-item:is(:hover,:focus-visible) .gnss-physical-shadow{
+ transform:translate(8px,9px) scale(.86);filter:blur(10px);opacity:.5;
+}
+.gnss-physical-item.is-dragging .gnss-physical-asset{
+ transform:translateY(-15px) rotate(var(--tool-angle,0deg)) scale(1.055);
+ filter:drop-shadow(8px 19px 15px #001523b0);
+ transition-duration:.1s;
+}
+.gnss-physical-item.is-dragging .gnss-physical-shadow{
+ transform:translate(12px,11px) scale(.75);opacity:.34;
+}
+.gnss-physical-item.is-landing .gnss-physical-asset{animation:gnss-land .28s cubic-bezier(.16,.72,.23,1.15) both}
+@keyframes gnss-land{
+ from{opacity:.14;transform:translateY(-25px) rotate(var(--tool-angle,0deg)) scale(1.09)}
+ to{opacity:1;transform:translateY(0) rotate(var(--tool-angle,0deg)) scale(1)}
+}
+.gnss-physical-line{height:155px;pointer-events:none!important}
+.gnss-physical-line .gnss-physical-asset{transform:rotate(-30deg)}
+.gnss-physical-line.is-drawing .gnss-physical-asset{
+ transform:translateY(-11px) rotate(-30deg) scale(1.05)!important;
+ filter:drop-shadow(8px 15px 9px #001523bb);
+}
+.gnss-physical-ruler{height:85px}
+.gnss-physical-ruler .gnss-physical-asset img{width:100%;height:auto;max-height:88px}
+.gnss-physical-compass{height:188px}
+.gnss-physical-compass .gnss-physical-asset img{height:174px;max-height:100%;width:auto}
+.gnss-physical-caliper{height:142px}
+.gnss-physical-eraser{height:110px}
+.gnss-instrument-handle{
+ position:absolute;z-index:9;display:grid;place-items:center;
+ width:29px;height:29px;border:1px solid #98d9d08c;border-radius:50%;
+ padding:0;background:#052735d8;color:#caf8c5;cursor:ew-resize;touch-action:none;
+ font:700 17px/1 ui-sans-serif,Arial,sans-serif;
+ box-shadow:0 4px 12px #00131f66;
+ backdrop-filter:blur(5px);
+ transition:background .18s ease,transform .18s ease;
+}
+.gnss-instrument-handle:hover,.gnss-instrument-handle:focus-visible{
+ background:#244c43;color:#fff;transform:scale(1.1);outline-color:#b4f88b;
+}
+.gnss-rotate{right:0;top:4%;cursor:crosshair}
+.gnss-radius{right:0;bottom:6%;cursor:ew-resize}
+.gnss-gap{right:5%;bottom:1%;cursor:ew-resize}
+.gnss-gap-value{
+ position:absolute;top:-12px;right:10%;pointer-events:none;
+ padding:3px 6px;border-radius:4px;color:#dcfff5;
+ font:700 11px/1.3 ui-monospace,Consolas,monospace;
+ background:#052a3896;text-shadow:0 2px 5px #001421;
+}
+.gnss-paper-hint{
+ position:absolute;top:58px;left:50%;transform:translate(-50%,-5px);
+ background:#052532bc;color:#cbf7d4;z-index:13;
+ padding:5px 9px;border-radius:5px;font:700 11px ui-monospace,monospace;
+ opacity:0;pointer-events:none;transition:opacity .16s ease,transform .16s ease;
+}
+.gnss-paper-hint.is-visible{opacity:1;transform:translate(-50%,0)}
+.gnss-crumb{
+ position:absolute;width:4px;height:2px;z-index:7;pointer-events:none;
+ background:#d8e6e9;border-radius:40%;opacity:.95;
+ animation:gnss-crumb-fall .48s ease-out both;
+}
+@keyframes gnss-crumb-fall{to{opacity:0;transform:translate(var(--dx,7px),18px) rotate(85deg)}}
+@media(max-width:650px){
+ .gnss-physical-item{height:105px}
+ .gnss-physical-ruler{height:64px}
+ .gnss-physical-line{height:100px}
+ .gnss-physical-compass{height:122px}
+ .gnss-physical-caliper{height:105px}
+ .gnss-physical-eraser{height:90px}
+ .gnss-instrument-handle{width:31px;height:31px}
+ .gnss-paper-hint{top:55px}
+}
+@media(prefers-reduced-motion:reduce){
+ .gnss-physical-asset,.gnss-physical-shadow,.gnss-instrument-handle,.gnss-paper-hint{
+  animation:none!important;transition:none!important;
+ }
+}
