@@ -56,3 +56,9 @@
 @media(prefers-reduced-motion:reduce){
  .gnss-3d-stage,.gnss-draft-feedback{transition:none!important}
 }
+
+/* Erasing happens by clicking a drawn contour; no eraser remains on the desk. */
+body.gnss-eraser-ready .eng-geometry{cursor:crosshair!important;}
+body.gnss-eraser-active .eng-geometry{cursor:progress!important;}
+body.gnss-eraser-active .gnss-draft-preview ellipse{pointer-events:none;}
+body.gnss-eraser-active .eng-blueprint-label{pointer-events:none;}
