@@ -1,0 +1,57 @@
+/* GNSS LAB — geometry first, 3D instruments only during playback. */
+#engBoard{isolation:isolate;}
+.gnss-draft-preview{
+ position:absolute;inset:0;width:100%;height:100%;
+ z-index:8;overflow:hidden;pointer-events:none;
+}
+.gnss-draft-preview .gnss-point{
+ fill:#bffc8e;stroke:#12496b;stroke-width:2.5;
+ filter:drop-shadow(0 0 4px #acf8768c);
+}
+.gnss-draft-preview .gnss-mark{
+ fill:#e5ffff;font:700 12px ui-monospace,Consolas,monospace;
+ stroke:#164769;stroke-width:3px;paint-order:stroke fill;
+}
+.gnss-draft-preview .gnss-guide{
+ fill:none;stroke:#c4f9a1;stroke-width:2;
+ stroke-dasharray:7 6;stroke-linecap:round;
+ filter:drop-shadow(0 0 4px #a9f48430);
+}
+.gnss-draft-preview .gnss-drawn{
+ fill:none;stroke:#f0ffff;stroke-width:2.9;
+ stroke-linecap:round;filter:drop-shadow(0 0 3px #eefefe8c);
+}
+.gnss-draft-preview .gnss-dimension{
+ fill:#ecffff;font:700 14px ui-monospace,Consolas,monospace;
+ stroke:#0d4267;stroke-width:4;paint-order:stroke fill;
+}
+.gnss-draft-preview .gnss-radius{
+ stroke:#b3edb5;stroke-width:1.2;stroke-dasharray:3 5;opacity:.76;
+}
+.gnss-3d-stage{
+ position:absolute;inset:0;z-index:9;
+ pointer-events:none;overflow:hidden;
+ visibility:hidden;opacity:0;
+ transition:opacity .18s ease;
+}
+.gnss-3d-stage.is-playing{visibility:visible;opacity:1;}
+.gnss-3d-stage canvas{
+ position:absolute;inset:0;width:100%;height:100%;
+ display:block;background:transparent!important;
+}
+.gnss-draft-working .eng-geometry{cursor:crosshair!important;}
+.gnss-draft-animating .eng-geometry{cursor:progress!important;}
+.gnss-draft-animating .eng-confirm{pointer-events:none!important}
+.gnss-draft-working .eng-readout,
+.gnss-draft-animating .eng-readout{display:none!important}
+.gnss-draft-feedback{
+ position:absolute;bottom:18px;left:50%;transform:translateX(-50%) translateY(5px);
+ padding:5px 9px;z-index:11;opacity:0;pointer-events:none;
+ font:700 11px ui-monospace,Consolas,monospace;color:#cbf7d4;
+ background:rgba(7,31,44,.52);border-radius:4px;
+ transition:opacity .18s,transform .18s;
+}
+.gnss-draft-feedback.is-visible{opacity:1;transform:translateX(-50%) translateY(0);}
+@media(prefers-reduced-motion:reduce){
+ .gnss-3d-stage,.gnss-draft-feedback{transition:none!important}
+}
