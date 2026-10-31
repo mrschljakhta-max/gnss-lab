@@ -63,19 +63,21 @@ const readout=qs('#engReadout',container),status=qs('#engStatus',container),conf
 const cmd=qs('#engCommand',container),right=qs('.eng-right',container),stepNote=qs('#engStepNote',container);
 const svgEl=(tag,attr={},children=[])=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attr))el.setAttribute(k,v);for(const child of children)el.append(child);return el};
 const copyRecords=()=>state.records.map(r=>({...r}));
-function saveHistory(){state.history.push(copyRecords());if(state.history.length>60)state.history.shift();state.future=[]}
+function snapshot(){return {records:copyRecords(),stage:state.stage,segment:state.segment,saved:state.saved,tool:state.tool,measure:state.measure,complete:state.complete}}
+function restoreSnapshot(s){state.records=s.records.map(r=>({...r}));state.stage=s.stage;state.segment=s.segment;state.saved=s.saved;state.tool=s.tool;state.measure=s.measure;state.complete=s.complete;save()}
+function saveHistory(){state.history.push(snapshot());if(state.history.length>60)state.history.shift();state.future=[]}
 function toast(val){state.status=val;drawHUD();setTimeout(()=>{if(state.status===val){state.status='';drawHUD()}},1450)}
 function mode(){return document.body.dataset.expMode||'demo'}
 function lesson(){try{return typeof active==='number'?active:0}catch{return 0}}
 function setMode(next){
  if(next===state.lastMode)return;
- state.lastMode=next;state.mode=next;state.pointer=null;state.pending=null;state.measure=null;state.status='';
+ state.lastMode=next;state.mode=next;state.pointer=null;state.pending=null;state.measure=null;state.status='';state.history=[];state.future=[];state.complete=false;
  if(next==='demo'){state.demoStart=performance.now();state.demoPlaying=true;state.stage=0}
  if(next==='quest'){state.stage=state.saved;state.segment=state.stage===0?0:4;state.tool=state.stage===1?'compass':state.stage===2?'ruler':'line';state.records=[];
   if(state.stage>=1)state.records.push(...expectedLines());
   if(state.stage>=2)state.records.push({type:'circle',x:circle.x,y:circle.y,r:circle.r});
  }
- if(next==='explore'){state.tool='line';state.records=[];state.history=[];state.future=[]}
+ if(next==='explore'){state.stage=0;state.tool='line';state.records=[];state.history=[];state.future=[]}
  draw();
 }
 function expectedLines(){const x=rect.x,y=rect.y,w=rect.w,h=rect.h;return [
@@ -200,8 +202,8 @@ function animateInk(p){
   a.onfinish=()=>el.remove();
  }else el.remove();
 }
-function undo(){if(!state.history.length)return;state.future.push(copyRecords());state.records=state.history.pop();state.pending=null;draw()}
-function redo(){if(!state.future.length)return;state.history.push(copyRecords());state.records=state.future.pop();state.pending=null;draw()}
+function undo(){if(!state.history.length)return;state.future.push(snapshot());restoreSnapshot(state.history.pop());state.pending=null;draw()}
+function redo(){if(!state.future.length)return;state.history.push(snapshot());restoreSnapshot(state.future.pop());state.pending=null;draw()}
 function clear(){saveHistory();state.records=[];state.pending=null;state.measure=null;if(state.mode==='quest'){state.stage=0;state.segment=0;state.saved=0;state.tool='line';save()}draw()}
 function demo(now){
  if(state.mode!=='demo'||!state.demoPlaying)return;
