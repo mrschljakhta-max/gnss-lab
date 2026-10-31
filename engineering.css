@@ -1,0 +1,83 @@
+/* GNSS LAB · Engineering workstation UI · v1 */
+:root{--eng-accent:#acf277;--eng-edge:#284653;--eng-muted:#7697a6;--eng-shell:#06121a}
+body.engineering-live{background:#040f15!important}
+body.engineering-live .app{display:block!important;padding-left:138px!important}
+body.engineering-live .workspace{width:100%!important;min-width:0!important}
+body.engineering-live .main{width:100%!important;max-width:none!important}
+body.engineering-live .main{padding:15px 20px 25px!important;max-width:unset!important}
+body.engineering-live #modeTabsAnchor #expModes{margin:0 0 13px!important;gap:9px!important;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+body.engineering-live #modeTabsAnchor .exp-mode{height:67px;min-height:67px!important;padding:10px 15px!important;background:linear-gradient(145deg,#0b2530,#071821)!important;border-color:#315362!important;box-shadow:inset 0 1px #ffffff0b!important;border-radius:12px!important;display:flex;justify-content:center!important}
+body.engineering-live #modeTabsAnchor .exp-mode strong{font-size:15px!important;font-weight:700;color:#cfe3e9}
+body.engineering-live #modeTabsAnchor .exp-mode.active{background:linear-gradient(135deg,#193f2b,#102d26)!important;border-color:#92df5e!important}
+body.engineering-live #modeTabsAnchor .exp-mode.active:after{left:14px;right:14px;background:#adf47c}
+body.engineering-live .intro,body.engineering-live #modePanelAnchor,body.engineering-live .lab-shell,body.engineering-live .site-footer{display:none!important}
+body.engineering-live .sidebar{width:138px!important;padding:15px 9px!important;z-index:50;background:#07151d!important}
+body.engineering-live .sidebar:is(:hover,:focus-within){width:284px!important}
+body.engineering-live .sidebar .brand{font-size:19px;padding:0 5px!important;gap:7px!important;height:49px}
+body.engineering-live .sidebar .brand>span:last-child{opacity:1!important;visibility:visible;transform:none!important;font-size:19px}
+body.engineering-live .sidebar .brand-mark{font-size:26px;min-width:26px}
+body.engineering-live .sidebar .brand-sub,body.engineering-live .sidebar .side-heading{display:none!important}
+body.engineering-live #sidebarNav{padding-top:14px;gap:7px!important}
+body.engineering-live .sidebar .side-entry{height:62px!important;min-height:62px!important;border-radius:12px!important;gap:9px!important;padding:11px 12px!important;transition:background .2s,border-color .2s}
+body.engineering-live .sidebar .side-entry .side-index{font-size:17px;min-width:29px;font-weight:800}
+body.engineering-live .sidebar .side-entry>span:last-child{opacity:0;visibility:hidden;max-width:180px}
+body.engineering-live .sidebar:is(:hover,:focus-within) .side-entry>span:last-child{opacity:1;visibility:visible}
+body.engineering-live .sidebar .side-entry.active{background:#113322!important;border-color:#8fe762!important}
+body.engineering-live .sidebar .side-entry.active .side-index{color:#b3f88b}
+body.engineering-live .sidebar .sidebar-foot{display:none!important}
+#engWorkspace{display:grid;grid-template-columns:minmax(0,1fr) 145px;grid-template-rows:minmax(0,1fr) 126px;gap:14px;min-height:0;height:calc(100dvh - 119px);max-height:960px}
+.eng-board{position:relative;min-width:0;min-height:0;border:1px solid #36566b;border-radius:15px;overflow:hidden;background:#0e4977;box-shadow:0 14px 42px #0005;isolation:isolate}
+.eng-paper{position:absolute;inset:0;overflow:hidden;background:#144d79 url('./assets/blueprint-paper.svg') center center/100% 100% no-repeat}
+.eng-paper::after{content:'';position:absolute;inset:0;pointer-events:none;box-shadow:inset 0 0 38px #001b3466,inset 0 0 3px #9ed1ff33}
+.eng-geometry{width:100%;height:100%;position:absolute;inset:0;touch-action:none;user-select:none;cursor:crosshair}
+.eng-geometry.eng-grab{cursor:grabbing}
+.eng-geometry .shape-line{stroke:#e9fdff;stroke-width:2.4;fill:none;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 0 2px #d6f6ff88)}
+.eng-geometry .shape-circle{stroke:#e9fdff;stroke-width:2.4;fill:none;filter:drop-shadow(0 0 2px #d6f6ff66)}
+.eng-geometry .eng-target{stroke:#c9edff;stroke-width:2.4;fill:none;stroke-dasharray:8 10;opacity:.6}
+.eng-geometry .eng-focus{stroke:#b8f889;stroke-width:3;fill:none;stroke-dasharray:9 7;opacity:.93}
+.eng-geometry .eng-preview{stroke:#b0f77b;stroke-width:3;fill:none;stroke-dasharray:9 6;filter:drop-shadow(0 0 5px #a4f5786d)}
+.eng-geometry .eng-dot{fill:#c4fa98;stroke:#123f38;stroke-width:3}
+.eng-geometry .eng-ruler{cursor:grab}
+.eng-geometry .eng-ruler text{pointer-events:none}
+.eng-blueprint-label{font-family:Consolas,monospace;font-size:13px;font-weight:600;fill:#d8f8ff;opacity:.94}
+.eng-readout{position:absolute;left:20px;top:19px;z-index:3;background:#071c2bdd;border:1px solid #6087a0;border-radius:11px;color:#b9f985;font:700 25px ui-monospace,Consolas,monospace;padding:11px 15px;min-width:112px;text-align:center;backdrop-filter:blur(9px);pointer-events:none}
+.eng-command{position:absolute;top:18px;right:18px;display:flex;gap:8px;z-index:3}
+.eng-command button,.eng-tools button,.eng-rail button{font:inherit;color:#cbe0e9;background:#102633eb;border:1px solid #31505e;border-radius:10px;cursor:pointer;transition:background .17s,border-color .17s,transform .17s}
+.eng-command button{width:42px;height:42px;font-size:19px}
+.eng-command button:hover,.eng-tools button:hover,.eng-rail button:hover{border-color:#9ee877;background:#244535}
+.eng-command button:focus-visible,.eng-tools button:focus-visible,.eng-rail button:focus-visible{outline:2px solid #bef793;outline-offset:2px}
+.eng-topline{position:absolute;left:20px;top:82px;z-index:4;display:flex;gap:6px;align-items:center;min-height:25px}
+.eng-topline span{border:1px solid #9bd7e87d;border-radius:6px;background:#072f4a9e;padding:5px 9px;color:#d3f1f6;font:700 11px Consolas,monospace}
+.eng-topline .eng-success{color:#b8f785;border-color:#b8f785}
+.eng-right{display:flex;flex-direction:column;gap:10px;min-width:0;min-height:0}
+.eng-rail{border:1px solid #2d4a57;background:#091923;border-radius:15px;padding:10px;box-shadow:inset 0 1px #ffffff0a}
+.eng-rail-view{display:flex;gap:7px;justify-content:space-between}
+.eng-rail-view button{width:52px;height:42px;font-size:20px}
+.eng-rail button.eng-active{border-color:var(--eng-accent);color:#bdf88b;background:#183b2a;box-shadow:inset 0 0 0 1px #b8f77e18}
+.eng-rail-layers{flex:1;min-height:148px;padding:13px 11px;display:flex;flex-direction:column;gap:12px}
+.eng-rail-title{color:#9abac5;font:800 12px Consolas,monospace;letter-spacing:1.3px;margin:4px 0}
+.eng-layer{width:100%;display:flex;justify-content:space-between;align-items:center;background:#0b2330;border:1px solid #24414e;color:#c1e5ed;border-radius:8px;padding:9px 7px;font-size:11px;cursor:pointer}
+.eng-layer.on{border-color:#48794f;color:#d6f6d7}
+.eng-layer .led{display:inline-block;border-radius:50%;background:#b6f87c;width:7px;height:7px;margin-right:5px}
+.eng-layer.off{opacity:.45}
+.eng-history{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.eng-history button{height:43px;font-size:19px}
+.eng-history button:last-child{grid-column:span 2}
+.eng-mini{margin-top:auto;background:#124673 url('./assets/blueprint-paper.svg') center/cover;border:1px solid #315e7b;border-radius:7px;height:101px;position:relative}
+.eng-mini:after{content:'';position:absolute;inset:13px 17px;border:1px solid #c9f6ff55}
+.eng-dock{grid-column:1 / -1;border:1px solid #34515d;background:linear-gradient(120deg,#0a1e28,#07141d);border-radius:16px;display:flex;align-items:center;gap:12px;padding:12px 17px;min-width:0}
+.eng-tools{display:flex;align-items:center;gap:10px;min-width:0;flex:1;overflow-x:auto;scrollbar-width:thin}
+.eng-tools button{display:flex;flex-direction:column;justify-content:center;align-items:center;gap:7px;min-width:101px;height:95px;background:transparent;border-color:transparent}
+.eng-tools button.eng-selected{background:linear-gradient(140deg,#173923,#103026)!important;border-color:#a6e971!important;color:#e7f9e5}
+.eng-tools .eng-tool-icon{font-size:33px;font-weight:300;line-height:1}
+.eng-tools button small{font-size:11px;font-weight:650;white-space:nowrap}
+.eng-divider{width:1px;height:68px;background:#34505b;flex:0 0 1px;margin:0 7px}
+.eng-confirm{height:86px;min-width:140px;max-width:250px;flex:0 1 25%;font-size:27px!important;border:1px solid #3e5e62!important;background:#122832!important;border-radius:14px!important;color:#99b4b7!important}
+.eng-confirm:not(:disabled){color:#11251b!important;background:#adf47b!important;border-color:#b7fa8d!important}
+.eng-confirm:disabled{cursor:not-allowed;opacity:.42}
+.eng-stamp{position:absolute;bottom:17px;left:18px;z-index:2;color:#d1eefa;font:700 11px Consolas,monospace;letter-spacing:1.2px;opacity:.72;pointer-events:none}
+.eng-demo-label{position:absolute;bottom:18px;right:20px;z-index:2;color:#d7f8ff;font:700 11px Consolas,monospace;opacity:.55;pointer-events:none}
+body.engineering-live .sidebar .side-entry .side-name{font-size:12px}
+@media(max-width:1150px){#engWorkspace{grid-template-columns:minmax(0,1fr) 102px}.eng-tools button{min-width:83px}.eng-rail-view button{width:34px}.eng-mini{height:75px}body.engineering-live .app{padding-left:78px!important}body.engineering-live .sidebar{width:78px!important}body.engineering-live .sidebar .brand>span:last-child{display:none}body.engineering-live .sidebar:is(:hover,:focus-within) .brand>span:last-child{display:inline}body.engineering-live .sidebar .side-entry>span:last-child{display:none}body.engineering-live .sidebar:is(:hover,:focus-within) .side-entry>span:last-child{display:block}}
+@media(max-width:760px){body.engineering-live .app{padding-left:0!important}body.engineering-live .main{padding:54px 9px 12px!important}body.engineering-live .sidebar{width:283px!important}#engWorkspace{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(350px,1fr) auto;height:calc(100dvh - 172px);gap:8px}.eng-right{position:absolute;right:15px;top:130px;z-index:8;display:none}.eng-dock{grid-column:1;padding:5px 8px;gap:6px;min-height:85px}.eng-tools{gap:3px}.eng-tools button{height:72px;min-width:67px;padding:5px}.eng-tools .eng-tool-icon{font-size:24px}.eng-tools button small{font-size:9px}.eng-confirm{height:63px;min-width:70px;font-size:24px!important}.eng-readout{left:10px;top:9px;font-size:16px;padding:7px}.eng-command{top:9px;right:10px}.eng-command button{width:33px;height:34px}.eng-topline{top:56px;left:10px}.eng-stamp{font-size:8px}.eng-demo-label{display:none}body.engineering-live #modeTabsAnchor .exp-mode{height:54px;min-height:54px!important}}
+@media(prefers-reduced-motion:reduce){.eng-command button,.eng-tools button,.eng-rail button{transition:none!important}}
