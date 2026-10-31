@@ -134,7 +134,11 @@ function addShape(root,shape,opts={}){
  root.append(el);return el;
 }
 function dimensionText(shape){
- if(shape.type==='rect')return fmt(shape.w/state.scale)+' × '+fmt(shape.h/state.scale);
+ if(shape.type==='rect'){
+  const divisor=state.measureUnit==='cm'?10:1;
+  const number=v=>(Math.round(v/state.scale/divisor*10)/10).toLocaleString('uk-UA');
+  return number(shape.w)+' × '+number(shape.h)+' '+(state.measureUnit==='cm'?'см':'мм');
+ }
  if(shape.type==='line')return fmt(Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)/state.scale);
  return 'Ø '+fmt(shape.r*2/state.scale);
 }
@@ -222,8 +226,9 @@ function draw(){
  const saved=state.layerDrawing?state.records:[];
  const measureShapes=state.pending?[...saved,state.pending]:[...saved];
  const measurePositions=window.GNSSDimensions?.layout(
-  measureShapes.map(s=>s.type==='rect'?null:s),
-  measureShapes.map(s=>s.type==='rect'?'':dimensionText(s)),
+  measureShapes.map(s=>s.type==='rect'
+   ?{type:'line',x1:s.x,y1:s.y,x2:s.x+s.w,y2:s.y}:s),
+  measureShapes.map(dimensionText),
   {font:13,obstacles:measureShapes.filter(s=>s.type==='rect').flatMap(rectEdges)}
  )||[];
  window.GNSSPublishedShapes=saved.map(shape=>({...shape}));
