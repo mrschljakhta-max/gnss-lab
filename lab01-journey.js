@@ -102,12 +102,13 @@ function scene(){
     '<circle cx="927" cy="335" r="96" fill="url(#jCylinder)" stroke="'+(!block?accent:'#acc4c4')+'" stroke-width="'+(!block?3:1.5)+'"/>'+
     '<circle cx="927" cy="335" r="79" fill="none" stroke="#d6eae7" opacity=".35"/>'+
     T(927,340,'ЦИЛІНДР','j-secondary')+'</g>';
-  const jaw=375+gap*n;
-  s+='<rect x="351" y="541" width="686" height="14" rx="2" fill="url(#jMetal)" stroke="#668792"/>'+
-    '<path d="M375 543v-86h18v65h20v20" stroke="#e6eeec" stroke-width="10" fill="none"/>'+
-    '<path d="M'+jaw+' 543v-86h-18v65h-20v20" stroke="#e6eeec" stroke-width="10" fill="none"/>'+
+  const start=block?300:831,jaw=start+gap*n,railStart=block?260:791,railWidth=block?695:398;
+  s+=L(start,430,start,541,'j-measure')+L(jaw,430,jaw,541,'j-measure');
+  s+='<rect x="'+railStart+'" y="541" width="'+railWidth+'" height="14" rx="2" fill="url(#jMetal)" stroke="#668792"/>'+
+    '<path d="M'+start+' 543v-101h18v82h20v20" stroke="#e6eeec" stroke-width="10" fill="none"/>'+
+    '<path d="M'+jaw+' 543v-101h-18v82h-20v20" stroke="#e6eeec" stroke-width="10" fill="none"/>'+
     '<rect x="'+(jaw-17)+'" y="540" width="35" height="37" rx="3" fill="#b8cdd1" stroke="#426778" stroke-width="2"/>'+
-    H(jaw,559,'jaw')+T((375+jaw)/2,615,fmt(gap)+' мм');
+    H(jaw,559,'jaw')+T((start+jaw)/2,615,fmt(gap)+' мм');
   s+=T(512,200,measured.has('block')?'✓ 140 мм':'140 мм · креслення','j-secondary')+
     T(927,219,measured.has('cylinder')?'✓ Ø 64 мм':'Ø 64 мм · креслення','j-secondary');
  }
@@ -162,7 +163,7 @@ function manipulate(kind,p){
  if(kind==='angle')angle=round(clamp(Math.atan2(Math.max(0,390-p.y),p.x-500)*180/Math.PI,0,180));
  if(kind==='radius')radius=clamp(round(Math.hypot(p.x-580,p.y-355)/n)*n,24,230);
  if(kind==='corner'){width=clamp(Math.round((p.x-435)/n)*n,60,600);height=clamp(Math.round((p.y-242)/n)*n,60,315)}
- if(kind==='jaw')gap=round(clamp((p.x-375)/n,0,210));
+ if(kind==='jaw')gap=round(clamp((p.x-(object==='block'?300:831))/n,0,object==='block'?195:110));
  render();
 }
 sketch.addEventListener('pointerdown',e=>{
