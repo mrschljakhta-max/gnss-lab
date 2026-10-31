@@ -1,0 +1,34 @@
+/* Precise two-click ruler drawing on static paper. */
+body.gnss-ruler-point-mode .eng-geometry{cursor:crosshair}
+body.gnss-ruler-point-mode .gnss-physical-ruler{
+  pointer-events:none!important;
+}
+body.gnss-ruler-point-mode .gnss-physical-ruler .gnss-instrument-handle{
+  display:none!important;
+}
+.gnss-ruler-trace{
+ position:absolute;inset:0;width:100%;height:100%;z-index:5;
+ overflow:hidden;pointer-events:none;
+}
+.gnss-ruler-point{fill:#c6fb91;stroke:#064d6b;stroke-width:2.5;filter:drop-shadow(0 0 4px #9ffc78aa)}
+.gnss-ruler-mark{
+ fill:#e3fbff;font:700 12px ui-monospace,Consolas,monospace;
+ paint-order:stroke fill;stroke:#0c4367;stroke-width:2.5;
+}
+.gnss-ruler-preview{
+ stroke:#b5f386;stroke-width:2;stroke-dasharray:8 6;
+ stroke-linecap:round;fill:none;filter:drop-shadow(0 0 4px #b4ff9075);
+}
+.gnss-ruler-ink{
+ stroke:#f0ffff;stroke-width:2.9;stroke-linecap:round;fill:none;
+ filter:drop-shadow(0 0 3px #dbfcffa0);
+}
+.gnss-ruler-length{
+ fill:#e8fbff;font:700 15px ui-monospace,Consolas,monospace;
+ paint-order:stroke fill;stroke:#104568;stroke-width:4;
+}
+body.gnss-ruler-point-mode .eng-readout{display:none!important}
+body.gnss-ruler-point-mode .eng-board:has(.gnss-ruler-trace) .eng-topline{pointer-events:none}
+@media(prefers-reduced-motion:reduce){
+ .gnss-ruler-trace,.gnss-ruler-trace *{animation:none!important;transition:none!important}
+}
