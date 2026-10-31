@@ -216,6 +216,7 @@ function undo(){if(!state.history.length)return;state.future.push(snapshot());re
 function redo(){if(!state.future.length)return;state.history.push(snapshot());restoreSnapshot(state.future.pop());state.pending=null;draw()}
 function clear(){saveHistory();state.records=[];state.pending=null;state.measure=null;if(state.mode==='quest'){state.stage=0;state.segment=0;state.saved=0;state.tool='line';save()}draw()}
 function demo(now){
+ if(window.GNSSRulerFlow?.demoPlaying)return;
  if(state.mode!=='demo'||!state.demoPlaying)return;
  const elapsed=(now-state.demoStart)/1000;
  const segs=expectedLines();const all=[...segs,{type:'circle',...circle}];
@@ -296,6 +297,16 @@ function erasePoint(p){
 // Ruler's two-point workflow asks the original drawing engine to validate
 // target coordinates before any tool animation. The final stroke is committed
 // as one undoable operation only after the pen reaches endpoint B.
+document.addEventListener('gnss:ruler-demo-begin',()=>{
+ if(state.mode!=='demo')return;
+ state.records=[];state.pending=null;state.demoPlaying=true;draw();
+});
+document.addEventListener('gnss:ruler-demo-finished',()=>{
+ if(state.mode!=='demo')return;
+ state.records=[expectedLines()[0]];state.pending=null;
+ state.demoStart=performance.now()-1400;
+ state.demoPlaying=true;draw();
+});
 document.addEventListener('gnss:ruler-check',e=>{
  const d=e.detail||{};
  if(!d.a||!d.b)return;
