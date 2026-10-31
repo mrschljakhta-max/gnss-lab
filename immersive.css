@@ -33,7 +33,7 @@ body.engineering-live .eng-topline:empty{display:none!important}
 .mode-peek svg{width:15px;height:15px;stroke:#b5f78b}
 .mode-peek .mode-chevron{font-size:10px;color:#b5e4d2;transition:transform .2s}
 .mode-open .mode-chevron,#modeTabsAnchor:hover .mode-chevron{transform:rotate(180deg)}
-#modeTabsAnchor #expModes{position:absolute!important;top:47px;left:50%;width:min(580px,calc(100vw - 120px))!important;max-width:580px;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin:0!important;opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,-8px);transition:transform .18s ease,opacity .18s ease,visibility .18s;filter:drop-shadow(0 12px 25px #0008)}
+#modeTabsAnchor #expModes{position:absolute!important;top:39px;left:50%;width:min(580px,calc(100vw - 120px))!important;max-width:580px;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin:0!important;opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,-8px);transition:transform .18s ease,opacity .18s ease,visibility .18s;filter:drop-shadow(0 12px 25px #0008)}
 #modeTabsAnchor:is(:hover,:focus-within,.mode-open) #expModes{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
 #modeTabsAnchor .exp-mode{min-height:62px!important;height:auto!important;padding:9px!important;border-radius:9px!important;box-shadow:0 8px 22px #0005!important;background:#0b2330f2!important}
 #modeTabsAnchor .exp-mode strong{font-size:13px!important}
