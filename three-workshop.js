@@ -30,7 +30,7 @@ function reset(m){
 function target(){return ['Сумісти «0» з краєм бруска','Зроби довжину 1,50 м','Виміряй циліндр: Ø 34 см'][Math.min(2,P.step)]}
 function check(){
  if(P.mode!=='quest'||P.passed||P.step>=3)return;
- let ok=P.step===0?Math.abs(P.ruler-P.left)<.045:P.step===1?Math.abs(P.length-1.5)<.035:Math.hypot(P.calX-1.25,P.calZ+.63)<.19&&Math.abs(P.gap-.34)<.022;
+ let ok=P.step===0?Math.abs(P.ruler-P.left)<.045:P.step===1?Math.abs(P.length-1.5)<.035:Math.hypot(P.calX-1.42,P.calZ+.63)<.19&&Math.abs(P.gap-.34)<.022;
  if(ok){P.passed=true;hud()}
 }
 function save(){try{localStorage.setItem(progressKey,String(P.step))}catch(_){}}
@@ -178,7 +178,7 @@ function tick(t){
   if(P.playing){P.time=Math.min(9,P.time+Math.min(.06,dt));if(P.time>=9){P.playing=false;hud()}}
   P.ruler=interp(-1.85,P.left,P.time/2.8);
   P.length=interp(1.25,1.7,(P.time-3)/2.7);
-  P.calX=interp(1.98,1.25,(P.time-6)/2.8);
+  P.calX=interp(1.98,1.42,(P.time-6)/2.8);
   P.calZ=interp(-1.26,-.63,(P.time-6)/2.8);
   P.gap=interp(.55,.34,(P.time-6)/2.8);
   if(!reduced.matches){angle=.64+Math.sin(t*.0002)*.04;updateCamera()}
@@ -195,7 +195,7 @@ function tick(t){
 }
 async function boot(){
  if(!document.createElement('canvas').getContext('webgl2'))return;
- try{T=await import('https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js')}
+ try{T=await import('https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js').catch(()=>import('https://unpkg.com/three@0.165.0/build/three.module.js'))}
  catch(e){console.warn('Three.js unavailable, using existing 2D stand',e);return}
  try{buildHUD();createScene();reset(document.body.dataset.expMode||'demo');requestAnimationFrame(tick)}
  catch(e){console.error('3D lab failed to initialize; retaining 2D scene',e);root?.remove();document.body.classList.remove('gnss-workshop')}
