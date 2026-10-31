@@ -30,9 +30,9 @@ ink.setAttribute('class','gnss-ruler-ink');
 const length=document.createElementNS(NS,'text');
 length.setAttribute('class','gnss-ruler-length');
 length.setAttribute('text-anchor','middle');
-let mode='demo',tool='line',stage=0,start=null,hover=null,busy=null;
+let mode='demo',tool='line',stage=0,start=null,hover=null,busy=null,demoQueued=false;
 const active=()=>mode!=='demo'&&tool==='ruler'&&(mode!=='quest'||stage===0)&&document.body.classList.contains('engineering-live');
-window.GNSSRulerFlow={get active(){return active()},get busy(){return !!busy}};
+window.GNSSRulerFlow={get active(){return active()},get busy(){return !!busy},get demoPlaying(){return !!busy?.demo}};
 const reduce=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const px=e=>{const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const m=svg.getScreenCTM();return m?p.matrixTransform(m.inverse()):{x:0,y:0}};
 const snap=n=>Math.round(n/3)*3; // 1 mm precision; scale in existing engine is 3 SVG units/mm
@@ -76,7 +76,7 @@ function check(a,b){
  document.dispatchEvent(new CustomEvent('gnss:ruler-check',{detail}));
  return detail.accepted;
 }
-function launch(a,b){
+function launch(a,b,isDemo=false){
  const playback=window.GNSSPhysicalTools?.playRulerStroke;
  if(typeof playback!=='function'){
   showHint('Інструмент ще завантажується');
@@ -84,16 +84,54 @@ function launch(a,b){
  }
  start=a;hover=b;
  const ctl=playback(a,b,f=>{if(busy?.controller===ctl)render(f)});
- busy={controller:ctl,end:b,cancel:()=>ctl.cancel()};
+ busy={controller:ctl,end:b,demo:isDemo,paused:false,cancel:()=>ctl.cancel()};
  render(0);
  ctl.promise.then(ok=>{
   if(!busy||busy.controller!==ctl)return;
   busy=null;
-  if(ok)document.dispatchEvent(new CustomEvent('gnss:ruler-commit',{detail:{a,b}}));
+  if(ok){
+   document.dispatchEvent(new CustomEvent(isDemo?'gnss:ruler-demo-finished':'gnss:ruler-commit',{detail:{a,b}}));
+  }
   clearTrace();
   document.body.classList.toggle('gnss-ruler-point-mode',active());
  });
 }
+function startDemo(){
+ if(mode!=='demo'||!document.body.classList.contains('engineering-live'))return;
+ if(busy)cancel();
+ // The first 140 mm edge is physically drawn; the original demonstration
+ // continues with the other three edges and the circle afterwards.
+ const a={x:300,y:208},b={x:720,y:208};
+ document.dispatchEvent(new CustomEvent('gnss:ruler-demo-begin'));
+ launch(a,b,true);
+}
+function queueDemo(){
+ if(demoQueued)return;
+ demoQueued=true;
+ requestAnimationFrame(()=>{
+  demoQueued=false;
+  if(mode==='demo'&&document.body.classList.contains('engineering-live'))startDemo();
+ });
+}
+const cmd=document.getElementById('engCommand');
+cmd?.addEventListener('click',e=>{
+ if(mode!=='demo')return;
+ const button=e.target.closest('[data-cmd]');if(!button)return;
+ if(button.dataset.cmd==='replay'){
+  e.preventDefault();e.stopImmediatePropagation();startDemo();return;
+ }
+ if(!busy?.demo)return;
+ if(button.dataset.cmd==='play'){
+  e.preventDefault();e.stopImmediatePropagation();
+  if(busy.paused){busy.controller.resume();busy.paused=false;button.textContent='Ⅱ'}
+  else{busy.controller.pause();busy.paused=true;button.textContent='▶'}
+ }
+ if(button.dataset.cmd==='next'){
+  e.preventDefault();e.stopImmediatePropagation();
+  const done=busy;busy=null;done.cancel();clearTrace();
+  document.dispatchEvent(new CustomEvent('gnss:ruler-demo-finished'));
+ }
+},true);
 function pointerDown(e){
  if(!active()||e.button!==0)return;
  e.preventDefault();e.stopImmediatePropagation();
@@ -116,14 +154,16 @@ function pointerMove(e){
  hover=p;render();
 }
 function updateState(d){
- const previously=active();
+ const previously=active(),priorMode=mode;
  const nextMode=d.mode||document.body.dataset.expMode||'demo';
+ const changedToDemo=nextMode==='demo'&&priorMode!=='demo';
  const nextTool=d.tool||'line',nextStage=d.stage||0;
  if(mode!==nextMode||tool!==nextTool||stage!==nextStage){
   if(busy)cancel();else clearTrace();
  }
  mode=nextMode;tool=nextTool;stage=nextStage;
  document.body.classList.toggle('gnss-ruler-point-mode',active());
+ if(nextMode==='demo'&&changedToDemo)queueDemo();
  if(!previously&&active()){
   showHint('Лінійка • Точка A → точка B');
  }
@@ -150,4 +190,5 @@ const observer=new MutationObserver(()=>{
 });
 observer.observe(document.body,{attributes:true,attributeFilter:['class']});
 updateState({mode:document.body.dataset.expMode||'demo',tool:'line',stage:0});
+setTimeout(()=>{if(mode==='demo')queueDemo()},140);
 })();
