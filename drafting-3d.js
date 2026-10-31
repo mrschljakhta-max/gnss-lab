@@ -26,6 +26,11 @@ const hint=document.createElement('div');hint.className='gnss-draft-feedback';bo
 let mode='demo',tool='line',step=0,complete=false,first=null,cursor=null,motion=null;
 let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null;
 let ctx=null,ratio=1,w=0,h=0;
+const RULER_ASSET=new URL('./assets/ruler-150-topdown.webp',document.baseURI).href;
+const RULER_WIDTH=480,RULER_HEIGHT=62,RULER_ZERO=16;
+const rulerPhoto=new Image();
+rulerPhoto.decoding='async';
+rulerPhoto.src=RULER_ASSET;
 const interactive=()=>mode!=='demo'&&!complete&&
   (mode==='explore'&&['line','ruler','compass'].includes(tool)||
    mode==='quest'&&(step===0&&['line','ruler'].includes(tool)||step===1&&tool==='compass'));
@@ -213,30 +218,43 @@ function cylinder(radiusTop,radiusBottom,length,color){
  return ob;
 }
 function buildRuler(){
- const T=three,g=new T.Group(),body=new T.Mesh(new T.BoxGeometry(465,33,5),material(0xb2c9d6,.93,.24));
- body.position.set(232.5,-18,9);g.add(body);
- const edge=new T.Mesh(new T.BoxGeometry(465,2.2,1.3),material(0xf6ffff,.83,.22));
- edge.position.set(232.5,-.5,12.5);g.add(edge);
- const textureCanvas=document.createElement('canvas');textureCanvas.width=2048;textureCanvas.height=150;
- const c=textureCanvas.getContext('2d');
- c.fillStyle='#c5d4d9';c.fillRect(0,0,2048,150);
- const grad=c.createLinearGradient(0,0,0,150);grad.addColorStop(0,'#ffffffa3');grad.addColorStop(.56,'#ffffff00');grad.addColorStop(1,'#26465955');
- c.fillStyle=grad;c.fillRect(0,0,2048,150);
- for(let i=0;i<=140;i++){
-  const x=18+i*14.1;
-  c.strokeStyle=i%10===0?'#253e4e':'#415a67';
-  c.lineWidth=i%10===0?2.2:1.2;
-  c.beginPath();c.moveTo(x,8);c.lineTo(x,i%10===0?68:i%5===0?43:29);c.stroke();
-  if(i%10===0){
-   c.fillStyle='#223d4b';c.font='22px monospace';c.textAlign='center';c.fillText(String(i),x,99);
-  }
- }
- const tex=new T.CanvasTexture(textureCanvas);tex.colorSpace=T.SRGBColorSpace;
- const surface=new T.Mesh(new T.PlaneGeometry(456,30),new T.MeshStandardMaterial({map:tex,metalness:.36,roughness:.4}));
- surface.position.set(232,-18,12.2);g.add(surface);
- const screw=new T.Mesh(new T.CylinderGeometry(4.2,4.2,2.2,18),material(0x344d5b,.8,.31));
- screw.rotation.x=Math.PI/2;screw.position.set(453,-18,12.8);g.add(screw);
- g.visible=false;return g;
+ const T=three,g=new T.Group();
+ // The ruler is always viewed orthographically from directly above.
+ // The photograph is a flat material skin: no perspective tilt or black box.
+ // Its printed "0" is calibrated to the origin. The bottom edge sits just
+ // above the drawn A→B segment, not over the white ink.
+ const left=-RULER_ZERO,bottom=-5;
+ const cx=left+RULER_WIDTH/2,cy=bottom-RULER_HEIGHT/2;
+ const plane=new T.PlaneGeometry(RULER_WIDTH,RULER_HEIGHT);
+ const shadow=new T.Mesh(plane,new T.MeshBasicMaterial({
+  color:0x041e2e,transparent:true,opacity:.22,depthWrite:false,side:T.DoubleSide
+ }));
+ shadow.position.set(cx+3,cy+4,6);
+ g.add(shadow);
+ const material=new T.MeshBasicMaterial({
+  color:0xe6f0f0,transparent:true,alphaTest:.08,
+  side:T.DoubleSide,depthWrite:false,toneMapped:false
+ });
+ const face=new T.Mesh(plane,material);
+ face.position.set(cx,cy,12);
+ g.add(face);
+ const tex=new T.TextureLoader().load(
+  RULER_ASSET,
+  texture=>{
+   texture.colorSpace=T.SRGBColorSpace;
+   texture.anisotropy=Math.min(8,renderer?.capabilities.getMaxAnisotropy()||1);
+   texture.needsUpdate=true;
+   face.material.color.set(0xffffff);
+   face.material.map=texture;
+   face.material.needsUpdate=true;
+  },
+  undefined,
+  err=>console.warn('GNSS LAB ruler texture load failed',err)
+ );
+ tex.colorSpace=T.SRGBColorSpace;
+ g.userData.isOrthographic=true;
+ g.visible=false;
+ return g;
 }
 function buildPencil(){
  const T=three,g=new T.Group();
@@ -296,13 +314,17 @@ function paintFallback(shape,t,progress){
  const angle=shape.type==='line'?Math.atan2(shape.y2-shape.y1,shape.x2-shape.x1):0;
  if(shape.type==='line'){
   if(t<.90){
-   const enter=ease(t/.20),dx=(1-enter)*-55;
-   ctx.translate(p.x+dx,p.y-15*scale);ctx.rotate(angle);ctx.scale(scale,scale);
+   const enter=ease(t/.20),dx=(1-enter)*-60*scale;
+   ctx.translate(p.x+dx,p.y-45*(1-enter)*scale);ctx.rotate(angle);ctx.scale(scale,scale);
    ctx.shadowColor='#001625aa';ctx.shadowBlur=12;ctx.shadowOffsetY=7;
-   const gr=ctx.createLinearGradient(0,-34,0,0);
-   gr.addColorStop(0,'#eff9fb');gr.addColorStop(.38,'#9ab8c8');gr.addColorStop(.75,'#e6f1f0');gr.addColorStop(1,'#55788a');
-   ctx.fillStyle=gr;ctx.fillRect(0,-33,465,31);ctx.shadowBlur=0;
-   for(let i=0;i<=140;i++){ctx.strokeStyle='#284858';ctx.lineWidth=i%10===0?1.1:.55;ctx.beginPath();ctx.moveTo(i*3.15,-32);ctx.lineTo(i*3.15,-(i%10===0?14:i%5===0?20:26));ctx.stroke()}
+   if(rulerPhoto.complete&&rulerPhoto.naturalWidth){
+    ctx.drawImage(rulerPhoto,-RULER_ZERO,-RULER_HEIGHT-5,RULER_WIDTH,RULER_HEIGHT);
+   }else{
+    const gr=ctx.createLinearGradient(0,-67,0,-5);
+    gr.addColorStop(0,'#dce8e9');gr.addColorStop(.5,'#aabec5');gr.addColorStop(1,'#eff5f5');
+    ctx.fillStyle=gr;ctx.fillRect(-RULER_ZERO,-67,RULER_WIDTH,62);
+   }
+   ctx.shadowBlur=0;
    ctx.restore();ctx.save();
   }
   if(t>.22&&t<.96){
@@ -338,7 +360,7 @@ function paint3D(shape,t,progress){
   const angle=Math.atan2(b.y-a.y,b.x-a.x),enter=ease(t/.2),fade=t>.9?clamp((1-t)/.1,0,1):1;
   ruler.visible=t<.98;
   ruler.scale.setScalar(sc);
-  ruler.rotation.z=angle;
+  ruler.rotation.set(0,0,angle);
   ruler.position.set(a.x+Math.cos(angle)*(-60*(1-enter))*sc,a.y+Math.sin(angle)*(-60*(1-enter))*sc-45*(1-enter)*sc,5+10*(1-enter));
   ruler.visible=t<.92;
   if(t>.2&&t<.98){
