@@ -4,6 +4,7 @@ body.lab01-route #engDock,body.lab01-route #engFloats,
 body.lab01-route #engCommand,body.lab01-route #engStatus,
 body.lab01-route #engReadout{display:none!important}
 body.lab01-route .gnss-3d-stage{display:none!important}
+body.lab01-route .gnss-draft-preview{visibility:hidden!important;pointer-events:none!important}
 #lab01Journey{position:absolute;inset:0;z-index:30;color:#eff9f7;font-family:Inter,system-ui,Arial,sans-serif;pointer-events:auto;user-select:none}
 #lab01Journey[hidden]{display:none}
 #lab01Journey .journey-sketch{position:absolute;inset:0;width:100%;height:100%;touch-action:none;overflow:hidden}
