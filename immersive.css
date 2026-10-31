@@ -21,7 +21,8 @@ body.engineering-live .eng-board{grid-column:1!important;grid-row:1!important;mi
 body.engineering-live .eng-right{display:none!important}
 body.engineering-live .eng-stamp,body.engineering-live .eng-demo-label{display:none!important}
 body.engineering-live .eng-readout{opacity:0;transform:translateY(-5px);transition:opacity .16s,transform .16s;pointer-events:none}
-body.engineering-live .eng-board:has(.eng-preview) .eng-readout,body.engineering-live[data-exp-mode="demo"] .eng-readout{opacity:1;transform:none}
+body.engineering-live .eng-board:has(.eng-preview) .eng-readout{opacity:1;transform:none}
+body.engineering-live[data-exp-mode="demo"] .eng-topline{display:none!important}
 body.engineering-live .eng-command{opacity:0;pointer-events:none;transition:opacity .16s}
 body.engineering-live .eng-board:hover .eng-command,body.engineering-live .eng-command:focus-within{opacity:1;pointer-events:auto}
 body.engineering-live .eng-topline{top:20px;left:auto;right:170px}
