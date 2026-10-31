@@ -872,34 +872,37 @@ function cancelErase(){
 // A shape's stored geometry, not the hit click, defines the physical wiping path.
 function validatedEraseHit(data){
  const source=data?.shape;
- if(!source||!['line','circle','rect'].includes(source.type))return null;
+ if(!source||!['line','circle','rect','triangle'].includes(source.type))return null;
  const shape={...source};
  const keys=shape.type==='line'?['x1','y1','x2','y2']:
-  shape.type==='rect'?['x','y','w','h']:['x','y','r'];
+  ['rect','triangle'].includes(shape.type)?['x','y','w','h']:['x','y','r'];
  if(keys.some(key=>!Number.isFinite(shape[key])))return null;
  if(shape.type==='line'&&Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)<1)return null;
  if(shape.type==='circle'&&shape.r<=0)return null;
- if(shape.type==='rect'&&(shape.w<=0||shape.h<=0))return null;
+ if((shape.type==='rect'||shape.type==='triangle')&&(shape.w<=0||shape.h<=0))return null;
  let at={...data?.at};
  if(!Number.isFinite(at.x)||!Number.isFinite(at.y)){
   at=shape.type==='line'?{x:shape.x1,y:shape.y1}:
-   shape.type==='circle'?{x:shape.x+shape.r,y:shape.y}:{x:shape.x,y:shape.y};
+   shape.type==='circle'?{x:shape.x+shape.r,y:shape.y}:
+   shape.type==='triangle'?{x:shape.x+shape.w/2,y:shape.y}:{x:shape.x,y:shape.y};
  }
  if(shape.type==='line'){
   const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1;
   const dot=((at.x-shape.x1)*dx+(at.y-shape.y1)*dy)/(dx*dx+dy*dy);
   const u=clamp(Number.isFinite(dot)?dot:0,0,1);
   at={x:shape.x1+dx*u,y:shape.y1+dy*u};
- }else if(shape.type==='rect'){
+ }else if(shape.type==='rect'||shape.type==='triangle'){
   const x=shape.x,y=shape.y,w=shape.w,h=shape.h;
-  const candidates=[
-   {x:clamp(at.x,x,x+w),y},
-   {x:x+w,y:clamp(at.y,y,y+h)},
-   {x:clamp(at.x,x,x+w),y:y+h},
-   {x,y:clamp(at.y,y,y+h)}
-  ];
-  at=candidates.reduce((best,p)=>Math.hypot(p.x-at.x,p.y-at.y)<
-    Math.hypot(best.x-at.x,best.y-at.y)?p:best,candidates[0]);
+  const verts=shape.type==='triangle'
+   ?[{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}]
+   :[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
+  const projected=verts.map((v,i)=>{
+   const to=verts[(i+1)%verts.length],dx=to.x-v.x,dy=to.y-v.y;
+   const u=clamp(((at.x-v.x)*dx+(at.y-v.y)*dy)/Math.max(1,dx*dx+dy*dy),0,1);
+   return {x:v.x+dx*u,y:v.y+dy*u};
+  });
+  at=projected.reduce((best,p)=>Math.hypot(p.x-at.x,p.y-at.y)<
+   Math.hypot(best.x-at.x,best.y-at.y)?p:best,projected[0]);
  }else{
   const angle=Math.atan2(at.y-shape.y,at.x-shape.x);
   at={x:shape.x+shape.r*Math.cos(angle),y:shape.y+shape.r*Math.sin(angle)};
@@ -919,6 +922,26 @@ function eraserPathPosition(data,time){
    y:y+Math.cos(angle)*wobble+Math.sin(angle)*exiting*24,
    angle:angle+.2+Math.sin(travel*9*Math.PI)*.027,
    progress:travel,lift:(1-enter)*13+exiting*17};
+ }
+ if(shape.type==='triangle'){
+  const {x,y,w,h}=shape;
+  const apex={x:x+w/2,y},right={x:x+w,y:y+h},left={x,y:y+h};
+  const segments=[[apex,right],[right,left],[left,apex]];
+  const perimeter=w+2*Math.hypot(w/2,h);
+  let remaining=travel*perimeter,px=apex.x,py=apex.y,heading=0;
+  for(const [a,b] of segments){
+   const len=Math.hypot(b.x-a.x,b.y-a.y);
+   const u=clamp(remaining/len,0,1);
+   px=a.x+(b.x-a.x)*u;py=a.y+(b.y-a.y)*u;
+   heading=Math.atan2(b.y-a.y,b.x-a.x);
+   remaining-=len;if(remaining<=0)break;
+  }
+  const scrub=travel>0&&travel<1?Math.sin(travel*19*Math.PI)*1.6:0;
+  return {
+   x:lerp(at.x,px,enter)-Math.sin(heading)*scrub+Math.cos(heading)*exiting*20,
+   y:lerp(at.y,py,enter)+Math.cos(heading)*scrub+Math.sin(heading)*exiting*20,
+   angle:heading+.2,progress:travel,lift:(1-enter)*13+exiting*17
+  };
  }
  if(shape.type==='rect'){
   const {x,y,w,h}=shape,P=2*(w+h),walk=travel*P;
