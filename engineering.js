@@ -122,7 +122,7 @@ function questGuide(root){
   root.append(svgEl('circle',{cx:circle.x,cy:circle.y,r:circle.r,class:'eng-focus'}));}
 }
 function rulerShape(root){
- if(window.GNSSPhysicalTools && state.mode!=='demo')return;
+ if(window.GNSSPhysicalTools)return;
  if(state.mode==='demo'||state.tool==='ruler'||(state.mode==='quest'&&state.stage===2)){
   const grp=svgEl('g',{class:'eng-ruler',transform:`translate(${state.ruler.x} ${state.ruler.y}) rotate(${state.ruler.angle})`,'data-drag':'ruler'});
   grp.append(svgEl('rect',{x:0,y:-13,width:460,height:35,rx:4,fill:'#e5e9e1',stroke:'#829ba0','stroke-width':2,'data-drag':'ruler'}));
@@ -181,7 +181,7 @@ function checkTarget(p){
  if(state.stage===1&&p.type==='circle')return dist(p,{x:circle.x,y:circle.y})<15&&Math.abs(p.r-circle.r)<12;
  return false;
 }
-function commit(){
+function commit(withInk=true){
  if(!state.pending)return;
  const p=state.pending;
  if(!checkTarget(p)){toast('↔ Перевір розмір');return}
@@ -190,7 +190,7 @@ function commit(){
   if(state.stage===0){state.segment++;if(state.segment>=4){state.stage=1;state.saved=Math.max(state.saved,1);state.tool='compass';save();toast('✓ 1 / 3')}else toast('✓ '+state.segment+' / 4')}
   else if(state.stage===1){state.stage=2;state.saved=Math.max(state.saved,2);state.tool='ruler';state.measure=null;save();toast('✓ 2 / 3')}
  }
- animateInk(p);draw();
+ if(withInk)animateInk(p);draw();
 }
 function save(){try{localStorage.setItem(key,String(state.saved))}catch{}}
 function finishMeasurement(){
@@ -293,6 +293,24 @@ function erasePoint(p){
  saveHistory();state.records.splice(nearest,1);draw();
  return true;
 }
+// Ruler's two-point workflow asks the original drawing engine to validate
+// target coordinates before any tool animation. The final stroke is committed
+// as one undoable operation only after the pen reaches endpoint B.
+document.addEventListener('gnss:ruler-check',e=>{
+ const d=e.detail||{};
+ if(!d.a||!d.b)return;
+ const p={type:'line',x1:d.a.x,y1:d.a.y,x2:d.b.x,y2:d.b.y};
+ d.accepted=lesson()===0&&state.mode!=='demo'&&!state.complete&&
+  (state.mode!=='quest'||state.stage===0)&&validLine(d.a,d.b)&&checkTarget(p);
+ if(!d.accepted&&state.mode==='quest')toast('↔ Перевір точки');
+});
+document.addEventListener('gnss:ruler-commit',e=>{
+ const d=e.detail||{};
+ if(lesson()!==0||!d.a||!d.b||state.mode==='demo'||state.complete||
+    (state.mode==='quest'&&state.stage!==0))return;
+ state.pending={type:'line',x1:d.a.x,y1:d.a.y,x2:d.b.x,y2:d.b.y};
+ commit(false);
+});
 document.addEventListener('gnss:table-action',e=>{
  if(lesson()!==0||state.mode==='demo'||state.complete)return;
  const a=e.detail||{},p={x:a.x||0,y:a.y||0};
