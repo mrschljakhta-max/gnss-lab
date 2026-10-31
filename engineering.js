@@ -49,6 +49,7 @@ container.innerHTML=`
       <button type="button" data-tool="ruler" title="Лінійка"><span class="eng-tool-icon">▤</span><small>Лінійка</small></button>
       <button type="button" data-tool="line" title="Провести відрізок"><span class="eng-tool-icon">╱</span><small>Лінія</small></button>
       <button type="button" data-tool="rectangle" title="Прямокутник: протягни діагональ, Ctrl — квадрат" aria-label="Прямокутник, Ctrl — квадрат"><span class="eng-tool-icon">▭</span><small>Прямокутник</small></button>
+      <button type="button" data-tool="triangle" title="Трикутник: протягни діагональ, Ctrl — рівносторонній" aria-label="Трикутник, Ctrl — рівносторонній"><span class="eng-tool-icon">△</span><small>Трикутник</small></button>
       <button type="button" data-tool="compass" title="Накреслити коло"><span class="eng-tool-icon">◉</span><small>Циркуль</small></button>
       <button type="button" data-tool="caliper" title="Виміряти діаметр"><span class="eng-tool-icon">⊣</span><small>Штангенциркуль</small></button>
       <button type="button" data-tool="eraser" title="Видалити елемент"><span class="eng-tool-icon">⌫</span><small>Гумка</small></button>
@@ -101,6 +102,29 @@ function rectFromDiagonal(a,b,lockSquare=false){
  return {type:'rect',x:Math.min(a.x,a.x+dx),y:Math.min(a.y,a.y+dy),
   w:Math.abs(dx),h:Math.abs(dy)};
 }
+function triangleFromDiagonal(a,b,equilateral=false){
+ let dx=b.x-a.x,dy=b.y-a.y;
+ if(equilateral){
+  // Fit the exact 60° triangle within the dragged bounds.
+  const width=Math.min(Math.abs(dx),Math.abs(dy)*2/Math.sqrt(3));
+  dx=(Math.sign(dx)||1)*width;
+  dy=(Math.sign(dy)||1)*width*Math.sqrt(3)/2;
+ }
+ const x=Math.min(a.x,a.x+dx),y=Math.min(a.y,a.y+dy);
+ return {type:'triangle',x,y,w:Math.abs(dx),h:Math.abs(dy)};
+}
+function triangleEdges(shape){
+ const {x,y,w,h}=shape;
+ const apex={x:x+w/2,y},left={x,y:y+h},right={x:x+w,y:y+h};
+ return [
+  {type:'line',x1:apex.x,y1:apex.y,x2:right.x,y2:right.y},
+  {type:'line',x1:right.x,y1:right.y,x2:left.x,y2:left.y},
+  {type:'line',x1:left.x,y1:left.y,x2:apex.x,y2:apex.y}
+ ];
+}
+function shapeEdges(shape){
+ return shape.type==='rect'?rectEdges(shape):shape.type==='triangle'?triangleEdges(shape):[];
+}
 function rectEdges(shape){
  const {x,y,w,h}=shape;
  return [
@@ -116,7 +140,7 @@ function pointSegmentDistance(p,s){
  return dist(p,{x:s.x1+u*dx,y:s.y1+u*dy});
 }
 function fmt(num){const n=state.measureUnit==='cm'?num/10:num;return `${(Math.round(n*10)/10).toLocaleString('uk-UA')} ${state.measureUnit}`}
-function currentLength(){if(state.pending){if(state.pending.type==='line')return dist({x:state.pending.x1,y:state.pending.y1},{x:state.pending.x2,y:state.pending.y2})/state.scale;if(state.pending.type==='circle')return state.pending.r*2/state.scale;if(state.pending.type==='rect')return state.pending.w/state.scale}
+function currentLength(){if(state.pending){if(state.pending.type==='line')return dist({x:state.pending.x1,y:state.pending.y1},{x:state.pending.x2,y:state.pending.y2})/state.scale;if(state.pending.type==='circle')return state.pending.r*2/state.scale;if(state.pending.type==='rect'||state.pending.type==='triangle')return state.pending.w/state.scale}
  if(typeof state.measure==='number')return state.measure;
  if(state.mode==='quest'&&state.stage===1)return circle.r*2/state.scale;
  return rect.w/state.scale;
@@ -130,11 +154,15 @@ function addShape(root,shape,opts={}){
  let el;if(shape.type==='line')el=svgEl('line',{x1:shape.x1,y1:shape.y1,x2:shape.x2,y2:shape.y2,class:cls});
  else if(shape.type==='circle')el=svgEl('circle',{cx:shape.x,cy:shape.y,r:shape.r,class:cls});
  else if(shape.type==='rect')el=svgEl('rect',{x:shape.x,y:shape.y,width:shape.w,height:shape.h,class:cls});
+ else if(shape.type==='triangle'){
+  const {x,y,w,h}=shape;
+  el=svgEl('polygon',{points:`${x+w/2},${y} ${x+w},${y+h} ${x},${y+h}`,class:cls});
+ }
  else return null;
  root.append(el);return el;
 }
 function dimensionText(shape){
- if(shape.type==='rect'){
+ if(shape.type==='rect'||shape.type==='triangle'){
   const divisor=state.measureUnit==='cm'?10:1;
   const number=v=>(Math.round(v/state.scale/divisor*10)/10).toLocaleString('uk-UA');
   return number(shape.w)+' × '+number(shape.h)+' '+(state.measureUnit==='cm'?'см':'мм');
@@ -143,7 +171,9 @@ function dimensionText(shape){
  return 'Ø '+fmt(shape.r*2/state.scale);
 }
 function addDraftMeasure(root,shape,position){
- const fallback=shape.type==='rect'
+ const fallback=shape.type==='triangle'
+  ?{x:shape.x+shape.w/2,y:shape.y+shape.h+26}
+  :shape.type==='rect'
   ?{x:shape.x+shape.w/2,y:shape.y<48?shape.y+shape.h+27:shape.y-18}
   :shape.type==='line'
   ?{x:(shape.x1+shape.x2)/2,y:(shape.y1+shape.y2)/2-29}
@@ -185,7 +215,8 @@ function rulerShape(root){
 }
 // Animated eraser owns a single record; it is not deleted until the last frame.
 let eraserVisual=null;
-const measureShapeLength=shape=>shape.type==='rect'?2*(shape.w+shape.h):
+const measureShapeLength=shape=>shape.type==='triangle'?shape.w+2*Math.hypot(shape.w/2,shape.h):
+ shape.type==='rect'?2*(shape.w+shape.h):
  shape.type==='circle'?Math.PI*2*shape.r:Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
 function applyEraserVisual(shape,path,label,visual){
  if(!visual||!path)return;
@@ -212,7 +243,7 @@ function recordAtPoint(p){
  state.records.forEach((shape,index)=>{
   let d;
   if(shape.type==='circle')d=Math.abs(dist(p,shape)-shape.r);
-  else if(shape.type==='rect')d=Math.min(...rectEdges(shape).map(edge=>pointSegmentDistance(p,edge)));
+  else if(shape.type==='rect'||shape.type==='triangle')d=Math.min(...shapeEdges(shape).map(edge=>pointSegmentDistance(p,edge)));
   else if(shape.type==='line')d=pointSegmentDistance(p,shape);
   else return;
   if(d<best){best=d;match={index,shape:{...shape},at:{...p}}}
@@ -227,9 +258,11 @@ function draw(){
  const measureShapes=state.pending?[...saved,state.pending]:[...saved];
  const measurePositions=window.GNSSDimensions?.layout(
   measureShapes.map(s=>s.type==='rect'
-   ?{type:'line',x1:s.x,y1:s.y,x2:s.x+s.w,y2:s.y}:s),
+   ?{type:'line',x1:s.x,y1:s.y,x2:s.x+s.w,y2:s.y}
+   :s.type==='triangle'
+   ?{type:'line',x1:s.x,y1:s.y+s.h,x2:s.x+s.w,y2:s.y+s.h}:s),
   measureShapes.map(dimensionText),
-  {font:13,obstacles:measureShapes.filter(s=>s.type==='rect').flatMap(rectEdges)}
+  {font:13,obstacles:measureShapes.flatMap(shapeEdges)}
  )||[];
  window.GNSSPublishedShapes=saved.map(shape=>({...shape}));
  if(state.layerDrawing){
@@ -344,10 +377,10 @@ function handleDown(e){
  if(target){state.pointer={kind:'ruler',start:p,x:state.ruler.x,y:state.ruler.y};}
  else if(state.tool==='line'){state.pointer={kind:'line',start:{x:snap(p.x),y:snap(p.y)}};
   state.pending={type:'line',x1:snap(p.x),y1:snap(p.y),x2:snap(p.x),y2:snap(p.y)};}
- else if(state.tool==='rectangle'&&state.mode==='explore'){
-  const start=rectPoint(p);
-  state.pointer={kind:'rectangle',start,last:start,ctrl:!!e.ctrlKey};
-  state.pending=rectFromDiagonal(start,start,false);
+ else if((state.tool==='rectangle'||state.tool==='triangle')&&state.mode==='explore'){
+  const start=rectPoint(p),kind=state.tool;
+  state.pointer={kind,start,last:start,ctrl:!!e.ctrlKey};
+  state.pending=kind==='triangle'?triangleFromDiagonal(start,start,false):rectFromDiagonal(start,start,false);
  }
  else if(state.tool==='compass'){state.pointer={kind:'circle',start:{x:snap(p.x),y:snap(p.y)}};
   state.pending={type:'circle',x:snap(p.x),y:snap(p.y),r:0};}
@@ -377,19 +410,22 @@ function handleMove(e){
  if(!state.pointer)return;const p=pt(e),q=state.pointer;
  if(q.kind==='line'){let x=snap(p.x),y=snap(p.y);if(e.shiftKey){if(Math.abs(x-q.start.x)>Math.abs(y-q.start.y))y=q.start.y;else x=q.start.x}
   state.pending.x2=clamp(x,18,1182);state.pending.y2=clamp(y,18,642);}
- if(q.kind==='rectangle'){q.last=rectPoint(p);q.ctrl=!!e.ctrlKey;state.pending=rectFromDiagonal(q.start,q.last,q.ctrl)}
+ if(q.kind==='rectangle'||q.kind==='triangle'){
+  q.last=rectPoint(p);q.ctrl=!!e.ctrlKey;
+  state.pending=q.kind==='triangle'?triangleFromDiagonal(q.start,q.last,q.ctrl):rectFromDiagonal(q.start,q.last,q.ctrl);
+ }
  if(q.kind==='circle'){state.pending.r=clamp(snap(dist(p,q.start)),5,255)}
  if(q.kind==='ruler'){state.ruler.x=clamp(q.x+p.x-q.start.x,12,920);state.ruler.y=clamp(q.y+p.y-q.start.y,40,620)}
  draw();
 }
 function handleUp(e){if(!state.pointer)return;
- if(state.pointer.kind==='rectangle'){
+ if(state.pointer.kind==='rectangle'||state.pointer.kind==='triangle'){
   const q=state.pointer;
   const released=e?.type==='pointercancel';
   const end=!released&&Number.isFinite(e?.clientX)&&Number.isFinite(e?.clientY)
    ?rectPoint(pt(e)):q.last;
   const constrained=typeof e?.ctrlKey==='boolean'?e.ctrlKey:q.ctrl;
-  const shape=rectFromDiagonal(q.start,end,constrained);
+  const shape=q.kind==='triangle'?triangleFromDiagonal(q.start,end,constrained):rectFromDiagonal(q.start,end,constrained);
   if(!released&&shape.w>=state.scale*2&&shape.h>=state.scale*2){
    saveHistory();state.records.push(shape);
   }
@@ -519,21 +555,27 @@ right.addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn)
  if(btn.dataset.view==='objects'){toast('⬡ 3D наступним етапом')}if(btn.dataset.view==='blueprint'){toast('▣ 2D')}
 });
 window.addEventListener('keydown',e=>{if(lesson()!==0||mode()==='demo')return;
- if(e.key==='Control'&&state.pointer?.kind==='rectangle'){
+ if(e.key==='Control'&&(state.pointer?.kind==='rectangle'||state.pointer?.kind==='triangle')){
   state.pointer.ctrl=true;
-  state.pending=rectFromDiagonal(state.pointer.start,state.pointer.last,true);draw();
+  state.pending=state.pointer.kind==='triangle'
+   ?triangleFromDiagonal(state.pointer.start,state.pointer.last,true)
+   :rectFromDiagonal(state.pointer.start,state.pointer.last,true);
+  draw();
  }
  if(e.key==='Escape'){
-  if(state.pointer?.kind==='rectangle'){state.pointer=null;svg.classList.remove('eng-grab')}
+  if(state.pointer?.kind==='rectangle'||state.pointer?.kind==='triangle'){state.pointer=null;svg.classList.remove('eng-grab')}
   state.pending=null;draw();
  }
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();if(e.shiftKey)redo();else undo()}
  if(e.key==='Enter'&&state.pending){e.preventDefault();commit()}
 });
 window.addEventListener('keyup',e=>{
- if(e.key==='Control'&&state.pointer?.kind==='rectangle'){
+ if(e.key==='Control'&&(state.pointer?.kind==='rectangle'||state.pointer?.kind==='triangle')){
   state.pointer.ctrl=false;
-  state.pending=rectFromDiagonal(state.pointer.start,state.pointer.last,false);draw();
+  state.pending=state.pointer.kind==='triangle'
+   ?triangleFromDiagonal(state.pointer.start,state.pointer.last,false)
+   :rectFromDiagonal(state.pointer.start,state.pointer.last,false);
+  draw();
  }
 });
 let last=0;
