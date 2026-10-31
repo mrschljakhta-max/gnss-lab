@@ -118,3 +118,36 @@ body.engineering-live #engBoard {isolation:isolate}
   animation:none!important;transition:none!important;
  }
 }
+
+/* Final practical stage: accurately scaled physical workpieces rise from the drawing. */
+.gnss-physical-samples{position:absolute;inset:0;pointer-events:none;opacity:0;visibility:hidden;transition:opacity .35s ease}
+.gnss-physical-samples.is-visible{opacity:1;visibility:visible}
+.gnss-sample{
+ position:absolute;transform:translate(-50%,-50%);
+ display:block;pointer-events:none;box-sizing:border-box;
+ animation:gnss-sample-rise .46s cubic-bezier(.2,.75,.22,1) both;
+}
+@keyframes gnss-sample-rise{
+ from{opacity:.12;filter:brightness(1.5) blur(2px);transform:translate(-50%,-50%) scale(.95)}
+ to{opacity:1;filter:brightness(1);transform:translate(-50%,-50%) scale(1)}
+}
+.gnss-sample-wood{
+ border:4px solid #80614b;
+ border-right-color:#563a2c;
+ border-bottom-color:#5a3d2c;
+ background:
+   linear-gradient(125deg,transparent 0%,#f1dcaa31 32%,transparent 56%,#31180818 75%),
+   repeating-linear-gradient(1deg,#885d3966 0px,#ad7d5044 2px,#ead19b44 4px,#b98b5744 9px,#80583a66 13px),
+   linear-gradient(165deg,#e4c18b,#bf9668 48%,#896043);
+ box-shadow:inset 3px 3px 4px #fff7,inset -8px -9px 10px #6543245a,
+ 8px 10px 0 #684a33,18px 21px 20px #001b2c80;
+ border-radius:2px;
+}
+.gnss-sample-cylinder{
+ border-radius:50%;
+ background:radial-gradient(circle at 34% 26%,#f5f8f6 0%,#cbd9d4 24%,#9db6b2 48%,#567c82 75%,#2b555f 100%);
+ border:5px solid #527c82;
+ box-shadow:inset 8px 8px 18px #eef7f1d5,inset -12px -13px 19px #254d5788,
+ 11px 12px 0 #315c67,18px 22px 22px #001b2c7c;
+}
+@media(prefers-reduced-motion:reduce){.gnss-physical-samples,.gnss-sample{animation:none!important;transition:none!important}}
