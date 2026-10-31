@@ -648,6 +648,29 @@ function linePose(plan,elapsed){
  return {...base,phase:'exit',pass:p.length-1,draw:1,offset:p[p.length-1].from,
   pencilVisible:true,penLift:ease(ms/plan.outro),lift:ease(ms/plan.outro)};
 }
+// Animation only. Input remains cursor-only: centre, radius, then replay.
+function circlePose(t,radius){
+ const t01=clamp(t,0,1),closed=Math.max(5,radius*.25),open=ease((t01-.25)/.17);
+ let phase='draw';
+ if(t01<.14)phase='appear';
+ else if(t01<.25)phase='place';
+ else if(t01<.42)phase='open';
+ else if(t01<.47)phase='settle';
+ else if(t01<.90)phase='draw';
+ else if(t01<.96)phase='lift';
+ else phase='exit';
+ const positioned=ease(t01/.25);
+ const exiting=ease((t01-.96)/.04);
+ const lift=t01<.14?1-ease(t01/.14):t01>.90?ease((t01-.90)/.10):0;
+ return {
+  phase,
+  radius:lerp(closed,radius,open),
+  draw:clamp((t01-.47)/.43,0,1),
+  shiftX:-65*(1-positioned)+42*exiting,
+  shiftY:-55*(1-positioned)-24*exiting,
+  lift
+ };
+}
 function paintFallback(shape,t,progress,pose){
  if(!ctx)ctx=fallback.getContext('2d');
  if(!ctx)return;
@@ -712,14 +735,31 @@ function paintFallback(shape,t,progress,pose){
    ctx.strokeStyle='#839eac';ctx.lineWidth=.8;
    ctx.beginPath();ctx.moveTo(11.4,-160);ctx.lineTo(10.4,-121);ctx.stroke();
   }
- }else if(t<.96){
-  const center=screen({x:shape.x,y:shape.y}),r=shape.r*scale,phase=-Math.PI/2+Math.PI*2*progress;
-  ctx.translate(center.x,center.y);ctx.rotate(phase);
-  ctx.shadowColor='#001b2fc0';ctx.shadowBlur=9;ctx.shadowOffsetY=7;
-  ctx.strokeStyle='#c8dde7';ctx.lineWidth=6;ctx.lineCap='round';
-  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(r*.5,-45*scale);ctx.lineTo(r,0);ctx.stroke();
-  ctx.beginPath();ctx.moveTo(r*.5,-45*scale);ctx.lineTo(0,0);ctx.stroke();
-  ctx.fillStyle='#e8f2ed';ctx.beginPath();ctx.arc(r*.5,-45*scale,7,0,Math.PI*2);ctx.fill();
+ }else{
+  const cp=circlePose(t,shape.r),center=screen({x:shape.x,y:shape.y});
+  const r=cp.radius*scale,hingeH=Math.max(105,Math.min(170,158-cp.radius*.15))*scale;
+  const phase=(shape.startAngle??-Math.PI/2)+Math.PI*2*cp.draw;
+  ctx.translate(center.x+cp.shiftX*scale,center.y+cp.shiftY*scale-cp.lift*14*scale);
+  ctx.rotate(phase);
+  const grad=ctx.createLinearGradient(-9,0,9,0);
+  grad.addColorStop(0,'#657e8d');grad.addColorStop(.26,'#eaf4f2');
+  grad.addColorStop(.55,'#b5c7cd');grad.addColorStop(.8,'#f2f5f3');
+  grad.addColorStop(1,'#57717e');
+  ctx.strokeStyle='#021a2a99';ctx.lineWidth=18*scale;ctx.lineCap='round';
+  ctx.shadowColor='#001a2ba6';ctx.shadowBlur=10;ctx.shadowOffsetY=6;
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(r/2,-hingeH);ctx.lineTo(r,0);ctx.stroke();
+  ctx.shadowBlur=0;ctx.lineWidth=14*scale;ctx.strokeStyle=grad;
+  ctx.beginPath();ctx.moveTo(0,0);ctx.lineTo(r/2,-hingeH);ctx.lineTo(r,0);ctx.stroke();
+  const cy=-hingeH*.43,left=r*.215,right=r*.785;
+  ctx.lineWidth=4*scale;ctx.strokeStyle='#c4d8db';
+  ctx.beginPath();ctx.moveTo(left,cy);ctx.lineTo(right,cy);ctx.stroke();
+  ctx.fillStyle='#b4c6d0';ctx.beginPath();ctx.arc(r/2,-hingeH,17*scale,0,2*Math.PI);ctx.fill();
+  ctx.strokeStyle='#607481';ctx.lineWidth=4*scale;ctx.stroke();
+  ctx.fillStyle='#f0f6f5';ctx.beginPath();ctx.arc(r/2,-hingeH,4*scale,0,2*Math.PI);ctx.fill();
+  ctx.fillStyle='#c3d4da';ctx.fillRect(r/2-5*scale,-hingeH-62*scale,10*scale,42*scale);
+  ctx.fillStyle='#d4e6e8';ctx.beginPath();ctx.arc(r/2,cy,9*scale,0,2*Math.PI);ctx.fill();
+  ctx.strokeStyle='#566e7b';ctx.lineWidth=2*scale;ctx.stroke();
+  ctx.fillStyle='#1b2a30';ctx.beginPath();ctx.arc(r,0,2.4*scale,0,2*Math.PI);ctx.fill();
  }
  ctx.restore();
 }
@@ -752,11 +792,12 @@ function paint3D(shape,t,progress,pose){
    pencil.rotation.set(0,0,-.20);
   }
  }else{
-  const center=screen({x:shape.x,y:shape.y});
-  compass.visible=t<.96;
-  compass.scale.setScalar(sc*(shape.r/96));
-  compass.position.set(center.x,center.y,6+(1-ease(t/.2))*16);
-  compass.rotation.z=-Math.PI/2+Math.PI*2*progress;
+  const center=screen({x:shape.x,y:shape.y}),p=circlePose(t,shape.r);
+  compass.visible=true;
+  compass.scale.setScalar(sc);
+  compass.userData.pose(p.radius);
+  compass.position.set(center.x+p.shiftX*sc,center.y+p.shiftY*sc,6+p.lift*20);
+  compass.rotation.z=(shape.startAngle??-Math.PI/2)+Math.PI*2*p.draw;
  }
  renderer.render(scene,camera);
 }
@@ -764,7 +805,7 @@ function play(shape,demo=false){
  if(motion)cancel();
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
  const plan=shape.type==='line'?linePlan(shape,reduced):null;
- const duration=plan?plan.duration:reduced?350:3400;
+ const duration=plan?plan.duration:reduced?400:4200;
  const playback={shape,demo,started:performance.now(),duration,plan,paused:false,pausedAt:0,progress:0};
  motion=playback;
  if(demo)document.dispatchEvent(new CustomEvent('gnss:ruler-demo-begin'));
@@ -775,9 +816,10 @@ function play(shape,demo=false){
   if(playback.paused){animationHandle=requestAnimationFrame(animate);return}
   const t=clamp((now-playback.started)/duration,0,1);
   const pose=plan?linePose(plan,clamp(now-playback.started,0,duration)):null;
-  const fraction=pose?pose.draw:clamp((t-.23)/.68,0,1);
+  const cp=shape.type==='circle'?circlePose(t,shape.r):null;
+  const fraction=pose?pose.draw:cp?cp.draw:0;
   playback.progress=fraction;
-  display(shape,(pose?.phase==='enter'||pose?.phase==='approach')?null:fraction);
+  display(shape,(pose?.phase==='enter'||pose?.phase==='approach'||(cp&&t<.47))?null:fraction);
   paint3D(shape,t,fraction,pose);
   if(t>=1){
    motion=null;
