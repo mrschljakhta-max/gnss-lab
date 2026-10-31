@@ -375,44 +375,82 @@ function finishScene(){
  if(compass)compass.visible=false;
  if(ctx)ctx.clearRect(0,0,w,h);
 }
-function paintFallback(shape,t,progress){
+/* Timed measured passes: the ruler is always exactly 150 mm long.
+ * An arbitrary long A-B segment is drawn with consecutive ruler placements.
+ */
+function linePlan(shape,reduced=false){
+ const L=Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
+ const parts=[];
+ const count=Math.max(1,Math.ceil(L/RULER_SPAN));
+ for(let i=0;i<count;i++){
+  const from=i*RULER_SPAN,to=Math.min(L,(i+1)*RULER_SPAN);
+  parts.push({from,to,ms:reduced?90:Math.max(430,Math.round(1060*(to-from)/RULER_SPAN))});
+ }
+ const intro=reduced?45:590,lead=reduced?30:270,shift=reduced?35:410,outro=reduced?40:360;
+ const duration=intro+lead+parts.reduce((sum,p)=>sum+p.ms,0)+shift*(parts.length-1)+outro;
+ return {L,parts,intro,lead,shift,outro,duration};
+}
+function linePose(plan,elapsed){
+ let ms=clamp(elapsed,0,plan.duration),p=plan.parts;
+ const base={phase:'park',draw:0,offset:0,entry:1,pencilVisible:false,lift:0,penLift:0};
+ if(ms<plan.intro)return {...base,phase:'enter',entry:ease(ms/plan.intro),lift:1-ease(ms/plan.intro)};
+ ms-=plan.intro;
+ if(ms<plan.lead)return {...base,phase:'approach',pencilVisible:true,penLift:1-ease(ms/plan.lead)};
+ ms-=plan.lead;
+ for(let i=0;i<p.length;i++){
+  const seg=p[i];
+  if(ms<seg.ms){
+   const u=clamp(ms/seg.ms,0,1);
+   return {...base,phase:'trace',pass:i,draw:(seg.from+(seg.to-seg.from)*u)/plan.L,
+     offset:seg.from,pencilVisible:true,penLift:0};
+  }
+  ms-=seg.ms;
+  if(i<p.length-1){
+   if(ms<plan.shift){
+    const u=ease(ms/plan.shift);
+    return {...base,phase:'shift',pass:i,draw:seg.to/plan.L,
+      offset:lerp(seg.from,p[i+1].from,u),pencilVisible:true,
+      penLift:Math.sin(Math.PI*u),lift:Math.sin(Math.PI*u)};
+   }
+   ms-=plan.shift;
+  }
+ }
+ return {...base,phase:'exit',pass:p.length-1,draw:1,offset:p[p.length-1].from,
+  pencilVisible:true,penLift:ease(ms/plan.outro),lift:ease(ms/plan.outro)};
+}
+function paintFallback(shape,t,progress,pose){
  if(!ctx)ctx=fallback.getContext('2d');
  if(!ctx)return;
  ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,w,h);
- const scale=unitScale();
- const p=shape.type==='line'?screen({x:shape.x1,y:shape.y1}):screen({x:shape.x,y:shape.y});
+ const scale=unitScale(),p=shape.type==='line'
+  ?screen({x:shape.x1,y:shape.y1}):screen({x:shape.x,y:shape.y});
  ctx.save();
- const angle=shape.type==='line'?Math.atan2(shape.y2-shape.y1,shape.x2-shape.x1):0;
  if(shape.type==='line'){
-  if(t<.90){
-   const enter=ease(t/.20),dx=(1-enter)*-60*scale;
-   ctx.translate(p.x+dx,p.y-45*(1-enter)*scale);ctx.rotate(angle);ctx.scale(scale,scale);
-   ctx.shadowColor='#001625aa';ctx.shadowBlur=12;ctx.shadowOffsetY=7;
-   if(rulerPhoto.complete&&rulerPhoto.naturalWidth){
-    ctx.drawImage(rulerPhoto,-RULER_ZERO,-RULER_HEIGHT-5,RULER_WIDTH,RULER_HEIGHT);
-   }else{
-    const gr=ctx.createLinearGradient(0,-67,0,-5);
-    gr.addColorStop(0,'#dce8e9');gr.addColorStop(.5,'#aabec5');gr.addColorStop(1,'#eff5f5');
-    ctx.fillStyle=gr;ctx.fillRect(-RULER_ZERO,-67,RULER_WIDTH,62);
-   }
-   ctx.shadowBlur=0;
-   ctx.restore();ctx.save();
-  }
-  if(t>.22&&t<.96){
-   const start=screen({x:shape.x1,y:shape.y1}),end=screen({x:shape.x2,y:shape.y2});
-   const penProgress=t<.31?0:clamp((t-.31)/.55,0,1);
-   const X=lerp(start.x,end.x,penProgress),Y=lerp(start.y,end.y,penProgress);
-   ctx.translate(X,Y);ctx.rotate(-.23);
-   ctx.shadowColor='#00151cc5';ctx.shadowBlur=12;ctx.shadowOffsetX=8;ctx.shadowOffsetY=9;
-   const g=ctx.createLinearGradient(-9,0,9,0);
-   g.addColorStop(0,'#061f37');g.addColorStop(.34,'#1c5c8d');g.addColorStop(.8,'#8dbece');g.addColorStop(1,'#102c48');
-   ctx.fillStyle=g;ctx.fillRect(-7,-115,14,99);
-   ctx.fillStyle='#cbd6db';ctx.fillRect(-6,-17,12,13);
-   ctx.fillStyle='#161e28';ctx.beginPath();ctx.moveTo(-3,-4);ctx.lineTo(0,0);ctx.lineTo(3,-4);ctx.fill();
+  const a=screen({x:shape.x1,y:shape.y1}),b=screen({x:shape.x2,y:shape.y2});
+  const angle=Math.atan2(b.y-a.y,b.x-a.x),ux=Math.cos(angle),uy=Math.sin(angle);
+  const P=pose||{offset:0,entry:ease(t/.2),draw:progress,pencilVisible:t>.2,penLift:0,lift:0,phase:'trace'};
+  const ox=(P.offset-(1-P.entry)*55)*scale;
+  const oy=-(1-P.entry)*25*scale-P.lift*12*scale;
+  ctx.translate(a.x+ux*ox,a.y+uy*ox+oy);
+  ctx.rotate(angle);ctx.scale(scale,scale);
+  ctx.shadowColor='#001c30a0';ctx.shadowBlur=11;ctx.shadowOffsetY=6;
+  ctx.drawImage(getRulerArtwork(),RULER_LEFT,RULER_TOP,
+    RULER_RIGHT-RULER_LEFT,RULER_BOTTOM-RULER_TOP);
+  ctx.shadowBlur=0;
+  ctx.restore();ctx.save();
+  if(P.pencilVisible&&P.phase!=='enter'){
+   const x=lerp(a.x,b.x,P.draw),y=lerp(a.y,b.y,P.draw);
+   ctx.translate(x,y-12*P.penLift*scale);
+   ctx.rotate(-.20);
+   ctx.shadowColor='#061e2dab';ctx.shadowBlur=9;ctx.shadowOffsetX=5;ctx.shadowOffsetY=7;
+   const g=ctx.createLinearGradient(-6,0,7,0);
+   g.addColorStop(0,'#06263f');g.addColorStop(.45,'#25699c');g.addColorStop(.9,'#a1cbdb');g.addColorStop(1,'#0d304e');
+   ctx.fillStyle=g;ctx.fillRect(-6,-106,12,89);
+   ctx.fillStyle='#d7e7e9';ctx.fillRect(-5,-18,10,14);
+   ctx.fillStyle='#22292f';ctx.beginPath();ctx.moveTo(-3,-4);ctx.lineTo(0,0);ctx.lineTo(3,-4);ctx.fill();
   }
  }else if(t<.96){
-  const center=screen({x:shape.x,y:shape.y});
-  const r=shape.r*scale,phase=-Math.PI/2+Math.PI*2*progress;
+  const center=screen({x:shape.x,y:shape.y}),r=shape.r*scale,phase=-Math.PI/2+Math.PI*2*progress;
   ctx.translate(center.x,center.y);ctx.rotate(phase);
   ctx.shadowColor='#001b2fc0';ctx.shadowBlur=9;ctx.shadowOffsetY=7;
   ctx.strokeStyle='#c8dde7';ctx.lineWidth=6;ctx.lineCap='round';
@@ -422,26 +460,33 @@ function paintFallback(shape,t,progress){
  }
  ctx.restore();
 }
-function paint3D(shape,t,progress){
- if(!renderer||!three){paintFallback(shape,t,progress);return}
+function paint3D(shape,t,progress,pose){
+ if(!renderer||!three){paintFallback(shape,t,progress,pose);return}
  const sc=unitScale();
  ruler.visible=pencil.visible=compass.visible=false;
  if(shape.type==='line'){
   const a=screen({x:shape.x1,y:shape.y1}),b=screen({x:shape.x2,y:shape.y2});
-  const angle=Math.atan2(b.y-a.y,b.x-a.x),enter=ease(t/.2),fade=t>.9?clamp((1-t)/.1,0,1):1;
-  ruler.visible=t<.98;
+  const angle=Math.atan2(b.y-a.y,b.x-a.x),ux=Math.cos(angle),uy=Math.sin(angle);
+  const P=pose||{offset:0,entry:ease(t/.2),draw:progress,pencilVisible:t>.2,penLift:0,lift:0,phase:'trace'};
+  const slide=(P.offset-(1-P.entry)*55)*sc;
+  ruler.visible=P.phase!=='exit'||P.lift<.85;
   ruler.scale.setScalar(sc);
   ruler.rotation.set(0,0,angle);
-  ruler.position.set(a.x+Math.cos(angle)*(-60*(1-enter))*sc,a.y+Math.sin(angle)*(-60*(1-enter))*sc-45*(1-enter)*sc,5+10*(1-enter));
-  ruler.visible=t<.92;
-  if(t>.2&&t<.98){
+  ruler.position.set(
+   a.x+ux*slide,
+   a.y+uy*slide-(1-P.entry)*25*sc-P.lift*12*sc,
+   5+P.lift*15
+  );
+  if(P.pencilVisible){
    pencil.visible=true;pencil.scale.setScalar(sc);
-   const lead=ease((t-.2)/.11);
-   const initial={x:a.x-70*sc,y:a.y-90*sc};
-   const along=t<.31?0:clamp((t-.31)/.55,0,1);
-   const target={x:lerp(a.x,b.x,along),y:lerp(a.y,b.y,along)};
-   pencil.position.set(lerp(initial.x,target.x,lead),lerp(initial.y,target.y,lead),14+(t>.88?16*ease((t-.88)/.1):0));
-   pencil.rotation.z=-.21;
+   let px=lerp(a.x,b.x,P.draw),py=lerp(a.y,b.y,P.draw);
+   if(P.phase==='approach'){
+    const lead=1-P.penLift;
+    px=lerp(a.x-65*sc,a.x,lead);
+    py=lerp(a.y-80*sc,a.y,lead);
+   }
+   pencil.position.set(px,py,14+P.penLift*22);
+   pencil.rotation.set(0,0,-.20);
   }
  }else{
   const center=screen({x:shape.x,y:shape.y});
@@ -455,8 +500,9 @@ function paint3D(shape,t,progress){
 function play(shape,demo=false){
  if(motion)cancel();
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
- const duration=reduced?350:shape.type==='circle'?3400:2900;
- const playback={shape,demo,started:performance.now(),duration,paused:false,pausedAt:0,progress:0};
+ const plan=shape.type==='line'?linePlan(shape,reduced):null;
+ const duration=plan?plan.duration:reduced?350:3400;
+ const playback={shape,demo,started:performance.now(),duration,plan,paused:false,pausedAt:0,progress:0};
  motion=playback;
  if(demo)document.dispatchEvent(new CustomEvent('gnss:ruler-demo-begin'));
  document.body.classList.add('gnss-draft-animating');
@@ -465,11 +511,11 @@ function play(shape,demo=false){
   if(motion!==playback)return;
   if(playback.paused){animationHandle=requestAnimationFrame(animate);return}
   const t=clamp((now-playback.started)/duration,0,1);
-  const f=clamp((t-.31)/.55,0,1);
-  const fraction=shape.type==='line'?f:clamp((t-.23)/.68,0,1);
+  const pose=plan?linePose(plan,clamp(now-playback.started,0,duration)):null;
+  const fraction=pose?pose.draw:clamp((t-.23)/.68,0,1);
   playback.progress=fraction;
-  display(shape,t<.25?null:fraction);
-  paint3D(shape,t,fraction);
+  display(shape,(pose?.phase==='enter'||pose?.phase==='approach')?null:fraction);
+  paint3D(shape,t,fraction,pose);
   if(t>=1){
    motion=null;
    finishScene();
