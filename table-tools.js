@@ -156,7 +156,7 @@ function updateAll(){Object.keys(objects).forEach(update);updateSamples()}
 function setVisible(next){
  visible=new Set(next);
  for(const [name,el] of Object.entries(objects)){
-  const show=visible.has(name)&&mode!=='demo'&&document.body.classList.contains('engineering-live');
+  const show=visible.has(name)&&(mode!=='demo'||!!strokeMotion)&&document.body.classList.contains('engineering-live');
   if(show&&!el.classList.contains('is-visible')){
    el.classList.add('is-visible','is-landing');
    el.addEventListener('animationend',()=>el.classList.remove('is-landing'),{once:true});
@@ -165,7 +165,7 @@ function setVisible(next){
  drawCircleGuide();
 }
 function sync(data){
- if(strokeMotion && (data.mode!==mode || data.tool!=='ruler'))strokeMotion.cancel();
+ if(strokeMotion && (data.mode!==mode || (data.tool!=='ruler'&&mode!=='demo')))strokeMotion.cancel();
  mode=data.mode||document.body.dataset.expMode||'demo';
  tool=data.tool||'line';stage=data.stage||0;
  const samplesVisible=mode==='quest'&&stage===2&&document.body.classList.contains('engineering-live');
@@ -366,15 +366,19 @@ function playRulerStroke(a,b,onInk){
   if(ok)onInk(1);
   park();
   strokeMotion=null;
+  if(mode==='demo')setVisible([]);
   resolvePromise(ok);
  }
  const controller={promise:done,cancel:()=>settle(false)};
  strokeMotion=controller;
  setVisible(['ruler','line']);
  objects.ruler?.classList.add('is-dragging');
- const begin=performance.now();
+ let begin=performance.now(),paused=false,pausedAt=0;
+ controller.pause=()=>{if(!paused&&!settled){paused=true;pausedAt=performance.now()}};
+ controller.resume=()=>{if(paused&&!settled){begin+=performance.now()-pausedAt;paused=false}};
  function frame(now){
   if(settled)return;
+  if(paused){request=requestAnimationFrame(frame);return}
   const t=Math.min(1,(now-begin)/duration);
   // 0-.20 align the ruler, .20-.31 move the pencil to point A,
   // .31-.83 trace the segment, .83-1 raise and park.
