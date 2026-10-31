@@ -122,7 +122,8 @@ function questGuide(root){
   root.append(svgEl('circle',{cx:circle.x,cy:circle.y,r:circle.r,class:'eng-focus'}));}
 }
 function rulerShape(root){
- if(window.GNSSPhysicalTools)return;
+ // Physical tools only appear during replay; no permanent paper ruler.
+ return;
  if(state.mode==='demo'||state.tool==='ruler'||(state.mode==='quest'&&state.stage===2)){
   const grp=svgEl('g',{class:'eng-ruler',transform:`translate(${state.ruler.x} ${state.ruler.y}) rotate(${state.ruler.angle})`,'data-drag':'ruler'});
   grp.append(svgEl('rect',{x:0,y:-13,width:460,height:35,rx:4,fill:'#e5e9e1',stroke:'#829ba0','stroke-width':2,'data-drag':'ruler'}));
@@ -216,7 +217,7 @@ function undo(){if(!state.history.length)return;state.future.push(snapshot());re
 function redo(){if(!state.future.length)return;state.history.push(snapshot());restoreSnapshot(state.future.pop());state.pending=null;draw()}
 function clear(){saveHistory();state.records=[];state.pending=null;state.measure=null;if(state.mode==='quest'){state.stage=0;state.segment=0;state.saved=0;state.tool='line';save()}draw()}
 function demo(now){
- if(window.GNSSRulerFlow?.demoPlaying)return;
+ if(window.GNSSDrafting3D?.demoRunning)return;
  if(state.mode!=='demo'||!state.demoPlaying)return;
  const elapsed=(now-state.demoStart)/1000;
  const segs=expectedLines();const all=[...segs,{type:'circle',...circle}];
@@ -231,6 +232,7 @@ function demo(now){
  draw();
 }
 function handleDown(e){
+ if(window.GNSSDrafting3D?.intercepts)return;
  if(state.mode==='demo'||state.stage>=3)return;
  const p=pt(e),target=e.target.closest('[data-drag]');
  if(target){state.pointer={kind:'ruler',start:p,x:state.ruler.x,y:state.ruler.y};}
@@ -306,6 +308,20 @@ document.addEventListener('gnss:ruler-demo-finished',()=>{
  state.records=[expectedLines()[0]];state.pending=null;
  state.demoStart=performance.now()-1400;
  state.demoPlaying=true;draw();
+});
+// Shared geometry validation; the renderer owns transient 3D visuals.
+document.addEventListener('gnss:draw-check',e=>{
+ const d=e.detail||{},p=d.shape;
+ d.accepted=!!p&&lesson()===0&&state.mode!=='demo'&&!state.complete&&
+  (state.mode!=='quest'||(p.type==='line'&&state.stage===0)||(p.type==='circle'&&state.stage===1))&&
+  (p.type!=='line'||validLine({x:p.x1,y:p.y1},{x:p.x2,y:p.y2}))&&
+  (p.type!=='circle'||p.r>=15)&&checkTarget(p);
+ if(!d.accepted&&state.mode==='quest')toast('↔ Перевір геометрію');
+});
+document.addEventListener('gnss:draw-commit',e=>{
+ const p=e.detail?.shape;if(!p||lesson()!==0||state.mode==='demo'||state.complete)return;
+ if(!checkTarget(p))return;
+ state.pending={...p};commit(false);
 });
 document.addEventListener('gnss:ruler-check',e=>{
  const d=e.detail||{};
