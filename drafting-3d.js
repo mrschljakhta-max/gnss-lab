@@ -328,21 +328,118 @@ function buildRuler(){
  return group;
 }
 function buildPencil(){
+ // Premium top-down mechanical pencil: the graphite contact is EXACTLY (0,0).
+ // All parts are genuine Three.js meshes. The drafting timeline is untouched.
  const T=three,g=new T.Group();
- // Pencil point is the origin; colored barrel extends back along -Y.
- const barrel=cylinder(8,8,83,0x184f7c);barrel.position.set(0,-74,25);g.add(barrel);
- const nose=cylinder(8,5.4,34,0xb9ced2);nose.position.set(0,-19,25);g.add(nose);
- const tip=new T.Mesh(new T.ConeGeometry(5.2,16,16),material(0xdee7e7,.83,.21));
- tip.position.set(0,-8,25);g.add(tip);
- const graphite=new T.Mesh(new T.ConeGeometry(1.4,6,12),material(0x1a2027,.4,.37));
- graphite.position.set(0,-3,25);g.add(graphite);
- const ring=cylinder(8.4,8.4,6,0xeff4e9);ring.position.set(0,-36,25);g.add(ring);
- const cap=cylinder(7.8,8,13,0xc4d1d2);cap.position.set(0,-120,25);g.add(cap);
- const clip=new T.Mesh(new T.BoxGeometry(3,48,2),material(0xe5eff4,.9,.16));
- clip.position.set(8,-93,32);g.add(clip);
- const shine=new T.Mesh(new T.BoxGeometry(1.7,71,1.5),material(0x9accf0,.46,.22));
- shine.position.set(-4,-78,32);g.add(shine);
- g.visible=false;return g;
+ const alloy=(color,metalness=.58,roughness=.27)=>
+  new T.MeshStandardMaterial({color,metalness,roughness,side:T.FrontSide});
+ const nickel=alloy(0xdbe5e9,.54,.24);
+ const chrome=alloy(0xf0f7f8,.63,.19);
+ const steelDark=alloy(0x637785,.5,.3);
+ const navy=alloy(0x163c60,.29,.32);
+ const navyDark=alloy(0x0b243d,.29,.34);
+ const ink=alloy(0x20272d,.22,.52);
+ const addCylinder=(top,bottom,height,y,z,mat,segments=48)=>{
+  const m=new T.Mesh(new T.CylinderGeometry(top,bottom,height,segments),mat);
+  m.position.set(0,y,z);g.add(m);return m;
+ };
+ const addRing=(radius,tube,y,z,mat)=>{
+  const m=new T.Mesh(new T.TorusGeometry(radius,tube,8,48),mat);
+  // A torus normally faces +Z. Rotate to encircle the pencil's Y-axis.
+  m.rotation.x=Math.PI/2;m.position.set(0,y,z);
+  g.add(m);return m;
+ };
+ // Reproducible high-resolution cross-hatch in the silver grip.
+ // Applied as both color and micro-relief: no raster photo or perspective trick.
+ const textureCanvas=document.createElement('canvas');
+ textureCanvas.width=1024;textureCanvas.height=512;
+ const tc=textureCanvas.getContext('2d');
+ if(tc){
+  const gr=tc.createLinearGradient(0,0,1024,0);
+  gr.addColorStop(0,'#85939a');gr.addColorStop(.16,'#dce8e7');
+  gr.addColorStop(.50,'#adbcc5');gr.addColorStop(.83,'#ecf4f1');
+  gr.addColorStop(1,'#8799a2');
+  tc.fillStyle=gr;tc.fillRect(0,0,1024,512);
+  tc.lineWidth=1.9;tc.strokeStyle='rgba(32,48,58,.44)';
+  for(let k=-620;k<1660;k+=19){
+   tc.beginPath();tc.moveTo(k,0);tc.lineTo(k+520,512);tc.stroke();
+   tc.beginPath();tc.moveTo(k,512);tc.lineTo(k+520,0);tc.stroke();
+  }
+  tc.lineWidth=.8;tc.strokeStyle='rgba(248,255,255,.65)';
+  for(let k=-620;k<1660;k+=19){
+   tc.beginPath();tc.moveTo(k+4,0);tc.lineTo(k+524,512);tc.stroke();
+   tc.beginPath();tc.moveTo(k+4,512);tc.lineTo(k+524,0);tc.stroke();
+  }
+ }
+ const knurlTex=new T.CanvasTexture(textureCanvas);
+ knurlTex.colorSpace=T.SRGBColorSpace;
+ knurlTex.anisotropy=Math.min(16,renderer?.capabilities.getMaxAnisotropy()||1);
+ knurlTex.wrapS=T.RepeatWrapping;
+ knurlTex.wrapT=T.RepeatWrapping;
+ const knurlMat=new T.MeshStandardMaterial({
+  map:knurlTex,bumpMap:knurlTex,bumpScale:.11,
+  metalness:.34,roughness:.35
+ });
+ // The graphite lead runs up to local Y=0, the drawing contact coordinate.
+ addCylinder(.72,.72,6,-3,25,ink,16);
+ // Extended drafting lead sleeve: visible even at ordinary desktop zoom.
+ addCylinder(1.35,1.6,14,-13,25,chrome,24);
+ addRing(1.65,.30,-20,25,steelDark);
+ // Machined conical metal nose tapers toward the contact point.
+ addCylinder(1.85,6.6,24,-32,25,nickel,48);
+ addCylinder(6.6,7.1,5,-46.5,25,chrome,48);
+ addRing(7.2,.55,-48.5,25,steelDark);
+ // Silver grip: full 3D cylindrical knurling, length 40.
+ addCylinder(7.35,7.45,39,-70.5,25,knurlMat,64);
+ addRing(7.45,.65,-51,25,chrome);
+ addRing(7.5,.62,-90,25,chrome);
+ // Slim, dark separator at the transition into the blue barrel.
+ addCylinder(7.95,7.6,5.5,-92,25,navyDark);
+ addRing(8.1,.5,-94,25,nickel);
+ // Twelve-facet dark blue barrel reproduces the third reference silhouette.
+ const bodyMat=new T.MeshStandardMaterial({
+  color:0x143b61,metalness:.26,roughness:.33,flatShading:true
+ });
+ const barrel=addCylinder(8.25,8.4,81,-137,25,bodyMat,12);
+ // Subtle recessed longitudinal channels, visible from the overhead camera.
+ for(const x of [-4.6,-2.2,2.2,4.6]){
+  const z=25+Math.sqrt(8.15*8.15-x*x)+.18;
+  const groove=new T.Mesh(new T.BoxGeometry(.64,68,.42),
+   x<0?navyDark:navy);
+  groove.position.set(x,-137,z);g.add(groove);
+ }
+ const ridge=new T.Mesh(new T.BoxGeometry(1,69,.55),
+  alloy(0x6c91b1,.24,.31));
+ ridge.position.set(-1,-137,33.2);g.add(ridge);
+ // Rear cap, polished rings and push-button in the same 3D assembly.
+ addRing(8.3,.72,-177.6,25,chrome);
+ addCylinder(7.9,7.1,10,-183,25,navyDark);
+ addRing(7.65,.64,-187,25,nickel);
+ addCylinder(6.8,6.8,11,-193,25,chrome);
+ addCylinder(6.2,6.2,3.5,-200,25,steelDark);
+ // Real raised silver pocket clip: broad, flat, rounded plate and mounting foot.
+ const clipShape=new T.Shape();
+ clipShape.moveTo(-2,-155);
+ clipShape.quadraticCurveTo(-2.4,-157,-1.6,-160);
+ clipShape.lineTo(-1.1,-174);
+ clipShape.quadraticCurveTo(0,-177,1.8,-174);
+ clipShape.lineTo(4.1,-121);
+ clipShape.quadraticCurveTo(4.5,-118,2.1,-118);
+ clipShape.lineTo(-.2,-118);
+ clipShape.quadraticCurveTo(-2.2,-119,-2,-122);
+ clipShape.closePath();
+ const clip=new T.Mesh(new T.ExtrudeGeometry(clipShape,{
+  depth:1.25,steps:1,bevelEnabled:true,bevelSize:.4,
+  bevelThickness:.25,bevelSegments:2,curveSegments:8
+ }),chrome);
+ // Clip sits above the barrel, so the metal glints under the overhead light.
+ clip.position.set(5,0,35.6);g.add(clip);
+ const clipFoot=new T.Mesh(new T.BoxGeometry(6,6,2.2),nickel);
+ clipFoot.position.set(7,-179,35);g.add(clipFoot);
+ // No visual offset: the shader may add highlight, not change the ink point.
+ g.userData={design:'premium-mechanical-pencil-v3',leadTip:{x:0,y:0},orthographic:true};
+ g.visible=false;
+ return g;
 }
 function rodBetween(group,a,b,r){
  const T=three,delta=new T.Vector3().subVectors(b,a);
