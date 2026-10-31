@@ -156,6 +156,7 @@ function publishDraftState(){
  lastPublished=k;
  document.dispatchEvent(new CustomEvent('gnss:draft-state',{detail:data}));
 }
+document.addEventListener('gnss:request-draft-state',()=>{lastPublished='';publishDraftState()});
 function drawHUD(){
  const v=currentLength();readout.textContent=fmt(v);
  const lbl=qs('#engUnitIcon',container);if(lbl)lbl.textContent=state.measureUnit;
