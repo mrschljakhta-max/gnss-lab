@@ -29,6 +29,15 @@ guides.setAttribute('viewBox','0 0 1200 660');
 guides.setAttribute('preserveAspectRatio','xMidYMid meet');
 guides.setAttribute('aria-hidden','true');
 layer.append(guides);
+const samples=document.createElement('div');
+samples.className='gnss-physical-samples';
+samples.setAttribute('aria-hidden','true');
+const wood=document.createElement('div');
+wood.className='gnss-sample gnss-sample-wood';
+const cylinder=document.createElement('div');
+cylinder.className='gnss-sample gnss-sample-cylinder';
+samples.append(wood,cylinder);
+layer.append(samples);
 const objects={};
 let mode='demo',tool='line',stage=0,visible=new Set(),ready=false;
 let drawing=false,lastEraseAt=0,resizeObs=null;
@@ -117,6 +126,7 @@ function makeItem(name){
   positions[name].x=clamp(positions[name].x,35,1165);
   positions[name].y=clamp(positions[name].y,35,625);
   update(name);
+  if(name==='ruler')fire('ruler',{x:positions.ruler.x,y:positions.ruler.y,angle:positions.ruler.angle-20,end:true});
  });
  objects[name]=element;return element;
 }
@@ -132,7 +142,16 @@ function update(name){
  }
  if(name==='compass')drawCircleGuide();
 }
-function updateAll(){Object.keys(objects).forEach(update)}
+function updateSamples(){
+ const source=[{node:wood,x:510,y:328,w:420,h:240},{node:cylinder,x:912,y:330,w:192,h:192}];
+ for(const item of source){
+  const p=screenPoint(item.x,item.y);
+  item.node.style.left=p.x+'px';item.node.style.top=p.y+'px';
+  item.node.style.width=item.w*p.scale+'px';
+  item.node.style.height=item.h*p.scale+'px';
+ }
+}
+function updateAll(){Object.keys(objects).forEach(update);updateSamples()}
 function setVisible(next){
  visible=new Set(next);
  for(const [name,el] of Object.entries(objects)){
@@ -147,6 +166,9 @@ function setVisible(next){
 function sync(data){
  mode=data.mode||document.body.dataset.expMode||'demo';
  tool=data.tool||'line';stage=data.stage||0;
+ const samplesVisible=mode==='quest'&&stage===2&&document.body.classList.contains('engineering-live');
+ samples.classList.toggle('is-visible',samplesVisible);
+ if(samplesVisible)updateSamples();
  if(mode==='demo'){setVisible([]);return}
  if(tool==='line'){setVisible(positions.ruler._placed?['ruler','line']:['line']);}
  else if(tool==='ruler')setVisible(['ruler']);
