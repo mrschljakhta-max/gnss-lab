@@ -26,11 +26,56 @@ const hint=document.createElement('div');hint.className='gnss-draft-feedback';bo
 let mode='demo',tool='line',step=0,complete=false,first=null,cursor=null,motion=null;
 let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null;
 let ctx=null,ratio=1,w=0,h=0;
-const RULER_ASSET=new URL('./assets/ruler-150-topdown.webp',document.baseURI).href;
-const RULER_WIDTH=480,RULER_HEIGHT=62,RULER_ZERO=16;
-const rulerPhoto=new Image();
-rulerPhoto.decoding='async';
-rulerPhoto.src=RULER_ASSET;
+// Orthographic calibration: 1 mm = 3 SVG units, exactly 150 mm on one ruler.
+const RULER_SPAN=450,RULER_LEFT=-11,RULER_RIGHT=485;
+const RULER_TOP=-44,RULER_BOTTOM=-5;
+let rulerTextureCanvas=null;
+function getRulerArtwork(){
+ if(rulerTextureCanvas)return rulerTextureCanvas;
+ const c=document.createElement('canvas');c.width=4096;c.height=336;
+ const g=c.getContext('2d');
+ if(!g)return c;
+ const W=c.width,H=c.height;
+ const sx=x=>(x-RULER_LEFT)/(RULER_RIGHT-RULER_LEFT)*W;
+ const sy=y=>(y-RULER_TOP)/(RULER_BOTTOM-RULER_TOP)*H;
+ const base=g.createLinearGradient(0,0,0,H);
+ base.addColorStop(0,'#f2f4f1');base.addColorStop(.17,'#dbe3e5');
+ base.addColorStop(.56,'#c4d0d5');base.addColorStop(.85,'#e0e9e9');
+ base.addColorStop(1,'#8a9ea9');
+ g.fillStyle=base;g.fillRect(0,0,W,H);
+ // Stationary fine brushing: subtle texture without image-generation artifacts.
+ for(let y=0;y<H;y+=2){
+  g.fillStyle=y%4===0?'rgba(255,255,255,.045)':'rgba(41,69,83,.025)';
+  g.fillRect(0,y,W,1);
+ }
+ const gleam=g.createLinearGradient(0,0,W,0);
+ gleam.addColorStop(0,'rgba(255,255,255,.30)');
+ gleam.addColorStop(.3,'rgba(255,255,255,.03)');
+ gleam.addColorStop(.62,'rgba(17,37,47,.025)');
+ gleam.addColorStop(1,'rgba(255,255,255,.20)');
+ g.fillStyle=gleam;g.fillRect(0,0,W,H);
+ g.lineCap='square';
+ // Both edges show exactly 1-mm ticks, with 5-mm and 10-mm accents.
+ for(let mm=0;mm<=150;mm++){
+  const x=sx(mm*SCALE);
+  const major=mm%10===0,mid=mm%5===0;
+  const tick=major?78:mid?52:27;
+  g.lineWidth=major?3.6:mid?2.9:2;
+  g.strokeStyle=major?'#263842':'#344853';
+  g.beginPath();g.moveTo(x,13);g.lineTo(x,13+tick);g.stroke();
+  g.beginPath();g.moveTo(x,H-13);g.lineTo(x,H-13-tick);g.stroke();
+  if(major){
+   g.fillStyle='#1d303d';
+   g.font='600 64px Arial, sans-serif';
+   g.textAlign='center';g.textBaseline='middle';
+   g.fillText(String(mm),x,H*.51);
+  }
+ }
+ // The image is only the face; the circular hole is real 3D geometry.
+ g.fillStyle='#3a5060';g.font='500 44px Arial, sans-serif';
+ g.textAlign='center';g.fillText('мм',sx(460),H*.74);
+ rulerTextureCanvas=c;return c;
+}
 const interactive=()=>mode!=='demo'&&!complete&&
   (mode==='explore'&&['line','ruler','compass'].includes(tool)||
    mode==='quest'&&(step===0&&['line','ruler'].includes(tool)||step===1&&tool==='compass'));
@@ -136,7 +181,6 @@ function pointerDown(e){
   ?{type:'circle',x:first.x,y:first.y,r:Math.round(Math.hypot(p.x-first.x,p.y-first.y)/SCALE)*SCALE}
   :{type:'line',x1:first.x,y1:first.y,x2:p.x,y2:p.y};
  if(shape.type==='line'&&Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)<24){feedback('↔ Потрібен довший відрізок');return}
- if(shape.type==='line'&&Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)>600){feedback('↔ Максимум 200 мм');return}
  if(shape.type==='circle'&&shape.r<15){feedback('◯ Збільш радіус');return}
  if(!valid(shape)){feedback('↔ Перевір розмір і положення');return}
  clear();
@@ -218,48 +262,70 @@ function cylinder(radiusTop,radiusBottom,length,color){
  return ob;
 }
 function buildRuler(){
- const T=three,g=new T.Group();
- // The ruler is always viewed orthographically from directly above.
- // The photograph is a flat material skin: no perspective tilt or black box.
- // Its printed "0" is calibrated to the origin. The bottom edge sits just
- // above the drawn A→B segment, not over the white ink.
- const left=-RULER_ZERO,bottom=-5;
- const cx=left+RULER_WIDTH/2,cy=bottom-RULER_HEIGHT/2;
- const plane=new T.PlaneGeometry(RULER_WIDTH,RULER_HEIGHT);
- const shadow=new T.Mesh(plane,new T.MeshBasicMaterial({
-  color:0x041e2e,transparent:true,opacity:.22,depthWrite:false,side:T.DoubleSide
- }));
- shadow.position.set(cx+3,cy+4,6);
- shadow.visible=false; // Never show an opaque rectangular shadow before texture loads.
- g.add(shadow);
- const material=new T.MeshBasicMaterial({
-  color:0xe6f0f0,transparent:true,alphaTest:.08,
-  side:T.DoubleSide,depthWrite:false,toneMapped:false
+ const T=three,group=new T.Group(),shape=new T.Shape(),r=3.4;
+ const L=RULER_LEFT,R=RULER_RIGHT,U=RULER_TOP,D=RULER_BOTTOM;
+ // Genuine rounded metal body, with real thickness and bevelled side faces.
+ shape.moveTo(L+r,U);
+ shape.lineTo(R-r,U);
+ shape.quadraticCurveTo(R,U,R,U+r);
+ shape.lineTo(R,D-r);
+ shape.quadraticCurveTo(R,D,R-r,D);
+ shape.lineTo(L+r,D);
+ shape.quadraticCurveTo(L,D,L,D-r);
+ shape.lineTo(L,U+r);
+ shape.quadraticCurveTo(L,U,L+r,U);
+ shape.closePath();
+ // A physically cut hole rather than a dark circle painted on a texture.
+ const eye=new T.Path();
+ eye.absarc(469,-24.5,6.4,0,Math.PI*2,true);
+ shape.holes.push(eye);
+ const alloy=new T.MeshStandardMaterial({
+  color:0xe0e9ee,metalness:.68,roughness:.28,
+  side:T.DoubleSide
  });
- const face=new T.Mesh(plane,material);
- face.position.set(cx,cy,12);
- g.add(face);
- const tex=new T.TextureLoader().load(
-  RULER_ASSET,
-  texture=>{
-   texture.colorSpace=T.SRGBColorSpace;
-   texture.anisotropy=Math.min(8,renderer?.capabilities.getMaxAnisotropy()||1);
-   texture.needsUpdate=true;
-   face.material.color.set(0xffffff);
-   face.material.map=texture;
-   face.material.needsUpdate=true;
-   // Use the same transparency mask for the soft shadow: no dark rectangle.
-   shadow.material.map=texture;
-   shadow.material.needsUpdate=true;
-   shadow.visible=true;
-  },
-  undefined,
-  err=>console.warn('GNSS LAB ruler texture load failed',err)
+ const body=new T.Mesh(new T.ExtrudeGeometry(shape,{
+  depth:2.5,steps:1,bevelEnabled:true,bevelThickness:.8,
+  bevelSize:.8,bevelSegments:3,curveSegments:32
+ }),alloy);
+ body.position.z=7;
+ group.add(body);
+ const artwork=getRulerArtwork();
+ const texture=new T.CanvasTexture(artwork);
+ texture.colorSpace=T.SRGBColorSpace;
+ texture.wrapS=texture.wrapT=T.ClampToEdgeWrapping;
+ texture.minFilter=T.LinearMipmapLinearFilter;
+ texture.magFilter=T.LinearFilter;
+ texture.generateMipmaps=true;
+ texture.anisotropy=Math.min(16,renderer.capabilities.getMaxAnisotropy());
+ const faceGeometry=new T.ShapeGeometry(shape,32);
+ const xy=faceGeometry.attributes.position,uv=faceGeometry.attributes.uv;
+ for(let i=0;i<xy.count;i++){
+  uv.setXY(i,
+   (xy.getX(i)-L)/(R-L),
+   1-(xy.getY(i)-U)/(D-U));
+ }
+ uv.needsUpdate=true;
+ const ink=new T.Mesh(faceGeometry,new T.MeshBasicMaterial({
+  map:texture,side:T.DoubleSide,transparent:false,toneMapped:false
+ }));
+ ink.position.z=10.37;
+ group.add(ink);
+ // A real thin polished straight edge instead of the previous black beam.
+ const lip=new T.Mesh(
+  new T.BoxGeometry(R-L-12,.85,.6),
+  new T.MeshStandardMaterial({color:0xf5ffff,metalness:.58,roughness:.2})
  );
- tex.colorSpace=T.SRGBColorSpace;
- g.userData.isOrthographic=true;
- g.visible=false;
- return g;
+ lip.position.set((L+R)/2,D-.6,10.1);
+ group.add(lip);
+ // Shape-conforming soft shadow; keeps the hole and rounded outline.
+ const shadow=new T.Mesh(new T.ShapeGeometry(shape,24),
+  new T.MeshBasicMaterial({color:0x021525,transparent:true,opacity:.18,depthWrite:false,side:T.DoubleSide})
+ );
+ shadow.position.set(3,4,2);
+ group.add(shadow);
+ group.userData={isOrthographic:true,precisionMillimetres:150,zeroX:0,scalePerMm:SCALE};
+ group.visible=false;
+ return group;
 }
 function buildPencil(){
  const T=three,g=new T.Group();
