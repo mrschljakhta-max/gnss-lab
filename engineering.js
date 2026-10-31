@@ -313,7 +313,7 @@ function handleDown(e){
    const detail={...hit,accepted:false};
    document.dispatchEvent(new CustomEvent('gnss:erase-start',{detail}));
    // Keep erasing functional when the 3D layer is unavailable.
-   if(!detail.accepted){saveHistory();state.records.splice(hit.index,1);draw()}
+   if(!detail.accepted&&!window.GNSSDrafting3D){saveHistory();state.records.splice(hit.index,1);draw()}
   }
   return;
  }
@@ -362,7 +362,7 @@ function erasePoint(p){
  if(!hit)return false;
  const detail={...hit,accepted:false};
  document.dispatchEvent(new CustomEvent('gnss:erase-start',{detail}));
- if(!detail.accepted){saveHistory();state.records.splice(hit.index,1);draw()}
+ if(!detail.accepted&&!window.GNSSDrafting3D){saveHistory();state.records.splice(hit.index,1);draw()}
  return true;
 }
 // Ruler's two-point workflow asks the original drawing engine to validate
