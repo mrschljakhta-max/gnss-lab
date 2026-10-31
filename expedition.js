@@ -82,7 +82,7 @@ body[data-exp-mode="demo"] #experimentTabs,body[data-exp-mode="quest"] #experime
 body[data-exp-mode="demo"] .control-column{display:none}body[data-exp-mode="demo"] .lab-body{display:block}body[data-exp-mode="demo"] .canvas-column{width:100%}
 body[data-exp-mode="demo"] #scene{pointer-events:none;min-height:360px}
 body[data-exp-mode="quest"] .observation{display:none}
-body[data-exp-mode="explore"] .mission-hint{display:none}
+body[data-exp-mode="explore"] .mission-hint,body[data-exp-mode="explore"] .observation{display:none}
 body[data-exp-mode="quest"] #scene,body[data-exp-mode="explore"] #scene{touch-action:none;cursor:crosshair}
 .side-entry.exp-finished .side-sub{color:#b1f378}
 @media(max-width:900px){#expModes{gap:5px}.exp-mode{padding:10px 7px;gap:6px}.exp-mode strong{font-size:12px}.exp-mode small{font-size:9px}}
