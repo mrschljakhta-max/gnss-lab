@@ -26,6 +26,7 @@ const hint=document.createElement('div');hint.className='gnss-draft-feedback';bo
 let mode='demo',tool='line',step=0,complete=false,first=null,cursor=null,motion=null;
 let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null;
 let ctx=null,ratio=1,w=0,h=0;
+const COMPASS_INITIAL=20;
 // Orthographic calibration: 1 mm = 3 SVG units, exactly 150 mm on one ruler.
 const RULER_SPAN=450,RULER_LEFT=-11,RULER_RIGHT=485;
 const RULER_TOP=-44,RULER_BOTTOM=-5;
@@ -138,14 +139,15 @@ function display(shape,progress=null){
   const {x,y,r}=shape;
   preview.append(node('circle',{cx:x,cy:y,r:5,class:'gnss-point'}));
   if(r>1){
-   preview.append(node('line',{x1:x,y1:y,x2:x+r,y2:y,class:'gnss-radius'}));
+   const a0=Number.isFinite(shape.startAngle)?shape.startAngle:-Math.PI/2;
+   preview.append(node('line',{x1:x,y1:y,x2:x+r*Math.cos(a0),y2:y+r*Math.sin(a0),class:'gnss-radius'}));
    if(progress===null){
     preview.append(node('circle',{cx:x,cy:y,r,class:'gnss-guide'}));
    }else{
     const n=Math.max(1,Math.ceil(progress*95));
     let d='';
     for(let i=0;i<=n;i++){
-     const a=-Math.PI/2+2*Math.PI*progress*i/n;
+     const a=a0+2*Math.PI*progress*i/n;
      d+=(i?'L':'M')+(x+r*Math.cos(a)).toFixed(2)+' '+(y+r*Math.sin(a)).toFixed(2)+' ';
     }
     preview.append(node('path',{d,class:'gnss-drawn'}));
@@ -174,7 +176,8 @@ function geometry(){
  if(!first)return null;
  const next=cursor||first;
  return kind()==='circle'
-  ?{type:'circle',x:first.x,y:first.y,r:Math.round(Math.hypot(next.x-first.x,next.y-first.y)/SCALE)*SCALE}
+  ?{type:'circle',x:first.x,y:first.y,r:Math.round(Math.hypot(next.x-first.x,next.y-first.y)/SCALE)*SCALE,
+     startAngle:Math.atan2(next.y-first.y,next.x-first.x)}
   :{type:'line',x1:first.x,y1:first.y,x2:next.x,y2:next.y};
 }
 function valid(shape){
@@ -196,7 +199,8 @@ function pointerDown(e){
  const p=point(toSvg(e));
  if(!first){first=p;cursor=p;display(geometry());return}
  const shape=kind()==='circle'
-  ?{type:'circle',x:first.x,y:first.y,r:Math.round(Math.hypot(p.x-first.x,p.y-first.y)/SCALE)*SCALE}
+  ?{type:'circle',x:first.x,y:first.y,r:Math.round(Math.hypot(p.x-first.x,p.y-first.y)/SCALE)*SCALE,
+     startAngle:Math.atan2(p.y-first.y,p.x-first.x)}
   :{type:'line',x1:first.x,y1:first.y,x2:p.x,y2:p.y};
  if(shape.type==='line'&&Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)<24){feedback('↔ Потрібен довший відрізок');return}
  if(shape.type==='circle'&&shape.r<15){feedback('◯ Збільш радіус');return}
@@ -459,24 +463,135 @@ function buildPencil(){
  g.visible=false;
  return g;
 }
-function rodBetween(group,a,b,r){
- const T=three,delta=new T.Vector3().subVectors(b,a);
- const ob=new T.Mesh(new T.CylinderGeometry(r,r*.78,delta.length(),12),material(0xc2d5de,.87,.19));
- ob.position.copy(a).add(b).multiplyScalar(.5);
- ob.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),delta.clone().normalize());
- group.add(ob);
-}
+/* Precision drafting compass — all parts share one top-down physical 3D assembly.
+ * Local needle contact (0,0); adjustable graphite contact (radius,0).
+ * Both legs remain articulated. The needle does NOT orbit around the centre.
+ */
 function buildCompass(){
  const T=three,g=new T.Group();
- // Real 3D hinge + two tilted steel legs. The pivot remains at circle center.
- const pivot=new T.Mesh(new T.SphereGeometry(10,16,12),material(0xe1eced,.85,.22));
- pivot.position.set(0,-46,22);g.add(pivot);
- const needle=new T.Vector3(0,0,7),pen=new T.Vector3(96,0,7),hinge=new T.Vector3(48,-48,28);
- rodBetween(g,hinge,needle,5.4);rodBetween(g,hinge,pen,5.4);
- const ink=new T.Mesh(new T.ConeGeometry(3,11,12),material(0x202e3d,.38,.42));
- ink.position.set(96,3,7);g.add(ink);
- const knob=cylinder(8,8,24,0xe4edee);knob.position.set(48,-58,30);g.add(knob);
- g.userData.pen=pen;g.visible=false;return g;
+ const steel=new T.MeshStandardMaterial({color:0xd6e1e7,metalness:.73,roughness:.26});
+ const bright=new T.MeshStandardMaterial({color:0xf0f6f6,metalness:.65,roughness:.18});
+ const edge=new T.MeshStandardMaterial({color:0x607681,metalness:.72,roughness:.32});
+ const brushed=new T.MeshStandardMaterial({color:0xb9c8d1,metalness:.58,roughness:.37});
+ const dark=new T.MeshStandardMaterial({color:0x26363e,metalness:.46,roughness:.36});
+ const needleMat=new T.MeshStandardMaterial({color:0x889ca7,metalness:.82,roughness:.18});
+ const graphite=new T.MeshStandardMaterial({color:0x202c32,metalness:.24,roughness:.54});
+ const add=(parent,geometry,mat,x=0,y=0,z=25)=>{
+  const m=new T.Mesh(geometry,mat);m.position.set(x,y,z);parent.add(m);return m;
+ };
+ const disk=(parent,x,y,r,mat,z=27,thickness=3)=>{
+  const m=add(parent,new T.CylinderGeometry(r,r,thickness,48),mat,x,y,z);
+  m.rotation.x=Math.PI/2;return m;
+ };
+ const rod=(parent,rad,length,x,y,z,mat)=>{
+  return add(parent,new T.CylinderGeometry(rad,rad,length,32),mat,x,y,z);
+ };
+ // Leaf-like legs with chamfered sides and a recess rather than plain cylinders.
+ function makeLeg(isPencil){
+  const leg=new T.Group();g.add(leg);
+  const sh=new T.Shape();
+  sh.moveTo(-6.3,5);sh.lineTo(6.3,5);sh.lineTo(8.2,14);
+  sh.lineTo(8.2,117);sh.quadraticCurveTo(8.2,131,7,139);
+  sh.lineTo(5.4,146);sh.lineTo(-5.4,146);sh.lineTo(-7,139);
+  sh.quadraticCurveTo(-8.2,131,-8.2,117);
+  sh.lineTo(-8.2,14);sh.closePath();
+  const body=add(leg,new T.ExtrudeGeometry(sh,{
+   depth:2.9,bevelEnabled:true,bevelThickness:.75,bevelSize:.75,
+   bevelSegments:3,steps:1,curveSegments:16
+  }),steel,0,0,22);
+  const groove=add(leg,new T.BoxGeometry(2.3,79,.55),edge,0,66,27.1);
+  const grooveLight=add(leg,new T.BoxGeometry(.75,77,.42),bright,-.45,66,27.52);
+  const screw=disk(leg,0,132,4.7,bright,29.4,2.3);
+  disk(leg,0,132,2,edge,31,1);
+  // A real adjustable metal sleeve and sharpened tip.
+  const sleeve=rod(leg,5.3,17,0,153,25,brushed);
+  rod(leg,5.7,4,0,144,25,bright);
+  // Cylinder + cone finishes with a physical local contact at y=164.
+  if(isPencil){
+   rod(leg,3.4,11,0,154.5,26,edge);
+   const tip=add(leg,new T.ConeGeometry(2.65,11,24),graphite,0,158.5,26);
+   // ConeGeometry points along +Y, apex = 164 exactly.
+   add(leg,new T.BoxGeometry(2,7,.7),bright,-.45,151,31.2);
+  }else{
+   const point=add(leg,new T.ConeGeometry(2.3,15,24),needleMat,0,156.5,26);
+   // Apex y=164; guide needle is at the EXACT pivot of the circle.
+  }
+  return leg;
+ }
+ const left=makeLeg(false),right=makeLeg(true);
+ // Joint support and precision round hinged cover.
+ const pivot=new T.Group();g.add(pivot);
+ disk(pivot,0,0,19,edge,30,4);
+ disk(pivot,0,0,16,steel,32.1,2.7);
+ disk(pivot,0,0,12,brushed,34.3,1);
+ disk(pivot,0,0,4.5,bright,35.4,2.8);
+ disk(pivot,0,0,1.5,edge,37.2,1);
+ const crown=rod(pivot,5,20,0,-31,29,steel);
+ rod(pivot,8,4,0,-39,30,bright);
+ const handle=rod(pivot,7.2,28,0,-58,30,brushed);
+ // Lathe-like narrow rings give tactile knurling to the turn knob.
+ for(let i=0;i<10;i++){
+  const y=-70+i*2.7;
+  const ring=add(pivot,new T.TorusGeometry(7.25,.44,6,24),edge,0,y,30);
+  ring.rotation.x=Math.PI/2;
+ }
+ const screwGroup=new T.Group();g.add(screwGroup);
+ const bar=rod(screwGroup,2.4,1,0,0,24,brushed);
+ bar.rotation.z=Math.PI/2;
+ const leftNut=disk(screwGroup,0,0,5.1,edge,27.4,2);
+ const rightNut=disk(screwGroup,0,0,5.1,edge,27.4,2);
+ const adjustWheel=disk(screwGroup,0,0,9,steel,30,5.5);
+ const adjustCore=disk(screwGroup,0,0,4.4,bright,33.5,1.6);
+ // Radial grooves on adjustment wheel — visible in orthographic overhead view.
+ for(let i=0;i<24;i++){
+  const theta=i*Math.PI/12;
+  const m=add(screwGroup,new T.BoxGeometry(1.05,3,.9),edge,
+    Math.cos(theta)*7.6,Math.sin(theta)*7.6,33);
+  m.rotation.z=theta;
+ }
+ const shadow=new T.Group();g.add(shadow);
+ const shadowMat=new T.MeshBasicMaterial({
+  color:0x061a29,transparent:true,opacity:.12,depthWrite:false
+ });
+ const spot=add(shadow,new T.CircleGeometry(15,32),shadowMat,0,0,-1);
+ function pose(radius){
+  const r=Math.max(7,radius);
+  // A fixed-length impression for normal radii; wider-opening tools remain legible.
+  const hingeH=Math.max(105,Math.min(170,158-r*.15));
+  const hx=r/2,hy=-hingeH;
+  pivot.position.set(hx,hy,0);
+  const locate=(leg,footX)=>{
+   const dx=footX-hx,dy=-hy,length=Math.hypot(dx,dy);
+   leg.position.set(hx,hy,0);
+   // Local positive Y points downwards toward the feet.
+   leg.rotation.z=-Math.atan2(dx,dy);
+   leg.scale.set(1,length/164,1);
+  };
+  locate(left,0);locate(right,r);
+  const u=.57,cy=hy*(1-u),from=r*(1-u)/2,to=r*(1+u)/2;
+  screwGroup.position.set(0,0,0);
+  bar.position.set(r/2,cy,24);
+  bar.scale.y=Math.max(1,Math.abs(to-from));
+  leftNut.position.set(from,cy,27.4);
+  rightNut.position.set(to,cy,27.4);
+  adjustWheel.position.set(r/2,cy,30);
+  adjustCore.position.set(r/2,cy,33.5);
+  // Wheel grooves are local to screwGroup; recenter around wheel.
+  for(const child of screwGroup.children){
+   if(child===bar||child===leftNut||child===rightNut||child===adjustWheel||child===adjustCore)continue;
+   if(!child.userData.basePosition)child.userData.basePosition=child.position.clone();
+   child.position.copy(child.userData.basePosition).add(new T.Vector3(r/2,cy,0));
+  }
+  shadow.position.set(hx,hy,0);
+  g.userData.radius=r;
+  // Invariant: left needle at 0,0; graphite point at (r,0).
+  g.userData.needleContact={x:0,y:0};
+  g.userData.graphiteContact={x:r,y:0};
+ }
+ g.userData={pose,design:'precision-steel-compass-v2',orthographic:true};
+ pose(96);
+ g.visible=false;
+ return g;
 }
 function showStage(){
  stageEl.classList.add('is-playing');
