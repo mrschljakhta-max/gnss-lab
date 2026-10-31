@@ -217,5 +217,7 @@ const originalHelp=help;
 help=function(){showModal('Три способи взаємодіяти', '<p><b>01 Дивись у дії:</b> анімований показ із паузою та переходом між кадрами.</p><p><b>02 Експериментуй:</b> керуй схемою та повзунками, без запитань.</p><p><b>03 Пройди квест:</b> 3 практичні місії для кожної з 9 тем. Досягни показаної цілі на стенді й перейди далі.</p><p>Усі моделі навчальні й спрощені; реальні супутники не підключені.</p>')};
 const originalJournal=journal;
 journal=function(){originalJournal();if($('modalContent'))$('modalContent').insertAdjacentHTML('afterbegin',`<div class="notice-card">◆ Квест: ${total()}/27 місій. Прогрес автоматично збережений у цьому браузері.</div>`)};
+$('journalOpen').addEventListener('click',()=>{const root=$('modalContent');if(root)root.insertAdjacentHTML('afterbegin','<div class="notice-card">◆ ПРАКТИЧНІ КВЕСТИ: '+total()+' / 27 місій виконано. Прогрес збережений автоматично.</div>')});
+$('helpOpen').addEventListener('click',()=>{const root=$('modalContent');if(root)root.innerHTML='<p><b>01 Дивись у дії.</b> Натискай відтворення або паузу, перемикай анімовані кадри.</p><p><b>02 Експериментуй.</b> Рухай параметри або взаємодій безпосередньо зі схемою.</p><p><b>03 Пройди квест.</b> Виконай три місії на кожній темі. Далі відкривається тільки після зміни стану моделі — тестів немає.</p><p>Це навчальна симуляція, а не приймач GNSS.</p>'});
 switchMode('demo')
 })();
