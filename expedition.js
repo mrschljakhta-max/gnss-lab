@@ -91,7 +91,7 @@ body[data-exp-mode="quest"] #scene,body[data-exp-mode="explore"] #scene{touch-ac
 `;
 document.head.append(style);
 const tabs=document.createElement('div');tabs.id='expModes';tabs.setAttribute('role','tablist');
-tabs.innerHTML='<button class="exp-mode" data-mode="demo" role="tab"><b>01</b><span><strong>▶ Демонстрація</strong><small>АНІМОВАНИЙ ПОКАЗ</small></span></button><button class="exp-mode" data-mode="explore" role="tab"><b>02</b><span><strong>✥ Пісочниця</strong><small>3D-МАЙСТЕРНЯ</small></span></button><button class="exp-mode" data-mode="quest" role="tab"><b>03</b><span><strong>◆ Тести</strong><small>3 ПРАКТИЧНІ МІСІЇ</small></span></button>';
+tabs.innerHTML='<button class="exp-mode" data-mode="demo" role="tab"><b>01</b><span><strong>▶ Демонстрація</strong><small>АНІМОВАНИЙ ПОКАЗ</small></span></button><button class="exp-mode" data-mode="explore" role="tab"><b>02</b><span><strong>✥ Пісочниця</strong><small>3D-МАЙСТЕРНЯ</small></span></button><button class="exp-mode" data-mode="quest" role="tab"><b>03</b><span><strong>◆ Завдання</strong><small>ПРАКТИЧНІ МІСІЇ</small></span></button>';
 $('modeTabsAnchor').appendChild(tabs);
 const panel=document.createElement('div');panel.id='expPanel';$('modePanelAnchor').appendChild(panel);
 let mode='explore',snapshot=null,snapshotLab=null,playing=false,raf=0,demoPos=0,demoStart=0,demoDone=false,passed=false,interacted=false;
