@@ -91,9 +91,9 @@ body[data-exp-mode="quest"] #scene,body[data-exp-mode="explore"] #scene{touch-ac
 `;
 document.head.append(style);
 const tabs=document.createElement('div');tabs.id='expModes';tabs.setAttribute('role','tablist');
-tabs.innerHTML='<button class="exp-mode" data-mode="demo" role="tab"><b>01</b><span><strong>▶ Дивись у дії</strong><small>АНІМАЦІЯ</small></span></button><button class="exp-mode" data-mode="explore" role="tab"><b>02</b><span><strong>✥ Експериментуй</strong><small>ВІЛЬНИЙ СТЕНД</small></span></button><button class="exp-mode" data-mode="quest" role="tab"><b>03</b><span><strong>◆ Пройди квест</strong><small>3 ПРАКТИЧНІ МІСІЇ</small></span></button>';
-$('experimentTabs').before(tabs);
-const panel=document.createElement('div');panel.id='expPanel';tabs.after(panel);
+tabs.innerHTML='<button class="exp-mode" data-mode="demo" role="tab"><b>01</b><span><strong>▶ Демонстрація</strong><small>АНІМОВАНИЙ ПОКАЗ</small></span></button><button class="exp-mode" data-mode="explore" role="tab"><b>02</b><span><strong>✥ Пісочниця</strong><small>3D-МАЙСТЕРНЯ</small></span></button><button class="exp-mode" data-mode="quest" role="tab"><b>03</b><span><strong>◆ Тести</strong><small>3 ПРАКТИЧНІ МІСІЇ</small></span></button>';
+$('modeTabsAnchor').appendChild(tabs);
+const panel=document.createElement('div');panel.id='expPanel';$('modePanelAnchor').appendChild(panel);
 let mode='explore',snapshot=null,snapshotLab=null,playing=false,raf=0,demoPos=0,demoStart=0,demoDone=false,passed=false,interacted=false;
 const KEY='gnss-lab-expeditions-v1';
 let wins={};try{wins=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch{}
@@ -121,7 +121,7 @@ tabs.querySelectorAll('[data-mode]').forEach(b=>{const sel=b.dataset.mode===mode
 $('progressText').textContent=`${total()} / 27`;
 $('progressFill').style.width=(total()/27*100)+'%';
 $('sidebarNav').querySelectorAll('[data-topic]').forEach(el=>{const i=+el.dataset.topic;const sub=el.querySelector('.side-sub');if(sub)sub.textContent=`${count(i)} / 3 місії${count(i)===3?' ✓':''}`;el.classList.toggle('exp-finished',count(i)===3)});
-if(mode==='explore'){panel.innerHTML='<div class="exp-box"><div><span class="exp-label">✥ КЕРУЙ САМ</span><p>Рухай повзунки, натискай на схему та перетягуй маркери. Обери один із двох експериментів нижче.</p></div><span class="exp-score">18 ВІЛЬНИХ ДОСЛІДІВ</span></div>';return}
+if(mode==='explore'){panel.innerHTML='<div class="exp-box"><div><span class="exp-label">✥ ВІЛЬНА ПРАКТИКА</span><p>Рухай повзунки, натискай на схему та перетягуй маркери. Обери один із двох експериментів нижче.</p></div><span class="exp-score">18 ВІЛЬНИХ ДОСЛІДІВ</span></div>';return}
 if(mode==='demo'){
 const d=DEMO[active][demoPos];
 panel.innerHTML=`<div class="exp-box"><div><span class="exp-label">▶ АНІМОВАНИЙ УРОК ${demoPos+1}/3</span><h3>${d[2]}</h3><p>Дивись, як змінюється сама модель. Далі повториш рухи власноруч.</p></div><div class="exp-actions"><button data-video="back" class="secondary">←</button><button data-video="toggle">${playing?'Ⅱ Пауза':demoDone?'↻ Повторити':'▶ Показати'}</button><button data-video="forward" class="secondary">→</button></div></div><div class="exp-ticks">${label()}</div>`;return;
@@ -214,10 +214,10 @@ if(active===8){if(expt===0){set('sigma',x);set('bias',1-y)}else{set('reflection'
 s.touched=true;refreshModel();onInteraction()
 }
 const originalHelp=help;
-help=function(){showModal('Три способи взаємодіяти', '<p><b>01 Дивись у дії:</b> анімований показ із паузою та переходом між кадрами.</p><p><b>02 Експериментуй:</b> керуй схемою та повзунками, без запитань.</p><p><b>03 Пройди квест:</b> 3 практичні місії для кожної з 9 тем. Досягни показаної цілі на стенді й перейди далі.</p><p>Усі моделі навчальні й спрощені; реальні супутники не підключені.</p>')};
+help=function(){showModal('Три способи взаємодіяти', '<p><b>01 Демонстрація:</b> анімований показ із паузою та переходом між кадрами.</p><p><b>02 Пісочниця:</b> керуй схемою та повзунками, без запитань.</p><p><b>03 Тести:</b> 3 практичні місії для кожної з 9 тем. Досягни показаної цілі на стенді й перейди далі.</p><p>Усі моделі навчальні й спрощені; реальні супутники не підключені.</p>')};
 const originalJournal=journal;
 journal=function(){originalJournal();if($('modalContent'))$('modalContent').insertAdjacentHTML('afterbegin',`<div class="notice-card">◆ Квест: ${total()}/27 місій. Прогрес автоматично збережений у цьому браузері.</div>`)};
 $('journalOpen').addEventListener('click',()=>{const root=$('modalContent');if(root)root.insertAdjacentHTML('afterbegin','<div class="notice-card">◆ ПРАКТИЧНІ КВЕСТИ: '+total()+' / 27 місій виконано. Прогрес збережений автоматично.</div>')});
-$('helpOpen').addEventListener('click',()=>{const root=$('modalContent');if(root)root.innerHTML='<p><b>01 Дивись у дії.</b> Натискай відтворення або паузу, перемикай анімовані кадри.</p><p><b>02 Експериментуй.</b> Рухай параметри або взаємодій безпосередньо зі схемою.</p><p><b>03 Пройди квест.</b> Виконай три місії на кожній темі. Далі відкривається тільки після зміни стану моделі — тестів немає.</p><p>Це навчальна симуляція, а не приймач GNSS.</p>'});
+$('helpOpen').addEventListener('click',()=>{const root=$('modalContent');if(root)root.innerHTML='<p><b>01 Демонстрація.</b> Натискай відтворення або паузу, перемикай анімовані кадри.</p><p><b>02 Пісочниця.</b> Рухай параметри або взаємодій безпосередньо зі схемою.</p><p><b>03 Тести.</b> Виконай три місії на кожній темі. Далі відкривається тільки після зміни стану моделі — тестів немає.</p><p>Це навчальна симуляція, а не приймач GNSS.</p>'});
 switchMode('demo')
 })();
