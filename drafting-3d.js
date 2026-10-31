@@ -1048,6 +1048,7 @@ function play(shape,demo=false){
  animationHandle=requestAnimationFrame(animate);
 }
 function startDemo(){
+ if(window.GNSSLab01Journey?.active)return;
  if(demoInit||mode!=='demo'||!document.body.classList.contains('engineering-live'))return;
  demoInit=true;
  const shape={type:'line',x1:300,y1:208,x2:720,y2:208};
