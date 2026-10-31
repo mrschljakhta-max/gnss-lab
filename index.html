@@ -7,11 +7,12 @@
   <meta name="theme-color" content="#0a131a" />
   <title>GNSS LAB — Інтерактивні практикуми</title>
   <link rel="stylesheet" href="./styles.css" />
+  <link rel="stylesheet" href="./redesign.css" />
   
 </head>
 <body>
 <div class="app" id="app">
-  <aside class="sidebar" aria-label="Навігація лабораторіями">
+  <aside class="sidebar" id="lessonSidebar" aria-label="Навігація лабораторіями">
     <a href="#lab-01" class="brand" id="brand" aria-label="GNSS LAB — на початок">
       <span class="brand-mark" aria-hidden="true">◉</span><span>GNSS<span class="brand-accent">LAB</span></span>
     </a>
@@ -25,17 +26,21 @@
       <label class="reduce-motion"><input type="checkbox" id="reduceMotion" /> Менше руху</label>
     </div>
   </aside>
+  <button id="sidebarScrim" class="sidebar-scrim" type="button" aria-label="Закрити панель уроків"></button>
   <div class="workspace">
     <header class="topbar">
+      <button id="mobileSidebarTrigger" class="mobile-sidebar-trigger" type="button" aria-controls="lessonSidebar" aria-expanded="false" aria-label="Відкрити уроки">☰ <span>Уроки</span></button>
       <div class="crumb"><span class="status-dot"></span> GNSS LAB <span class="crumb-sep">/</span> <span id="crumbTitle">ЛАБОРАТОРІЇ</span></div>
       <div class="top-right"><span class="connection"><i></i> ІНТЕРАКТИВНИЙ РЕЖИМ</span><button id="helpOpen" class="minimal-button">? <span>Як працювати</span></button></div>
     </header>
     <main class="main" id="main" tabindex="-1">
+      <div id="modeTabsAnchor" aria-label="Режими уроку"></div>
       <section class="intro" aria-labelledby="labTitle">
         <div class="eyebrow" id="labEyebrow">ЛАБОРАТОРІЯ 01 / ВЕЛИЧИНИ ТА ВИМІРЮВАННЯ</div>
         <div class="intro-row"><div><p class="kicker">ТОРКНИСЯ. ЗМІНИ. ЗРОЗУМІЙ.</p><h1 id="labTitle">Відчуй міру речей.</h1><p class="intro-desc" id="labDesc"></p></div><div class="intro-symbol" id="introSymbol" aria-hidden="true">⌁</div></div>
         <div class="stage-tabs" id="experimentTabs" role="tablist" aria-label="Оберіть експеримент"></div>
       </section>
+      <div id="modePanelAnchor"></div>
       <section class="lab-shell" aria-label="Лабораторний стенд">
         <div class="lab-head"><div class="exp-marker" id="expNumber">EXP 01</div><div class="lab-head-copy"><h2 id="expTitle"></h2><p id="expSubtitle"></p></div><span class="lab-badge">ВІЛЬНЕ ДОСЛІДЖЕННЯ <b>●</b></span></div>
         <div class="lab-body">
@@ -52,5 +57,6 @@
 <dialog id="modal"><div class="modal-head"><h2 id="modalTitle"></h2><button class="dialog-close" aria-label="Закрити" id="modalClose">×</button></div><div class="modal-content" id="modalContent"></div></dialog>
 <script src="./app.js" defer></script>
 <script src="./expedition.js" defer></script>
+<script src="./interface.js" defer></script>
 </body>
 </html>
