@@ -283,6 +283,7 @@ function undo(){if(!state.history.length)return;state.future.push(snapshot());re
 function redo(){if(!state.future.length)return;state.history.push(snapshot());restoreSnapshot(state.future.pop());state.pending=null;draw()}
 function clear(){saveHistory();state.records=[];state.pending=null;state.measure=null;if(state.mode==='quest'){state.stage=0;state.segment=0;state.saved=0;state.tool='line';save()}draw()}
 function demo(now){
+ if(window.GNSSLab01Journey?.active)return;
  if(window.GNSSDrafting3D?.demoRunning)return;
  if(state.mode!=='demo'||!state.demoPlaying)return;
  const elapsed=(now-state.demoStart)/1000;
