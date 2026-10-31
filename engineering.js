@@ -101,12 +101,22 @@ function addShape(root,shape,opts={}){
  else el=svgEl('circle',{cx:shape.x,cy:shape.y,r:shape.r,class:cls});
  root.append(el);return el;
 }
-function addDraftMeasure(root,shape){
- if(shape.type==='line'){
-  const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1,midX=(shape.x1+shape.x2)/2,midY=(shape.y1+shape.y2)/2;
-  const text=svgEl('text',{x:midX+ (Math.abs(dx)<Math.abs(dy)?22:0),y:midY-14,class:'eng-blueprint-label','text-anchor':'middle'});
-  text.textContent=fmt(Math.hypot(dx,dy)/state.scale);root.append(text);
- }else{const text=svgEl('text',{x:shape.x,y:shape.y-shape.r-18,class:'eng-blueprint-label','text-anchor':'middle'});text.textContent='Ø '+fmt(shape.r*2/state.scale);root.append(text)}
+function dimensionText(shape){
+ return shape.type==='line'
+  ?fmt(Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)/state.scale)
+  :'Ø '+fmt(shape.r*2/state.scale);
+}
+function addDraftMeasure(root,shape,position){
+ const fallback=shape.type==='line'
+  ?{x:(shape.x1+shape.x2)/2,y:(shape.y1+shape.y2)/2-29}
+  :{x:shape.x,y:shape.y-shape.r-28};
+ const p=position||fallback;
+ const label=svgEl('text',{
+  x:p.x,y:p.y,class:'eng-blueprint-label','text-anchor':'middle',
+  'pointer-events':'none'
+ });
+ label.textContent=dimensionText(shape);
+ root.append(label);
 }
 function targetLine(){return expectedLines()[Math.min(state.segment,3)]}
 function questGuide(root){
@@ -139,8 +149,22 @@ function draw(){
  const layer=svgEl('g');svg.replaceChildren(layer);
  const guide=svgEl('g'),actual=svgEl('g');layer.append(guide,actual);
  if(state.layerGuide)questGuide(guide);
- if(state.layerDrawing){for(const r of state.records){addShape(actual,r);addDraftMeasure(actual,r)}}
- if(state.pending){addShape(actual,state.pending,{preview:true});addDraftMeasure(actual,state.pending)}
+ const saved=state.layerDrawing?state.records:[];
+ const measureShapes=state.pending?[...saved,state.pending]:[...saved];
+ const measurePositions=window.GNSSDimensions?.layout(
+  measureShapes,measureShapes.map(dimensionText),{font:13}
+ )||[];
+ window.GNSSPublishedShapes=saved.map(shape=>({...shape}));
+ if(state.layerDrawing){
+  saved.forEach((shape,i)=>{
+   addShape(actual,shape);
+   addDraftMeasure(actual,shape,measurePositions[i]);
+  });
+ }
+ if(state.pending){
+  addShape(actual,state.pending,{preview:true});
+  addDraftMeasure(actual,state.pending,measurePositions[measureShapes.length-1]);
+ }
  if(state.mode==='demo')rulerShape(actual);
  else if(state.tool==='ruler'||(state.mode==='quest'&&state.stage===2))rulerShape(actual);
  if(state.mode==='quest'&&state.stage===2&&state.tool==='caliper'){
