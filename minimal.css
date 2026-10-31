@@ -67,3 +67,16 @@ body:not(.gnss-workshop) #modePanelAnchor .exp-label{font-size:9px!important}
 .three-hud[hidden],.three-jaw[hidden]{display:none!important}
 /* Avoid accidental scrolling while manipulating the 3D models. */
 body.gnss-workshop #gnss-three-root{touch-action:none}
+
+/* Blueprint sheet: full bleed, no wood/frame; rendered underneath transparent WebGL. */
+body.gnss-workshop #gnss-three-root{
+ background-color:#0b3a61!important;
+ background-image:url('./assets/blueprint-paper.svg')!important;
+ background-position:center center!important;
+ background-repeat:no-repeat!important;
+ background-size:cover!important;
+ border:0!important;
+}
+body.gnss-workshop #gnss-three-root canvas{background:transparent!important}
+body.gnss-workshop .lab-shell{border:1px solid #306184!important}
+body.gnss-workshop .three-hud button{backdrop-filter:blur(9px)}
