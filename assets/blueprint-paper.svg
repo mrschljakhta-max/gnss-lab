@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="paper" x1="0" y1="0" x2="1" y2=".85"><stop stop-color="#073458"/><stop offset=".22" stop-color="#134e78"/><stop offset=".50" stop-color="#175981"/><stop offset=".75" stop-color="#12456d"/><stop offset="1" stop-color="#092d51"/></linearGradient>
+<radialGradient id="light" cx=".51" cy=".37" r=".77"><stop stop-color="#4888ae" stop-opacity=".20"/><stop offset=".43" stop-color="#3680b3" stop-opacity=".08"/><stop offset="1" stop-color="#041b35" stop-opacity=".38"/></radialGradient>
+<pattern id="fine" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M14 0H0V14" fill="none" stroke="#d4f0ff" stroke-width=".45" opacity=".12"/></pattern>
+<pattern id="medium" width="70" height="70" patternUnits="userSpaceOnUse"><path d="M70 0H0V70" fill="none" stroke="#e0f5ff" stroke-width=".75" opacity=".15"/></pattern>
+<pattern id="major" width="140" height="140" patternUnits="userSpaceOnUse"><path d="M140 0H0V140" fill="none" stroke="#effbff" stroke-width="1.25" opacity=".23"/></pattern>
+<pattern id="ticksX" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M0 0V7" stroke="#e8fbff" stroke-width=".8" opacity=".42"/></pattern>
+<pattern id="ticksY" width="14" height="14" patternUnits="userSpaceOnUse"><path d="M0 0H7" stroke="#e8fbff" stroke-width=".8" opacity=".42"/></pattern>
+<filter id="grain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".37" numOctaves="2" seed="8" stitchTiles="stitch" result="noise"/><feColorMatrix in="noise" type="saturate" values="0"/><feComponentTransfer><feFuncA type="linear" slope=".055"/></feComponentTransfer></filter>
+</defs>
+<rect width="1600" height="900" fill="url(#paper)"/><rect width="1600" height="900" fill="url(#light)"/><rect width="1600" height="900" filter="url(#grain)" opacity=".64"/><rect width="1600" height="900" fill="url(#fine)"/><rect width="1600" height="900" fill="url(#medium)"/><rect width="1600" height="900" fill="url(#major)"/>
+<g fill="none" stroke="#c9efff"><rect x="20" y="20" width="1560" height="860" stroke-opacity=".44" stroke-width="1.35"/><rect x="25" y="25" width="1550" height="850" stroke-opacity=".16" stroke-width=".7"/><path d="M800 0V900 M0 450H1600" stroke-opacity=".19" stroke-dasharray="3 4" stroke-width="1.2"/><path d="M40 862H1555 M42 40H1555" stroke-opacity=".13" stroke-dasharray="7 5"/></g>
+<rect x="20" y="24" width="1560" height="10" fill="url(#ticksX)" opacity=".5"/><rect x="20" y="870" width="1560" height="10" fill="url(#ticksX)" opacity=".5"/><rect x="19" y="20" width="10" height="860" fill="url(#ticksY)" opacity=".5"/><rect x="1570" y="20" width="10" height="860" fill="url(#ticksY)" opacity=".5"/>
+<g fill="none" stroke="#e0f6ff" stroke-opacity=".55" stroke-width="1">
+<path d="M0 138H28 M0 276H28 M0 414H28 M0 552H28 M0 690H28 M0 828H28 M1572 138H1600 M1572 276H1600 M1572 414H1600 M1572 552H1600 M1572 690H1600 M1572 828H1600"/>
+<path d="M120 0V28 M260 0V28 M400 0V28 M540 0V28 M680 0V28 M820 0V28 M960 0V28 M1100 0V28 M1240 0V28 M1380 0V28 M120 872V900 M260 872V900 M400 872V900 M540 872V900 M680 872V900 M820 872V900 M960 872V900 M1100 872V900 M1240 872V900 M1380 872V900"/>
+</g>
+<g transform="translate(1500 110)" stroke="#d7f7ff" stroke-width="1.2" fill="none" opacity=".66"><circle r="27"/><circle r="21"/><circle r="6"/><path d="M-39 0H39 M0 -39V39 M-29 -29L29 29 M29 -29L-29 29"/><path d="M0 -30L6 -18L0 -21L-6 -18Z" fill="#d7f7ff" fill-opacity=".55"/><path d="M14 -30L34 -52"/><text x="35" y="-55" fill="#e4f8ff" stroke="none" font-family="monospace" font-size="15">N</text></g>
+<g transform="translate(1523 823)" stroke="#d8f6ff" stroke-width=".75" fill="none" opacity=".23"><circle r="50"/><path d="M-52 0H52 M0 -52V52"/></g><g transform="translate(110 110)" stroke="#caefff" stroke-width=".7" fill="none" opacity=".16"><circle r="55"/><path d="M-55 0H55 M0 -55V55"/></g>
+</svg>
