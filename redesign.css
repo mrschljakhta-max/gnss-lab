@@ -1,0 +1,57 @@
+
+/* GNSS LAB V3 — hover-rail / immersive lesson workspace */
+:root{--lab-rail:72px;--lab-drawer:300px}
+body{background:#071015}
+.app{display:block!important;padding-left:var(--lab-rail);min-height:100vh}
+.workspace{width:100%;min-width:0}
+.sidebar{position:fixed!important;inset:0 auto 0 0;width:var(--lab-rail)!important;height:100dvh!important;min-height:0!important;z-index:90;overflow:hidden!important;padding:20px 10px 15px!important;background:#08141a!important;border-right:1px solid #29434b;box-shadow:6px 0 22px #0003;transition:width .24s cubic-bezier(.2,.8,.2,1),box-shadow .24s}
+.sidebar:is(:hover,:focus-within,.is-open){width:var(--lab-drawer)!important;overflow-y:auto!important;box-shadow:18px 0 58px #0009}
+.sidebar .brand{height:43px;white-space:nowrap;gap:15px;padding:0 10px!important;font-size:23px}
+.sidebar .brand-mark{font-size:26px;min-width:29px}
+.sidebar .brand>span:last-child{opacity:0;transform:translateX(-10px);transition:opacity .14s,transform .2s}
+.sidebar .brand-sub,.sidebar .side-heading,.sidebar .sidebar-foot{opacity:0;pointer-events:none;transition:opacity .15s}
+.sidebar .brand-sub,.sidebar .side-heading{white-space:nowrap}
+#sidebarNav{display:flex;flex-direction:column;gap:3px}
+.sidebar .side-entry{display:flex!important;align-items:center!important;justify-content:flex-start;min-height:50px!important;padding:9px 12px!important;gap:15px!important;margin:0!important;border-radius:11px!important}
+.sidebar .side-entry .side-index{padding:0;font-size:12px;text-align:center;min-width:25px}
+.sidebar .side-entry>span:last-child{opacity:0;visibility:hidden;transform:translateX(-8px);transition:opacity .16s,transform .2s;flex:1;min-width:0}
+.sidebar .side-entry .side-name{display:block;font-size:13px;font-weight:600;line-height:1.35}
+.sidebar .side-entry .side-sub{font-size:10px;line-height:1.5}
+.sidebar:not(:hover):not(:focus-within):not(.is-open) .brand-sub,.sidebar:not(:hover):not(:focus-within):not(.is-open) .side-heading,.sidebar:not(:hover):not(:focus-within):not(.is-open) .sidebar-foot{height:0;visibility:hidden;margin:0;padding:0;overflow:hidden}
+.sidebar:is(:hover,:focus-within,.is-open) .brand>span:last-child,.sidebar:is(:hover,:focus-within,.is-open) .side-entry>span:last-child{opacity:1;visibility:visible;transform:none}
+.sidebar:is(:hover,:focus-within,.is-open) .brand-sub,.sidebar:is(:hover,:focus-within,.is-open) .side-heading,.sidebar:is(:hover,:focus-within,.is-open) .sidebar-foot{height:auto;visibility:visible;opacity:1;pointer-events:auto}
+.sidebar:is(:hover,:focus-within,.is-open) .sidebar-foot{padding:25px 8px 5px}
+.sidebar .side-entry.active{background:#18332b!important;border-color:#3b694a!important;box-shadow:inset 3px 0 #b1f378}
+.sidebar .side-entry:not(.active):hover{background:#162931}
+.sidebar-scrim,.mobile-sidebar-trigger{display:none}
+.topbar{height:61px!important;background:#09161b!important;border-bottom:1px solid #21343b!important}
+.main{max-width:none!important;padding:16px clamp(18px,2.8vw,46px) 22px!important}
+#modeTabsAnchor #expModes{margin:5px 0 19px!important;gap:11px!important;grid-template-columns:repeat(3,minmax(0,1fr))}
+#modeTabsAnchor .exp-mode{min-height:72px;padding:13px 18px!important;border-radius:12px!important;border:1px solid #30474c!important;background:#112028!important;box-shadow:none!important;transform:none!important;position:relative;overflow:hidden}
+#modeTabsAnchor .exp-mode:hover{background:#182e32!important;border-color:#6f997b!important}
+#modeTabsAnchor .exp-mode.active{background:#1b372b!important;border-color:#a5e979!important}
+#modeTabsAnchor .exp-mode.active:after{content:'';position:absolute;height:3px;left:18px;right:18px;bottom:0;background:#b1f378}
+#modeTabsAnchor .exp-mode b{min-width:32px;text-align:center;background:#283b36!important;color:#b1f378!important;font-size:12px;padding:9px!important}
+#modeTabsAnchor .exp-mode strong{font-size:15px!important}
+#modeTabsAnchor .exp-mode small{font-size:10px!important;color:#86a6a7!important}
+.intro .kicker{margin:12px 0 7px!important}
+.intro h1{font-size:clamp(25px,2vw,34px)!important;letter-spacing:-1px!important}
+.intro-desc{margin:9px 0 14px!important;font-size:13px!important}
+.intro-symbol{font-size:50px!important;opacity:.65}
+.stage-tab{padding:12px 17px!important}
+#modePanelAnchor #expPanel{margin:12px 0 0!important}
+#modePanelAnchor #expPanel .exp-box{border-radius:11px;min-height:67px;padding:11px 17px!important}
+#modePanelAnchor #expPanel .exp-box h3{font-size:17px!important;margin:3px 0!important}
+#modePanelAnchor #expPanel .exp-box p{font-size:12px!important;margin:3px 0!important}
+#modePanelAnchor #expPanel .exp-ticks{margin:6px 0 0}
+.lab-shell{border-radius:15px!important;margin-top:14px!important}
+.lab-head{min-height:69px!important;padding:13px 21px!important}
+.lab-head h2{font-size:17px!important}
+.lab-body{min-height:510px}
+.scene{min-height:410px!important;background-color:#09181f!important}
+.scene:has(canvas){background-image:none!important}
+.scene canvas{width:100%!important;height:100%!important;display:block;touch-action:none}
+body[data-exp-mode="demo"] #scene{min-height:485px!important}
+@media(max-width:900px){:root{--lab-rail:64px;--lab-drawer:282px}.main{padding:13px 16px 24px!important}#modeTabsAnchor #expModes{gap:7px!important}#modeTabsAnchor .exp-mode{padding:11px!important}#modeTabsAnchor .exp-mode strong{font-size:13px!important}}
+@media(max-width:650px){.app{padding-left:0!important}.sidebar{width:var(--lab-drawer)!important;transform:translateX(-102%);transition:transform .24s!important;overflow-y:auto!important}.sidebar:is(:hover,:focus-within){transform:translateX(-102%)}.sidebar.is-open{width:var(--lab-drawer)!important;transform:translateX(0)}.sidebar .brand>span:last-child,.sidebar .side-entry>span:last-child{opacity:1!important;visibility:visible!important;transform:none!important}.sidebar .brand-sub,.sidebar .side-heading,.sidebar .sidebar-foot{opacity:1!important;visibility:visible!important;height:auto!important;pointer-events:auto!important}.sidebar-scrim.is-visible{display:block;position:fixed;inset:0;width:100%;height:100%;z-index:89;background:#0009;border:0}.mobile-sidebar-trigger{display:inline-flex;align-items:center;gap:6px;background:#112731;color:#e5f2ef;border:1px solid #38565e;border-radius:9px;padding:8px 10px;font-weight:650;white-space:nowrap}.mobile-sidebar-trigger span{font-size:11px}.topbar{padding:0 10px!important;gap:9px}.topbar .crumb{font-size:9px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.connection{display:none}.top-right{gap:5px}.main{padding:11px 11px 23px!important}#modeTabsAnchor #expModes{gap:5px!important}#modeTabsAnchor .exp-mode{padding:8px 6px!important;min-height:66px;gap:5px!important;align-items:center!important;border-radius:8px!important}#modeTabsAnchor .exp-mode b{min-width:0;font-size:9px!important;padding:5px!important}#modeTabsAnchor .exp-mode strong{font-size:11px!important}#modeTabsAnchor .exp-mode small{font-size:8px!important}.intro-symbol{display:none}.intro h1{font-size:25px!important}#modePanelAnchor #expPanel .exp-box{padding:10px!important}.scene{min-height:310px!important}.lab-head{padding:12px!important}}
+@media(prefers-reduced-motion:reduce){.sidebar,.sidebar .brand>span:last-child,.sidebar .side-entry>span:last-child{transition:none!important}}
