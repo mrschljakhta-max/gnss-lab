@@ -81,3 +81,63 @@ body.engineering-live .eng-dock .eng-divider{height:79px!important}
 @media(prefers-reduced-motion:reduce){
  .eng-tool-art,.eng-illustrated,.eng-illustrated:before{transition:none!important;animation:none!important}
 }
+
+/* GNSS LAB: toolbar cleanup — tool imagery has room to breathe. */
+body.engineering-live #engTools button[data-tool="units"],
+body.engineering-live #engTools .eng-divider {
+  display:none!important;
+}
+body.engineering-live .eng-dock {
+  width:min(690px,calc(100vw - 128px))!important;
+}
+body.engineering-live #engTools {
+  justify-content:center!important;
+  gap:7px!important;
+  padding:5px 3px!important;
+}
+body.engineering-live #engTools button.eng-photo-real[data-tool="compass"] .eng-tool-art,
+body.engineering-live #engTools button.eng-photo-real[data-tool="eraser"] .eng-tool-art {
+  overflow:visible!important;
+  box-sizing:border-box!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+body.engineering-live #engTools button.eng-photo-real[data-tool="compass"] .eng-tool-photo img {
+  display:block;
+  width:auto!important;
+  max-width:55px!important;
+  height:auto!important;
+  max-height:66px!important;
+  object-fit:contain!important;
+  object-position:center!important;
+}
+body.engineering-live #engTools button.eng-photo-real[data-tool="eraser"] .eng-tool-photo img {
+  display:block;
+  width:auto!important;
+  max-width:86px!important;
+  height:auto!important;
+  max-height:59px!important;
+  object-fit:contain!important;
+  object-position:center!important;
+}
+body.engineering-live #engTools button.eng-photo-real[data-tool="compass"]:hover .eng-tool-art,
+body.engineering-live #engTools button.eng-photo-real[data-tool="eraser"]:hover .eng-tool-art,
+body.engineering-live #engTools button.eng-photo-real[data-tool="compass"]:focus-visible .eng-tool-art,
+body.engineering-live #engTools button.eng-photo-real[data-tool="eraser"]:focus-visible .eng-tool-art {
+  transform:translateY(-3px) rotateZ(-2deg) scale(1.03)!important;
+}
+@media(max-width:1100px){
+  body.engineering-live .eng-dock {width:min(625px,calc(100vw - 115px))!important}
+}
+@media(max-width:650px){
+  body.engineering-live .eng-dock {width:calc(100vw - 16px)!important}
+  body.engineering-live #engTools {justify-content:flex-start!important}
+  body.engineering-live #engTools button.eng-photo-real[data-tool="compass"] .eng-tool-photo img {
+    max-width:38px!important;
+    max-height:48px!important;
+  }
+  body.engineering-live #engTools button.eng-photo-real[data-tool="eraser"] .eng-tool-photo img {
+    max-width:65px!important;
+    max-height:45px!important;
+  }
+}
