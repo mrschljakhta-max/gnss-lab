@@ -537,14 +537,47 @@ function paintFallback(shape,t,progress,pose){
   ctx.restore();ctx.save();
   if(P.pencilVisible&&P.phase!=='enter'){
    const x=lerp(a.x,b.x,P.draw),y=lerp(a.y,b.y,P.draw);
-   ctx.translate(x,y-12*P.penLift*scale);
-   ctx.rotate(-.20);
-   ctx.shadowColor='#061e2dab';ctx.shadowBlur=9;ctx.shadowOffsetX=5;ctx.shadowOffsetY=7;
-   const g=ctx.createLinearGradient(-6,0,7,0);
-   g.addColorStop(0,'#06263f');g.addColorStop(.45,'#25699c');g.addColorStop(.9,'#a1cbdb');g.addColorStop(1,'#0d304e');
-   ctx.fillStyle=g;ctx.fillRect(-6,-106,12,89);
-   ctx.fillStyle='#d7e7e9';ctx.fillRect(-5,-18,10,14);
-   ctx.fillStyle='#22292f';ctx.beginPath();ctx.moveTo(-3,-4);ctx.lineTo(0,0);ctx.lineTo(3,-4);ctx.fill();
+   ctx.translate(x,y-12*P.penLift*scale);ctx.rotate(-.20);ctx.scale(scale,scale);
+   ctx.shadowColor='rgba(1,17,31,.50)';ctx.shadowBlur=12;ctx.shadowOffsetX=6;ctx.shadowOffsetY=8;
+   const tube=(top,bottom,r,stops)=>{
+    const grad=ctx.createLinearGradient(-r,0,r,0);
+    stops.forEach(([at,color])=>grad.addColorStop(at,color));
+    ctx.fillStyle=grad;ctx.fillRect(-r,top,2*r,bottom-top);
+   };
+   const blue=[[0,'#091d34'],[.22,'#173e68'],[.49,'#315d88'],[.82,'#10365d'],[1,'#071b30']];
+   const silver=[[0,'#657b87'],[.19,'#d2e0e1'],[.47,'#f2f6f2'],[.7,'#a5b8c1'],[1,'#526c7c']];
+   tube(-198,-188,6.5,silver);
+   tube(-188,-176,7.8,blue);
+   tube(-176,-95,8.2,blue);
+   ctx.shadowBlur=0;ctx.shadowOffsetX=0;ctx.shadowOffsetY=0;
+   ctx.lineWidth=.65;
+   for(const gx of [-4.3,-1.9,2.2,4.6]){
+    ctx.strokeStyle=gx<0?'#071f3a':'#7396b555';
+    ctx.beginPath();ctx.moveTo(gx,-170);ctx.lineTo(gx,-100);ctx.stroke();
+   }
+   tube(-95,-90,7.9,silver);
+   tube(-90,-51,7.45,silver);
+   ctx.save();ctx.beginPath();ctx.rect(-7.45,-90,14.9,39);ctx.clip();
+   ctx.lineWidth=.57;
+   for(let yy=-113;yy<-35;yy+=3.4){
+    ctx.strokeStyle='rgba(45,67,75,.62)';
+    ctx.beginPath();ctx.moveTo(-9,yy);ctx.lineTo(9,yy+18);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(-9,yy+18);ctx.lineTo(9,yy);ctx.stroke();
+   }
+   ctx.restore();
+   tube(-51,-46,7.1,silver);
+   ctx.fillStyle='#d7e4e6';ctx.beginPath();
+   ctx.moveTo(-6.9,-46);ctx.lineTo(6.9,-46);
+   ctx.lineTo(1.7,-19);ctx.lineTo(-1.7,-19);ctx.closePath();ctx.fill();
+   tube(-19,-6,1.55,silver);
+   ctx.strokeStyle='#20292f';ctx.lineWidth=1.4;
+   ctx.beginPath();ctx.moveTo(0,-6);ctx.lineTo(0,0);ctx.stroke();
+   // Polished sprung pocket clip, visually above the dark-blue barrel.
+   ctx.strokeStyle='#e5edf0';ctx.lineWidth=3.4;ctx.lineCap='round';
+   ctx.beginPath();ctx.moveTo(9.1,-177);ctx.lineTo(11.2,-161);
+   ctx.lineTo(10.1,-119);ctx.stroke();
+   ctx.strokeStyle='#839eac';ctx.lineWidth=.8;
+   ctx.beginPath();ctx.moveTo(11.4,-160);ctx.lineTo(10.4,-121);ctx.stroke();
   }
  }else if(t<.96){
   const center=screen({x:shape.x,y:shape.y}),r=shape.r*scale,phase=-Math.PI/2+Math.PI*2*progress;
