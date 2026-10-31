@@ -113,6 +113,20 @@ function feedback(text){
  clearTimeout(feedback.timer);
  feedback.timer=setTimeout(()=>hint.classList.remove('is-visible'),1100);
 }
+function previewDimensionText(shape){
+ if(shape.type==='circle')
+  return 'Ø '+(shape.r*2/SCALE).toLocaleString('uk-UA',{maximumFractionDigits:1})+' мм';
+ const d=Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
+ return (d/SCALE).toLocaleString('uk-UA',{maximumFractionDigits:1})+' мм';
+}
+function previewDimensionPosition(shape){
+ const saved=Array.isArray(window.GNSSPublishedShapes)?window.GNSSPublishedShapes:[];
+ const shapes=[...saved,shape];
+ const positions=window.GNSSDimensions?.layout(
+  shapes,shapes.map(previewDimensionText),{font:14}
+ );
+ return positions?.[positions.length-1]||null;
+}
 function display(shape,progress=null){
  preview.replaceChildren();
  if(!shape)return;
@@ -133,7 +147,8 @@ function display(shape,progress=null){
     }
     preview.append(node('path',{d,class:'gnss-drawn'}));
    }
-   preview.append(node('text',{x,y:y-r-18,class:'gnss-dimension','text-anchor':'middle'},'Ø '+(r*2/SCALE).toLocaleString('uk-UA',{maximumFractionDigits:1})+' мм'));
+   const dp=previewDimensionPosition(shape)||{x,y:y-r-28};
+   preview.append(node('text',{x:dp.x,y:dp.y,class:'gnss-dimension','text-anchor':'middle'},previewDimensionText(shape)));
   }
   return;
  }
@@ -146,10 +161,10 @@ function display(shape,progress=null){
   preview.append(node('line',{x1:a.x,y1:a.y,x2:end.x,y2:end.y,class:progress===null?'gnss-guide':'gnss-drawn'}));
   preview.append(node('circle',{cx:b.x,cy:b.y,r:5,class:'gnss-point'}));
   preview.append(node('text',{x:b.x+10,y:b.y-12,class:'gnss-mark'},'B'));
-  preview.append(node('text',{
-   x:(a.x+b.x)/2+nx*20,y:(a.y+b.y)/2+ny*20-5,
-   class:'gnss-dimension','text-anchor':'middle'
-  },(d/SCALE).toLocaleString('uk-UA',{maximumFractionDigits:1})+' мм'));
+  const dp=previewDimensionPosition(shape)||{x:(a.x+b.x)/2+nx*30,y:(a.y+b.y)/2+ny*30-5};
+  preview.append(node('text',{x:dp.x,y:dp.y,
+    class:'gnss-dimension','text-anchor':'middle'
+  },previewDimensionText(shape)));
  }
 }
 function geometry(){
