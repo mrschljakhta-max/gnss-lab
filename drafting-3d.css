@@ -23,7 +23,8 @@
 }
 .gnss-draft-preview .gnss-dimension{
  fill:#ecffff;font:700 14px ui-monospace,Consolas,monospace;
- stroke:#0d4267;stroke-width:4;paint-order:stroke fill;
+ stroke:#0d4267;stroke-width:3;stroke-linejoin:round;
+ paint-order:stroke fill;pointer-events:none;
 }
 .gnss-draft-preview .gnss-radius{
  stroke:#b3edb5;stroke-width:1.2;stroke-dasharray:3 5;opacity:.76;
