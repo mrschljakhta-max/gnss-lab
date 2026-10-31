@@ -39,7 +39,7 @@ body.engineering-live .sidebar .sidebar-foot{display:none!important}
 .eng-geometry .eng-dot{fill:#c4fa98;stroke:#123f38;stroke-width:3}
 .eng-geometry .eng-ruler{cursor:grab}
 .eng-geometry .eng-ruler text{pointer-events:none}
-.eng-blueprint-label{font-family:Consolas,monospace;font-size:13px;font-weight:600;fill:#d8f8ff;opacity:.94}
+.eng-blueprint-label{font-family:Consolas,monospace;font-size:13px;font-weight:600;fill:#d8f8ff;opacity:.97;stroke:#103b59;stroke-width:2.5px;stroke-linejoin:round;paint-order:stroke fill;pointer-events:none}
 .eng-readout{position:absolute;left:20px;top:19px;z-index:3;background:#071c2bdd;border:1px solid #6087a0;border-radius:11px;color:#b9f985;font:700 25px ui-monospace,Consolas,monospace;padding:11px 15px;min-width:112px;text-align:center;backdrop-filter:blur(9px);pointer-events:none}
 .eng-command{position:absolute;top:18px;right:18px;display:flex;gap:8px;z-index:3}
 .eng-command button,.eng-tools button,.eng-rail button{font:inherit;color:#cbe0e9;background:#102633eb;border:1px solid #31505e;border-radius:10px;cursor:pointer;transition:background .17s,border-color .17s,transform .17s}
