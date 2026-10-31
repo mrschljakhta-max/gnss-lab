@@ -116,7 +116,7 @@ function addDraftMeasure(root,shape,position){
   'pointer-events':'none'
  });
  label.textContent=dimensionText(shape);
- root.append(label);
+ root.append(label);return label;
 }
 function targetLine(){return expectedLines()[Math.min(state.segment,3)]}
 function questGuide(root){
@@ -145,6 +145,44 @@ function rulerShape(root){
   root.append(grp);
  }
 }
+// Animated eraser owns a single record; it is not deleted until the last frame.
+let eraserVisual=null;
+const measureShapeLength=shape=>shape.type==='circle'?Math.PI*2*shape.r:
+ Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
+function applyEraserVisual(shape,path,label,visual){
+ if(!visual||!path)return;
+ const progress=clamp(visual.progress,0,1),L=measureShapeLength(shape);
+ path.style.strokeDasharray=L+' '+(L+2);
+ path.style.strokeDashoffset=String(-L*progress);
+ // Rotating a circle changes the starting position of the wiped stroke,
+ // without changing the saved geometry or the measured diameter.
+ if(shape.type==='circle'&&visual.at){
+  const a=Math.atan2(visual.at.y-shape.y,visual.at.x-shape.x);
+  path.setAttribute('transform','rotate('+(a*180/Math.PI)+' '+shape.x+' '+shape.y+')');
+ }
+ if(label)label.style.opacity=String(clamp((.73-progress)/.45,0,1));
+}
+function updateEraserVisual(){
+ if(!eraserVisual)return;
+ const i=eraserVisual.index,shape=state.records[i];
+ const path=svg.querySelector('[data-record-index="'+i+'"]');
+ const label=svg.querySelector('[data-record-label="'+i+'"]');
+ if(shape&&path)applyEraserVisual(shape,path,label,eraserVisual);
+}
+function recordAtPoint(p){
+ let match=null,best=18;
+ state.records.forEach((shape,index)=>{
+  let d;
+  if(shape.type==='circle')d=Math.abs(dist(p,shape)-shape.r);
+  else{
+   const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1;
+   const t=clamp(((p.x-shape.x1)*dx+(p.y-shape.y1)*dy)/Math.max(1,dx*dx+dy*dy),0,1);
+   d=dist(p,{x:shape.x1+t*dx,y:shape.y1+t*dy});
+  }
+  if(d<best){best=d;match={index,shape:{...shape},at:{...p}}}
+ });
+ return match;
+}
 function draw(){
  const layer=svgEl('g');svg.replaceChildren(layer);
  const guide=svgEl('g'),actual=svgEl('g');layer.append(guide,actual);
@@ -157,8 +195,11 @@ function draw(){
  window.GNSSPublishedShapes=saved.map(shape=>({...shape}));
  if(state.layerDrawing){
   saved.forEach((shape,i)=>{
-   addShape(actual,shape);
-   addDraftMeasure(actual,shape,measurePositions[i]);
+   const path=addShape(actual,shape);
+   const label=addDraftMeasure(actual,shape,measurePositions[i]);
+   path.setAttribute('data-record-index',String(i));
+   label.setAttribute('data-record-label',String(i));
+   if(eraserVisual?.index===i)applyEraserVisual(shape,path,label,eraserVisual);
   });
  }
  if(state.pending){
@@ -265,7 +306,17 @@ function handleDown(e){
   state.pending={type:'line',x1:snap(p.x),y1:snap(p.y),x2:snap(p.x),y2:snap(p.y)};}
  else if(state.tool==='compass'){state.pointer={kind:'circle',start:{x:snap(p.x),y:snap(p.y)}};
   state.pending={type:'circle',x:snap(p.x),y:snap(p.y),r:0};}
- else if(state.tool==='eraser'){let nearest=-1,mind=22;state.records.forEach((s,i)=>{const d=s.type==='circle'?Math.abs(dist(p,s)-s.r):Math.abs((s.y2-s.y1)*p.x-(s.x2-s.x1)*p.y+s.x2*s.y1-s.y2*s.x1)/Math.max(1,Math.hypot(s.y2-s.y1,s.x2-s.x1));if(d<mind){nearest=i;mind=d}});if(nearest>=0){saveHistory();state.records.splice(nearest,1);draw()}return;}
+ else if(state.tool==='eraser'){
+  if(eraserVisual)return;
+  const hit=recordAtPoint(p);
+  if(hit){
+   const detail={...hit,accepted:false};
+   document.dispatchEvent(new CustomEvent('gnss:erase-start',{detail}));
+   // Keep erasing functional when the 3D layer is unavailable.
+   if(!detail.accepted){saveHistory();state.records.splice(hit.index,1);draw()}
+  }
+  return;
+ }
  else if(state.tool==='caliper'){
   if(state.mode==='quest'&&state.stage===2&&state.measure==='rectDone'&&dist(p,circle)<circle.r+35){finishMeasurement();return}
   const c=state.records.find(r=>r.type==='circle');if(c&&dist(p,c)<c.r+26){state.measure=c.r*2/state.scale;toast('Ø '+fmt(state.measure));draw()}return;
@@ -335,6 +386,28 @@ document.addEventListener('gnss:ruler-demo-finished',()=>{
  state.demoPlaying=true;draw();
 });
 // Shared geometry validation; the renderer owns transient 3D visuals.
+document.addEventListener('gnss:erase-progress',e=>{
+ const d=e.detail||{},i=d.index;
+ if(!Number.isInteger(i)||!state.records[i])return;
+ if(!eraserVisual||eraserVisual.index!==i){
+  eraserVisual={index:i,progress:0,at:d.at};
+ }
+ eraserVisual.progress=clamp(d.progress||0,0,1);
+ updateEraserVisual();
+});
+document.addEventListener('gnss:erase-cancel',()=>{
+ if(eraserVisual){eraserVisual=null;draw()}
+});
+document.addEventListener('gnss:erase-commit',e=>{
+ const d=e.detail||{};
+ if(!Number.isInteger(d.index)||!state.records[d.index]||
+    JSON.stringify(state.records[d.index])!==JSON.stringify(d.shape)){
+  eraserVisual=null;draw();return;
+ }
+ eraserVisual=null;
+ saveHistory();state.records.splice(d.index,1);
+ draw();
+});
 document.addEventListener('gnss:draw-check',e=>{
  const d=e.detail||{},p=d.shape;
  d.accepted=!!p&&lesson()===0&&state.mode!=='demo'&&!state.complete&&
