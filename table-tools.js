@@ -41,6 +41,7 @@ layer.append(samples);
 const objects={};
 let mode='demo',tool='line',stage=0,visible=new Set(),ready=false;
 let drawing=false,lastEraseAt=0,resizeObs=null;
+let strokeMotion=null;
 const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
 function svgPoint(e) {
  const q=svg.createSVGPoint(),m=svg.getScreenCTM();
@@ -164,6 +165,7 @@ function setVisible(next){
  drawCircleGuide();
 }
 function sync(data){
+ if(strokeMotion && (data.mode!==mode || data.tool!=='ruler'))strokeMotion.cancel();
  mode=data.mode||document.body.dataset.expMode||'demo';
  tool=data.tool||'line';stage=data.stage||0;
  const samplesVisible=mode==='quest'&&stage===2&&document.body.classList.contains('engineering-live');
@@ -192,7 +194,9 @@ function showHint(str){
  showHint.timer=setTimeout(()=>hint.classList.remove('is-visible'),1100);
 }
 function startMove(e,name,element){
- if(mode==='demo'||name==='line'||e.target.closest('.gnss-instrument-handle'))return;
+ if(mode==='demo'||name==='line'||strokeMotion||
+   (name==='ruler'&&window.GNSSRulerFlow?.active)||
+   e.target.closest('.gnss-instrument-handle'))return;
  if(e.button!==0)return;
  e.preventDefault();e.stopPropagation();
  const start=svgPoint(e),p=positions[name],initial={x:p.x,y:p.y},pid=e.pointerId;
@@ -331,6 +335,82 @@ document.addEventListener('keydown',e=>{
   }
  }
 });
+function playRulerStroke(a,b,onInk){
+ if(strokeMotion)strokeMotion.cancel();
+ const startRuler={...positions.ruler},startPen={...positions.line};
+ const length=Math.hypot(b.x-a.x,b.y-a.y);
+ const ux=(b.x-a.x)/Math.max(length,1),uy=(b.y-a.y)/Math.max(length,1);
+ const theta=Math.atan2(uy,ux)*180/Math.PI;
+ const normal={x:-uy,y:ux};
+ // The visual ruler's centre lies ~230 SVG units from its zero end.
+ // Offset the straight edge away from the drafting line.
+ const destRuler={x:a.x+ux*224-normal.x*30,y:a.y+uy*224-normal.y*30,angle:theta+14};
+ const penPoint=p=>({x:p.x+46,y:p.y-36});
+ let request=0,settled=false,resolvePromise;
+ const done=new Promise(resolve=>resolvePromise=resolve);
+ const reduce=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const duration=reduce?240:2960;
+ const ease=t=>1-Math.pow(1-t,3);
+ function moveTool(name,p){
+  Object.assign(positions[name],p);
+  update(name);
+ }
+ function park(){
+  moveTool('ruler',startRuler);
+  moveTool('line',startPen);
+  objects.line?.classList.remove('is-drawing','is-dragging');
+  objects.ruler?.classList.remove('is-dragging');
+ }
+ function settle(ok){
+  if(settled)return;settled=true;cancelAnimationFrame(request);
+  if(ok)onInk(1);
+  park();
+  strokeMotion=null;
+  resolvePromise(ok);
+ }
+ const controller={promise:done,cancel:()=>settle(false)};
+ strokeMotion=controller;
+ setVisible(['ruler','line']);
+ objects.ruler?.classList.add('is-dragging');
+ const begin=performance.now();
+ function frame(now){
+  if(settled)return;
+  const t=Math.min(1,(now-begin)/duration);
+  // 0-.20 align the ruler, .20-.31 move the pencil to point A,
+  // .31-.83 trace the segment, .83-1 raise and park.
+  const align=ease(clamp(t/.20,0,1));
+  let pencil={...startPen};
+  moveTool('ruler',{
+   x:startRuler.x+(destRuler.x-startRuler.x)*align,
+   y:startRuler.y+(destRuler.y-startRuler.y)*align,
+   angle:startRuler.angle+(destRuler.angle-startRuler.angle)*align
+  });
+  if(t>=.20){
+   objects.ruler?.classList.remove('is-dragging');
+   const lead=ease(clamp((t-.20)/.11,0,1)),s=penPoint(a);
+   pencil={x:startPen.x+(s.x-startPen.x)*lead,y:startPen.y+(s.y-startPen.y)*lead};
+  }
+  if(t>=.31){
+   const drawing=clamp((t-.31)/.52,0,1),p={
+    x:a.x+(b.x-a.x)*drawing,
+    y:a.y+(b.y-a.y)*drawing
+   };
+   pencil=penPoint(p);onInk(drawing);
+   objects.line?.classList.add('is-drawing');
+  }
+  if(t>=.83){
+   const back=ease(clamp((t-.83)/.17,0,1));
+   pencil={x:pencil.x+(startPen.x-pencil.x)*back,y:pencil.y+(startPen.y-pencil.y)*back};
+   if(t>.90)objects.line?.classList.remove('is-drawing');
+  }
+  moveTool('line',{...pencil,angle:-26});
+  if(t>=1){settle(true);return}
+  request=requestAnimationFrame(frame);
+ }
+ request=requestAnimationFrame(frame);
+ return controller;
+}
+window.GNSSPhysicalTools={playRulerStroke,get mode(){return mode}};
 for(const name of Object.keys(configs))makeItem(name);
 if(typeof ResizeObserver!=='undefined'){
  resizeObs=new ResizeObserver(updateAll);resizeObs.observe(board);
