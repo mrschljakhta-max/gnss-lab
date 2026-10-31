@@ -230,6 +230,7 @@ function sync(e){
  const wasDemo=mode==='demo';
  mode=nextMode;tool=nextTool;step=nextStep;complete=!!d.complete;
  document.body.classList.toggle('gnss-draft-working',interactive());
+ document.body.classList.toggle('gnss-eraser-ready',mode!=='demo'&&tool==='eraser'&&!complete);
  if(mode==='demo'&&!wasDemo)setTimeout(startDemo,130);
 }
 svg.addEventListener('pointerdown',pointerDown,true);
@@ -237,13 +238,13 @@ svg.addEventListener('pointermove',pointerMove,true);
 svg.addEventListener('pointerleave',()=>{if(!motion&&first){cursor=null;display(geometry())}},true);
 document.addEventListener('gnss:draft-state',sync);
 document.addEventListener('click',e=>{
- if(e.target.closest('#engFloatUndo')&&(first||motion)){
+ if(e.target.closest('#engFloatUndo')&&(first||motion||eraserMotion)){
   e.preventDefault();e.stopImmediatePropagation();cancel();
  }
 },true);
 document.addEventListener('keydown',e=>{
- if((e.key==='Escape'||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'))&&(first||motion)){
-  e.preventDefault();e.stopImmediatePropagation();cancel();
+ if((e.key==='Escape'||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'))&&(first||motion||eraserMotion)){
+  e.preventDefault();e.stopImmediatePropagation();e.stopPropagation();cancel();
  }
 },true);
 function resize(){
@@ -856,6 +857,126 @@ function paint3D(shape,t,progress,pose){
  }
  renderer.render(scene,camera);
 }
+// One-click erase. The engine preserves the original SVG record until this
+// performance finishes. Every frame removes the ink underneath the moving tip.
+function cancelErase(){
+ if(!eraserMotion)return;
+ const old=eraserMotion;eraserMotion=null;
+ cancelAnimationFrame(old.frame);
+ preview.replaceChildren();
+ finishScene();
+ document.body.classList.remove('gnss-draft-animating','gnss-eraser-active');
+ document.dispatchEvent(new CustomEvent('gnss:erase-cancel'));
+}
+function eraserPathPosition(data,t){
+ const shape=data.shape,travel=clamp((t-.13)/.73,0,1),enter=ease(t/.13),exit=ease((t-.86)/.14);
+ if(shape.type==='line'){
+  const a={x:shape.x1,y:shape.y1},b={x:shape.x2,y:shape.y2};
+  const angle=Math.atan2(b.y-a.y,b.x-a.x);
+  const x=lerp(lerp(data.at.x,a.x,enter),b.x,travel);
+  const y=lerp(lerp(data.at.y,a.y,enter),b.y,travel);
+  // Small cross-axis scrubbing is independent of the amount of ink removed.
+  const wobble=travel>0&&travel<1?Math.sin(travel*13*Math.PI)*2.0:0;
+  return {x:x-Math.sin(angle)*wobble+Math.cos(angle)*exit*24,
+    y:y+Math.cos(angle)*wobble+Math.sin(angle)*exit*24,
+    angle:angle+.2+Math.sin(travel*9*Math.PI)*.027,
+    progress:travel,lift:(1-enter)*13+exit*17};
+ }
+ const a=Math.atan2(data.at.y-shape.y,data.at.x-shape.x);
+ const angle=a+travel*Math.PI*2;
+ const rad=shape.r;
+ return {x:shape.x+rad*Math.cos(angle)+Math.cos(angle)*exit*23,
+  y:shape.y+rad*Math.sin(angle)+Math.sin(angle)*exit*23,
+  angle:angle+Math.PI/2+.2,
+  progress:travel,lift:(1-enter)*12+exit*20};
+}
+function paintEraserFallback(pose){
+ if(!ctx)ctx=fallback.getContext('2d');
+ if(!ctx)return;
+ ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,w,h);
+ const sc=unitScale(),p=screen(pose);
+ ctx.save();ctx.translate(p.x,p.y-pose.lift*sc);
+ ctx.rotate(pose.angle);ctx.scale(sc,sc);
+ ctx.shadowColor='#00192791';ctx.shadowBlur=9;ctx.shadowOffsetY=6;
+ const rubber=ctx.createLinearGradient(0,-20,0,20);
+ rubber.addColorStop(0,'#f7faf6');rubber.addColorStop(.52,'#e2e9e6');
+ rubber.addColorStop(1,'#a8bac1');
+ ctx.fillStyle=rubber;ctx.beginPath();ctx.roundRect(-47,-19,89,38,5);ctx.fill();
+ ctx.shadowBlur=0;
+ const sleeve=ctx.createLinearGradient(0,-21,0,21);
+ sleeve.addColorStop(0,'#426785');sleeve.addColorStop(.38,'#17395f');
+ sleeve.addColorStop(1,'#0b243e');ctx.fillStyle=sleeve;
+ ctx.beginPath();ctx.roundRect(-15,-20,59,40,3);ctx.fill();
+ ctx.strokeStyle='#8aafc7';ctx.lineWidth=1.1;
+ ctx.beginPath();ctx.moveTo(-10,-13);ctx.lineTo(38,-13);ctx.stroke();
+ ctx.fillStyle='#e9f4f5';ctx.font='600 10px Arial,sans-serif';
+ ctx.textAlign='center';ctx.fillText('ERASER',12,1);
+ ctx.fillStyle='#8cbed2';ctx.font='6px Arial,sans-serif';
+ ctx.fillText('GNSS LAB',12,9);
+ ctx.restore();
+}
+function paintEraseDust(pose,t){
+ preview.replaceChildren();
+ if(t<.14||t>.95)return;
+ const opacity=clamp(1-Math.abs(t-.6)*1.7,0,.72);
+ const sc=unitScale(),p=pose,angle=pose.angle;
+ for(let i=0;i<5;i++){
+  const side=(i%2?1:-1)*(5+i*2);
+  const back=-i*4;
+  const x=p.x+Math.cos(angle)*back-Math.sin(angle)*side;
+  const y=p.y+Math.sin(angle)*back+Math.cos(angle)*side;
+  preview.append(node('ellipse',{
+   cx:x,cy:y,rx:1.25+(i%3)*.5,ry:.8+(i%2)*.4,
+   fill:i%2?'#f0f4ec':'#b8c7c5',
+   opacity:(opacity*(.9-i*.08)).toFixed(3),
+   transform:'rotate('+(angle*180/Math.PI)+' '+x+' '+y+')'
+  }));
+ }
+}
+function beginErase(data){
+ if(eraserMotion||motion||mode==='demo'||tool!=='eraser'||complete)return false;
+ const shape=data.shape;
+ if(!shape||!['line','circle'].includes(shape.type)||!Number.isInteger(data.index))return false;
+ // Reduced-motion mode keeps the wipe visual but compresses its duration.
+ const duration=matchMedia('(prefers-reduced-motion: reduce)').matches?220:1050;
+ const active={index:data.index,shape:{...shape},at:{...data.at},duration,start:performance.now(),frame:0};
+ eraserMotion=active;preview.replaceChildren();showStage();
+ document.body.classList.add('gnss-draft-animating','gnss-eraser-active');
+ document.dispatchEvent(new CustomEvent('gnss:erase-progress',{
+  detail:{index:active.index,progress:0,at:active.at}
+ }));
+ function frame(now){
+  if(eraserMotion!==active)return;
+  const t=clamp((now-active.start)/duration,0,1),pose=eraserPathPosition(active,t);
+  document.dispatchEvent(new CustomEvent('gnss:erase-progress',{
+   detail:{index:active.index,progress:pose.progress,at:active.at}
+  }));
+  if(renderer&&three&&eraser){
+   ruler.visible=pencil.visible=compass.visible=false;
+   eraser.visible=true;eraser.scale.setScalar(unitScale());
+   const xy=screen(pose);
+   eraser.position.set(xy.x,xy.y,10+pose.lift);
+   eraser.rotation.set(0,0,pose.angle);
+   renderer.render(scene,camera);
+  }else paintEraserFallback(pose);
+  paintEraseDust(pose,t);
+  if(t>=1){
+   eraserMotion=null;preview.replaceChildren();finishScene();
+   document.body.classList.remove('gnss-draft-animating','gnss-eraser-active');
+   document.dispatchEvent(new CustomEvent('gnss:erase-commit',{
+    detail:{index:active.index,shape:active.shape}
+   }));
+   return;
+  }
+  active.frame=requestAnimationFrame(frame);
+ }
+ active.frame=requestAnimationFrame(frame);
+ return true;
+}
+document.addEventListener('gnss:erase-start',e=>{
+ const detail=e.detail||{};
+ detail.accepted=beginErase(detail);
+});
 function play(shape,demo=false){
  if(motion)cancel();
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
