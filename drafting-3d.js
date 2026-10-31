@@ -230,6 +230,7 @@ function buildRuler(){
   color:0x041e2e,transparent:true,opacity:.22,depthWrite:false,side:T.DoubleSide
  }));
  shadow.position.set(cx+3,cy+4,6);
+ shadow.visible=false; // Never show an opaque rectangular shadow before texture loads.
  g.add(shadow);
  const material=new T.MeshBasicMaterial({
   color:0xe6f0f0,transparent:true,alphaTest:.08,
@@ -247,6 +248,10 @@ function buildRuler(){
    face.material.color.set(0xffffff);
    face.material.map=texture;
    face.material.needsUpdate=true;
+   // Use the same transparency mask for the soft shadow: no dark rectangle.
+   shadow.material.map=texture;
+   shadow.material.needsUpdate=true;
+   shadow.visible=true;
   },
   undefined,
   err=>console.warn('GNSS LAB ruler texture load failed',err)
