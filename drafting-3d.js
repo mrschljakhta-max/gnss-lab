@@ -121,11 +121,14 @@ function previewDimensionText(shape){
 }
 function previewDimensionPosition(shape){
  const saved=Array.isArray(window.GNSSPublishedShapes)?window.GNSSPublishedShapes:[];
- const shapes=[...saved,shape];
- const positions=window.GNSSDimensions?.layout(
-  shapes,shapes.map(previewDimensionText),{font:14}
- );
- return positions?.[positions.length-1]||null;
+ const solver=window.GNSSDimensions;
+ if(!solver)return null;
+ // Keep already drawn labels fixed while the new stroke is being animated.
+ const placed=solver.layout(saved,saved.map(previewDimensionText),{font:13});
+ const preview=solver.layout([shape],[previewDimensionText(shape)],{
+  font:14,obstacles:saved,reserved:placed.filter(Boolean).map(p=>p.box)
+ });
+ return preview[0]||null;
 }
 function display(shape,progress=null){
  preview.replaceChildren();
