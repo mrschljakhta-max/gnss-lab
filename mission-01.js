@@ -374,211 +374,153 @@ function renderScaleLoupe(){
 }
 
 
-// Physical length is constant at 50 mm. Only the ruler labels and units change.
-function unitRulerScene(){
- const x=360,pxPerMm=8,bodyWidth=50*pxPerMm,right=x+bodyWidth;
- const names={mm:'мм',cm:'см',m:'м'},readings={mm:'50',cm:'5',m:'0,05'};
- const mark=i=>unitSelected==='mm'?String(i):unitSelected==='cm'?String(i/10):
-   i===0?'0':(i/1000).toLocaleString('uk-UA',{minimumFractionDigits:2,maximumFractionDigits:2});
- let s=schematic(),marks='';
- for(let mm=0;mm<=60;mm++){
-  const xx=x+mm*pxPerMm,major=mm%10===0,half=mm%5===0;
-  marks+='<line x1="'+xx+'" x2="'+xx+'" y1="421" y2="'+(major?458:half?444:436)+'"'+
-   ' stroke="#173e52" stroke-width="'+(major?2.5:1.3)+'"/>';
-  if(major)marks+='<text x="'+xx+'" y="484" text-anchor="middle" font-family="ui-monospace,Consolas,monospace"'+
-   ' font-size="'+(unitSelected==='m'?15:18)+'" font-weight="700" fill="#20485a">'+mark(mm)+'</text>';
- }
- s+='<g class="m01-unit-physical" aria-label="Брусок постійної довжини 50 мм">'+
-   blockSvg(x,255,bodyWidth,'',false,false)+
-   '<path d="M'+x+' 373V399 M'+right+' 373V399 M'+x+' 391H'+right+'"'+
-   ' fill="none" stroke="#dceff1" stroke-width="2.5"/>'+
-   '<rect x="340" y="405" width="536" height="99" rx="8" fill="url(#m01Steel)" stroke="#e5f2f3" stroke-width="2"/>'+
-   '<rect x="340" y="405" width="536" height="9" rx="4" fill="#edf7f5" opacity=".65"/>'+
-   '<g class="m01-unit-ticks">'+marks+'</g>'+
-   '<path d="M'+right+' 416V501" stroke="#a7ee79" stroke-width="3.7"/>'+
-   '<path d="M'+(right-9)+' 403L'+right+' 415l9-12Z" fill="#b6f989"/>'+
-   '</g>';
- s+='<text x="610" y="220" text-anchor="middle" font-size="34" font-weight="780" fill="#d6ffc2"'+
-    ' class="m01-unit-reading">'+readings[unitSelected]+' '+names[unitSelected]+'</text>';
- s+='<text x="610" y="554" text-anchor="middle" font-size="'+(seenUnits.size===3?19:16)+'"'+
-   ' font-weight="650" fill="'+(seenUnits.size===3?'#c7faab':'#bbdce2')+'">'+
-   (seenUnits.size===3?'Довжина залишилась тією самою ✓':'Брусок не змінюється — змінюються поділки')+'</text>';
- s+='<rect x="340" y="405" width="536" height="100" rx="8" fill="transparent"'+
-  ' class="m01-unit-hit" data-unit-cycle="true" role="button" tabindex="0"'+
-  ' aria-label="Перемкнути одиницю лінійки" />';
- return s;
+// Drafting with a ruler and pencil: drag an endpoint from a physical anchor.
+// Everything is in millimetres via the same MM factor as the caliper.
+function shapeParameters(task,draft){
+ const p=draft||{dx:0,dy:0};
+ if(task.kind==='line')return {dx:clamp(p.dx,0,510),dy:clamp(p.dy,-220,220)};
+ if(task.kind==='rect')return {dx:clamp(p.dx,0,510),dy:clamp(p.dy,0,250)};
+ return {dx:clamp(p.dx,-260,260),dy:clamp(p.dy,-230,230)};
 }
-
-function conversionScene(){
- let s=schematic();
- s+=blockSvg(450,245,50*MM,'',false,false);
- s+='<path d="M450 355V392M'+(450+50*MM)+' 355V392M450 376H'+(450+50*MM)+'" stroke="#c5e9e9" stroke-width="2"/>';
- s+='<text x="530" y="426" font-size="24" fill="#e1f6fa" text-anchor="middle">Та сама довжина</text>';
- return s;
+function shapeGoal(task){
+ return task.kind==='line'?{dx:task.width*MM,dy:0}:
+ task.kind==='rect'?{dx:task.width*MM,dy:task.height*MM}:
+ {dx:task.radius*MM,dy:0};
 }
-function scaleScene(){
- let s=schematic();
- s+='<text x="600" y="235" font-size="20" fill="#e1f4f7" text-anchor="middle">Один і той самий екран — різний масштаб огляду</text>';
- const labels=['1 м','10 м','100 м','1 000 м'];
- const barX=285,barW=630;
- s+='<line x1="'+barX+'" y1="355" x2="'+(barX+barW)+'" y2="355" stroke="#b6f98a" stroke-width="5"/>';
- for(let i=0;i<=10;i++){const x=barX+barW*i/10;
-  s+='<line x1="'+x+'" y1="342" x2="'+x+'" y2="'+(i%5===0?380:370)+'" stroke="#d6eff0" stroke-width="2"/>';}
- s+='<text x="285" y="402" fill="#d2eef2" font-size="18">0</text><text x="916" y="402" text-anchor="end" fill="#d2eef2" font-size="18">'+labels[zoomIndex]+'</text>';
- return s;
+function geometryDimensions(task,draft){
+ const p=shapeParameters(task,draft);
+ if(task.kind==='line')return {length:Math.hypot(p.dx,p.dy)/MM};
+ if(task.kind==='rect')return {width:p.dx/MM,height:p.dy/MM};
+ return {radius:Math.hypot(p.dx,p.dy)/MM};
 }
-
-function prefixLabPrompt(){
- if(prefixLabComplete())return 'Готово! Ти пов’язав масштаб часу з частотою. Натисни «До вимірювань →».';
- if(prefixLabStage===0)return prefixSubstepComplete()?'Ти дійшов до наносекунди. Відкрий генератор сигналу.':'Збільшуй часову шкалу в 1 000 разів. Дійди до наносекунди.';
- if(prefixLabStage===1)return prefixSubstepComplete()?'Ти побачив чотири частоти. Тепер досліди їхні періоди.':'Підвищуй частоту. Осцилограф автоматично змінює часову розгортку.';
- return 'Обери 1 кГц, 1 МГц і 1 ГГц та знайди тривалість одного коливання.';
+function shapeMatches(task,draft){
+ const v=geometryDimensions(task,draft);
+ if(task.kind==='line')return Math.abs(v.length-task.width)<=1.2&&Math.abs(draft.dy/MM)<=2;
+ if(task.kind==='rect')return Math.abs(v.width-task.width)<=1.2&&Math.abs(v.height-task.height)<=1.2;
+ return Math.abs(v.radius-task.radius)<=1.2;
 }
-function prefixLabControls(){
- const stageNames=['ЗБІЛЬШЕННЯ ЧАСУ','ГЕНЕРАТОР СИГНАЛУ','ЧАСТОТА ↔ ПЕРІОД'];
- const selected=prefixLabStage===0?prefixTimeIndex:prefixLabStage===1?prefixFreqIndex:prefixPairIndex;
- const current=prefixLabStage===0?TIME_ZOOM[prefixTimeIndex].label:
-  prefixLabStage===1?SIGNAL_FREQ[prefixFreqIndex].label:PERIOD_PAIRS[prefixPairIndex].label;
- const seen=prefixLabStage===0?prefixTimeSeen.size:prefixLabStage===1?prefixFreqSeen.size:prefixPairSeen.size;
- const total=prefixLabStage===2?3:4;
- let controlsHtml='';
- if(prefixLabStage!==2){
-  const names=prefixLabStage===0?TIME_ZOOM:SIGNAL_FREQ;
-  controlsHtml='<div class="m01-prefix-current" aria-live="polite">'+current+'</div>'+
-   '<div class="m01-prefix-slider-wrap"><label for="m01PrefixRange" class="m01-prefix-sr">Рівень '+(prefixLabStage===0?'збільшення':'частоти')+'</label>'+
-   '<input id="m01PrefixRange" data-prefix-range="true" type="range" min="0" max="3" step="1" value="'+selected+'" aria-valuetext="'+current+'" /></div>'+
-   '<div class="m01-prefix-row">'+
-   '<button type="button" data-act="prefix-dec"'+(selected===0?' disabled':'')+' aria-label="Попередній масштаб">−</button>'+
-   '<button type="button" class="m01-prefix-grow" data-act="prefix-inc"'+(selected===3?' disabled':'')+'>'+
-    (prefixLabStage===0?'Збільшити ×1 000':'Частота ×1 000')+' →</button></div>'+
-   '<div class="m01-prefix-steps">'+names.map((d,i)=>
-    '<button type="button" data-act="prefix-set-'+i+'"'+(i===selected?' class="active"':'')+
-    ' aria-pressed="'+(i===selected)+'">'+d.label+'</button>').join('')+'</div>';
+function shapeDescription(task){
+ return task.kind==='line'?task.width+' мм':task.kind==='rect'?
+  task.width+' × '+task.height+' мм':'R '+task.radius+' мм';
+}
+function drawnShape(task,draft){
+ if(!task||!draft)return '';
+ const p=shapeParameters(task,draft),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y,ex=x+p.dx,ey=y+p.dy;
+ let shape='';
+ if(task.kind==='line'){
+  shape='<line x1="'+x+'" y1="'+y+'" x2="'+ex+'" y2="'+ey+'" stroke="#bff68e" stroke-width="5" stroke-linecap="round"/>'+
+   '<circle cx="'+ex+'" cy="'+ey+'" r="6" fill="#d8fdbd"/>';
+ }else if(task.kind==='rect'){
+  shape='<rect x="'+x+'" y="'+y+'" width="'+p.dx+'" height="'+p.dy+'" fill="#c1f998" fill-opacity=".09"'+
+   ' stroke="#c3fb91" stroke-width="3" stroke-linejoin="round"/>'+
+   '<circle cx="'+ex+'" cy="'+ey+'" r="6" fill="#d8fdbd"/>';
  }else{
-  controlsHtml='<div class="m01-prefix-steps m01-prefix-pair-buttons">'+PERIOD_PAIRS.map((d,i)=>
-    '<button type="button" data-act="prefix-pair-'+i+'" class="'+(i===selected?'active ':'')+
-    (prefixPairSeen.has(i)?'seen':'')+'" aria-pressed="'+(i===selected)+'">'+
-    (prefixPairSeen.has(i)?'✓ ':'')+d.label+'</button>').join('')+'</div>'+
-   '<div class="m01-prefix-relationship">f ↑ · T ↓</div>';
+  const radius=Math.hypot(p.dx,p.dy);
+  shape='<circle cx="'+x+'" cy="'+y+'" r="'+radius+'" fill="#c1f998" fill-opacity=".08" stroke="#baff8b" stroke-width="3"/>'+
+   '<line x1="'+x+'" y1="'+y+'" x2="'+ex+'" y2="'+ey+'" stroke="#baff8b" stroke-width="2" stroke-dasharray="5 4"/>'+
+   '<circle cx="'+ex+'" cy="'+ey+'" r="5" fill="#dbffc2"/>';
  }
- const references=[
-  ['Гіга','G','10⁹'],['Мега','M','10⁶'],['Кіло','k','10³'],
-  ['Без префікса','—','10⁰'],['Мілі','m','10⁻³'],['Мікро','µ','10⁻⁶'],['Нано','n','10⁻⁹']
- ];
- return '<div class="m01-prefix-panel">'+
-  '<div class="m01-prefix-heading"><span>ЕКСПЕРИМЕНТ '+(prefixLabStage+1)+' / 3</span><span>'+seen+'/'+total+' ✓</span></div>'+
-  '<div class="m01-control-title">'+stageNames[prefixLabStage]+'</div>'+
-  controlsHtml+
-  (prefixSubstepComplete()&&prefixLabStage<2?
-   '<button type="button" class="m01-prefix-proceed" data-act="prefix-phase-next">'+
-   (prefixLabStage===0?'До генератора →':'До періоду →')+'</button>':'')+
-  (prefixLabComplete()?'<div class="m01-prefix-ok">✓ Відкрито всі три взаємозв’язки</div>':'')+
-  '<button type="button" class="m01-prefix-reference-toggle" data-act="prefix-reference" aria-expanded="'+prefixReferenceOpen+'">'+
-   (prefixReferenceOpen?'▾ Сховати префікси':'▸ Таблиця префіксів')+'</button>'+
-  (prefixReferenceOpen?'<div class="m01-prefix-reference" aria-label="Сім масштабів SI">'+
-   references.map(([name,symbol,power])=>'<span>'+name+'</span><b>'+symbol+'</b><span>'+power+'</span>').join('')+
-   '<small>m = мілі · M = мега · µ = мікро</small></div>':'')+
-  '</div>';
+ const v=geometryDimensions(task,draft);
+ const label=task.kind==='line'?fmt(v.length,1)+' мм':task.kind==='rect'?
+  fmt(v.width,1)+' × '+fmt(v.height,1)+' мм':'R '+fmt(v.radius,1)+' мм';
+ return shape+'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>';
 }
-function prefixLabAction(act){
- if(!visible||mode!=='demo'||memory.scene!==5)return;
- if(act==='prefix-reference'){
-  prefixReferenceOpen=!prefixReferenceOpen;render();return;
+function geometryScene(){
+ const task=geometryTask();
+ if(!task)return schematic();
+ const goal=shapeGoal(task),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+ let s=schematic();
+ // A pale target makes the first action discoverable without pre-drawing the answer.
+ s+='<text x="600" y="216" text-anchor="middle" font-size="24" font-weight="750" fill="#d9f4e6">'+
+ (task.kind==='line'?'ВІДРІЗОК':task.kind==='rect'?'ПРЯМОКУТНИК':'КОЛО')+' · '+shapeDescription(task)+'</text>';
+ for(let i=0;i<=10;i++){
+  const xx=x+i*MM*5;
+  s+='<line x1="'+xx+'" y1="477" x2="'+xx+'" y2="'+(i%2===0?499:490)+'" stroke="#b8dbe2" stroke-width="1.8"/>'+
+    (i%2===0?'<text x="'+xx+'" y="518" font-size="13" text-anchor="middle" fill="#b8dbe2">'+i*5+'</text>':'');
  }
- if(act==='prefix-phase-next'){
-  if(prefixLabStage<2&&prefixSubstepComplete()){
-   prefixLabStage+=1;prefixReferenceOpen=false;savePrefixLab();
-   announce(prefixLabStage===1?'✓ Масштаби часу відкрито. Тепер керуй частотою.':'✓ Частоти відкрито. Досліди період.',true);
-   render();
-  }
+ s+='<path d="M'+x+' 476H'+(x+50*MM)+'" stroke="#bdd2dc" stroke-width="3"/>'+
+  '<text x="403" y="522" fill="#b8dbe2" font-size="13">мм</text>';
+ if(task.kind==='line'){
+  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+goal.dx)+'" y2="'+y+'" stroke="#9cd3c2" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 8"/>';
+ }else if(task.kind==='rect'){
+  s+='<rect x="'+x+'" y="'+y+'" width="'+goal.dx+'" height="'+goal.dy+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ }else{
+  s+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ }
+ const current=geomDraft||(geomDone?shapeGoal(task):null);
+ s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
+ s+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
+  '<circle cx="'+x+'" cy="'+y+'" r="29" class="m01-geom-handle" data-geom-start="true"'+
+  ' fill="transparent" stroke="#c7ffa7" stroke-width="2" stroke-dasharray="5 6" tabindex="0"'+
+  ' role="button" aria-label="Початок побудови. Утримуй та переміщуй курсор, або використай стрілки й Enter"/>';
+ s+='<text x="'+x+'" y="'+(y-43)+'" text-anchor="middle" fill="#d6f6da" font-size="15">ПОЧАТОК</text>';
+ if(geomDone)s+='<text x="600" y="578" text-anchor="middle" fill="#b5fa8f" font-size="17">✓ Побудову виконано · Далі →</text>';
+ return s;
+}
+function updateGeometryPreview(){
+ const task=geometryTask();if(!task)return;
+ const group=canvas.querySelector('[data-geom-preview]');
+ if(group)group.innerHTML=drawnShape(task,geomDraft);
+}
+function finishGeometry(draft){
+ const task=geometryTask();if(!task||geomDone)return;
+ geomLast=draft;
+ if(!shapeMatches(task,draft)){
+  const values=geometryDimensions(task,draft);
+  const value=task.kind==='line'?fmt(values.length,1)+' мм':
+   task.kind==='rect'?fmt(values.width,1)+' × '+fmt(values.height,1)+' мм':
+   'R '+fmt(values.radius,1)+' мм';
+  announce('Поки '+value+'. Потрібно '+shapeDescription(task)+'. Спробуй ще раз.');
+  geomDraft=null;updateGeometryPreview();
   return;
  }
- if(act==='prefix-dec'||act==='prefix-inc'){
-  const current=prefixLabStage===0?prefixTimeIndex:prefixFreqIndex;
-  if(prefixLabStage>1)return;
-  prefixSelect(clamp(current+(act==='prefix-inc'?1:-1),0,3));return;
- }
- if(act.startsWith('prefix-set-')&&prefixLabStage<2){
-  const i=Number(act.slice('prefix-set-'.length));
-  if(Number.isInteger(i)&&i>=0&&i<=3)prefixSelect(i);
-  return;
- }
- if(act.startsWith('prefix-pair-')&&prefixLabStage===2){
-  const i=Number(act.slice('prefix-pair-'.length));
-  if(!Number.isInteger(i)||i<0||i>2)return;
-  prefixPairIndex=i;prefixPairSeen.add(i);savePrefixLab();
-  if(prefixLabComplete()&&!memory.completed.includes(5)){
-   success('✓ Частота та час пов’язані: T = 1/f. Натисни «До вимірювань →».');
-  }
-  render();
- }
+ geomDone=true;geomDraft=shapeGoal(task);
+ if(mode==='quest'){onSuccess();return}
+ success('✓ Побудовано: '+shapeDescription(task)+'. Натисни «Далі →».');
+ render();
 }
-function prefixSelect(i){
- if(!Number.isInteger(i)||i<0||i>3||prefixLabStage>1)return;
- if(prefixLabStage===0){prefixTimeIndex=i;prefixTimeSeen.add(i)}
- else {prefixFreqIndex=i;prefixFreqSeen.add(i)}
- savePrefixLab();render();
+function geometryBegin(e){
+ if(!visible||!geometryTask()||geomDone||e.button!==0||!e.target.closest('[data-geom-start]'))return false;
+ const p=clientToSvg(e);if(!p)return false;
+ geomPointer=e.pointerId;geomDraft={dx:0,dy:0};geomLast=null;
+ e.preventDefault();
+ try{canvas.setPointerCapture(e.pointerId)}catch{}
+ updateGeometryPreview();return true;
 }
-function prefixWavePath(x,y,w,h,cycles){
- let d='';
- for(let i=0;i<=160;i++){
-  const xx=x+w*i/160,yy=y-Math.sin(i/160*Math.PI*2*cycles)*h;
-  d+=(i===0?'M':'L')+xx.toFixed(2)+' '+yy.toFixed(2)+' ';
+function geometryMove(e){
+ if(geomPointer!==e.pointerId)return false;
+ const p=clientToSvg(e),task=geometryTask();
+ if(p&&task){
+  geomDraft=shapeParameters(task,{dx:p.x-DRAW_ORIGIN.x,dy:p.y-DRAW_ORIGIN.y});
+  updateGeometryPreview();
  }
- return d;
+ return true;
 }
-function prefixScopeBase(x=235,y=242,w=695,h=270){
- let out='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="12" fill="#061e30" fill-opacity=".82" stroke="#729fae" stroke-width="2"/>';
- for(let i=1;i<8;i++)out+='<line x1="'+(x+w*i/8)+'" y1="'+y+'" x2="'+(x+w*i/8)+'" y2="'+(y+h)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
- for(let j=1;j<5;j++)out+='<line x1="'+x+'" y1="'+(y+h*j/5)+'" x2="'+(x+w)+'" y2="'+(y+h*j/5)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
- return out;
+function geometryEnd(e,cancelled=false){
+ if(geomPointer!==e.pointerId)return false;
+ const draft=geomDraft;geomPointer=null;
+ try{canvas.releasePointerCapture(e.pointerId)}catch{}
+ if(cancelled){geomDraft=null;updateGeometryPreview();return true}
+ if(draft)finishGeometry(draft);
+ return true;
 }
-function prefixScene(){
- let s=schematic();
- if(mode==='quest'){
-  s+=prefixScopeBase();
-  s+='<path d="'+prefixWavePath(252,382,652,64,4)+'" fill="none" stroke="#b6f78b" stroke-width="4"/>'+
-   '<text x="585" y="212" text-anchor="middle" font-size="28" fill="#e5f7f8">Мегагерци → кілогерци</text>';
-  return s;
+function geometryKeyboard(e){
+ const task=geometryTask();
+ if(!visible||!task||geomDone||!e.target.closest('[data-geom-start]'))return false;
+ const keys=['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Enter',' '];
+ if(!keys.includes(e.key))return false;
+ e.preventDefault();
+ if(e.key==='Enter'||e.key===' '){
+  finishGeometry(geomDraft||{dx:0,dy:0});return true;
  }
- const stage=prefixLabStage;
- if(stage===0){
-  const t=TIME_ZOOM[prefixTimeIndex],x=255,w=640;
-  s+='<text x="575" y="218" font-size="25" font-weight="750" text-anchor="middle" fill="#ebf9f6">Часове вікно: '+t.label+'</text>'+
-    prefixScopeBase(225,253,700,258);
-  s+='<line x1="'+x+'" y1="420" x2="'+(x+w)+'" y2="420" stroke="#b6f88c" stroke-width="4"/>';
-  for(let i=0;i<=10;i++){
-   const px=x+w*i/10;
-   s+='<line x1="'+px+'" y1="406" x2="'+px+'" y2="'+(i%5===0?445:436)+'" stroke="#dceff0" stroke-width="'+(i%5===0?3:1.5)+'"/>';
-  }
-  for(const [n,pos] of [[0,0],[0.25,0.25],[0.5,0.5],[0.75,0.75],[1,1]]){
-   s+='<text x="'+(x+w*pos)+'" y="473" font-size="16" fill="#e3f2f6" text-anchor="middle">'+
-   (n===0?'0':String(n).replace('.',','))+'</text>';
-  }
-  s+='<rect class="m01-prefix-focus" x="'+(x+w*.45)+'" y="285" width="'+(w*.10)+'" height="110" rx="6" fill="#b4f68b" fill-opacity=".10" stroke="#b4f68b" stroke-dasharray="7 6" stroke-width="2"/>';
-  s+='<text x="575" y="550" text-anchor="middle" font-size="18" fill="#c1e7e7">'+t.note+'</text>';
- }else{
-  const freq=stage===1?SIGNAL_FREQ[prefixFreqIndex]:PERIOD_PAIRS[prefixPairIndex];
-  const cycles=stage===1?4:1;
-  const x=260,w=635,y=380;
-  s+='<text x="575" y="218" text-anchor="middle" font-size="28" font-weight="750" fill="#e9faf2">'+freq.label+'</text>';
-  s+=prefixScopeBase(225,253,700,258);
-  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+w)+'" y2="'+y+'" stroke="#a1cbd3" stroke-opacity=".42" stroke-width="2"/>';
-  s+='<path class="m01-prefix-wave" d="'+prefixWavePath(x,y,w,82,cycles)+'" fill="none" stroke="#baf990" stroke-width="3.7" stroke-linejoin="round"/>';
-  if(stage===1){
-   for(let i=0;i<=4;i++){
-    const xx=x+w*i/4;
-    s+='<line x1="'+xx+'" y1="270" x2="'+xx+'" y2="483" stroke="#bde4e8" stroke-opacity=".24" stroke-dasharray="6 7"/>';
-   }
-   s+='<text x="575" y="549" text-anchor="middle" fill="#d5ebf1" font-size="18">Розгортка: '+freq.span+' · 4 коливання</text>';
-  }else{
-   s+='<line x1="'+x+'" y1="481" x2="'+(x+w)+'" y2="481" stroke="#baf990" stroke-width="2.4"/>'+
-    '<path d="M'+x+' 470v22 m0-11l12-7m-12 7l12 7 M'+(x+w)+' 470v22m0-11l-12-7m12 7l-12 7" stroke="#baf990" stroke-width="2" fill="none"/>';
-   s+='<text x="575" y="547" text-anchor="middle" fill="#d4ffb5" font-size="25" font-weight="750">T = '+freq.period+'</text>'+
-    '<text x="575" y="581" text-anchor="middle" fill="#aaceda" font-size="16">T = 1 / f</text>';
-  }
- }
- return s;
+ if(!geomDraft)geomDraft={dx:0,dy:0};
+ const mm=e.shiftKey?5:1;
+ if(e.key==='ArrowRight')geomDraft.dx+=MM*mm;
+ if(e.key==='ArrowLeft')geomDraft.dx-=MM*mm;
+ if(e.key==='ArrowDown')geomDraft.dy+=MM*mm;
+ if(e.key==='ArrowUp')geomDraft.dy-=MM*mm;
+ geomDraft=shapeParameters(task,geomDraft);
+ updateGeometryPreview();return true;
 }
 
 function summaryScene(){
