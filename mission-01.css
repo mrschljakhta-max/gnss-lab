@@ -610,23 +610,25 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
 #gnssMissionV1 .m01-footer button.m01-next-ready:hover{background:#d2ffb4!important}
 
 
-/* Animated physical drafting instruments — ruler, graphite pencil, compass. */
-#gnssMissionV1 .m01-canvas [data-geom-tools],
-#gnssMissionV1 .m01-canvas [data-geom-ink]{
- pointer-events:none;user-select:none;
+/* During Mission 01 tool playback, reveal the EXISTING sandbox instrument canvas.
+ * The sandbox SVG participates in geometry calculation but stays invisible,
+ * preventing the user's saved sandbox scribbles from showing under the lesson.
+ */
+body.gnss-mission-active.gnss-mission-tool-playback #engBoard #engSvg{
+ display:block!important;visibility:hidden!important;pointer-events:none!important;
 }
-#gnssMissionV1 .m01-canvas .m01-working-ruler{
- filter:drop-shadow(2px 7px 5px rgba(1,15,24,.4));
+body.gnss-mission-active.gnss-mission-tool-playback #engBoard .gnss-draft-preview{
+ display:block!important;visibility:visible!important;
+ z-index:44!important;pointer-events:none!important;
 }
-#gnssMissionV1 .m01-canvas .m01-working-pencil{
- filter:drop-shadow(3px 7px 4px rgba(1,15,24,.45));
+body.gnss-mission-active.gnss-mission-tool-playback #engBoard .gnss-3d-stage{
+ display:block!important;z-index:45!important;pointer-events:none!important;
 }
-#gnssMissionV1 .m01-canvas .m01-working-compass{
- filter:drop-shadow(3px 7px 4px rgba(1,15,24,.4));
+body.gnss-mission-active.gnss-mission-tool-playback .gnss-draft-preview
+ :is(.gnss-guide,.gnss-point,.gnss-mark,.gnss-dimension,.gnss-radius){
+ visibility:hidden!important;
 }
-#gnssMissionV1 .m01-canvas .m01-animated-ink{
- filter:drop-shadow(0 0 2px #c6f7eb55);
-}
+
 #gnssMissionV1 .m01-geometry-building{
  display:flex;align-items:center;gap:7px;
  margin-top:12px;padding:9px 10px;border-radius:7px;
