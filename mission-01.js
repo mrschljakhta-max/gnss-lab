@@ -17,17 +17,17 @@ const specs=[
  {name:'Спостереження',title:'Який брусок довший?',prompt:'Натисни на той, що здається довшим.'},
  {name:'Інструмент',title:'Підготуй штангенциркуль',prompt:'Розкрий губки. Зведи їх до нуля.'},
  {name:'Вимірювання',title:'Виміряй обидві деталі',prompt:'Зведи губки до торців і зчитай показ.'},
- {name:'Одиниці',title:'Зміни одиниці',prompt:'Натисни «см», потім «м». Подивись, як змінюється шкала.'},
- {name:'Масштаб',title:'Зміни масштаб',prompt:'Від метра до кілометра.'},
- {name:'Префікси',title:'Від нано до гіга',prompt:'Натисни ×1 000, щоб побачити дедалі менші проміжки часу.'},
+ {name:'Відрізок',title:'Проведи відрізок',prompt:'Візьми початкову точку й побудуй відрізок завдовжки 50 мм.'},
+ {name:'Прямокутник',title:'Побудуй прямокутник',prompt:'Потягни від кута й побудуй прямокутник 40 × 25 мм.'},
+ {name:'Коло',title:'Побудуй коло',prompt:'Потягни від центра назовні й побудуй коло радіусом 20 мм.'},
  {name:'Закріплення',title:'Обертай і вимірюй',prompt:'Поверни брусок і виміряй довжину, ширину та товщину.'},
  {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
 const tasks=[
  {name:'Виміряй деталь',prompt:'Зведи губки й зчитай шкалу.'},
- {name:'Одиниці',prompt:'Перетвори мм у см.'},
- {name:'Відстань',prompt:'Перетвори км у м.'},
- {name:'Частота',prompt:'Перетвори мегагерци в кілогерци.'}
+ {name:'Відрізок',prompt:'Побудуй відрізок 35 мм.'},
+ {name:'Прямокутник',prompt:'Побудуй прямокутник 30 × 20 мм.'},
+ {name:'Коло',prompt:'Побудуй коло радіусом 12 мм.'}
 ];
 // One wooden specimen (millimetres); the caliper measures each horizontal face.
 const DIMENSIONS=[
@@ -35,7 +35,7 @@ const DIMENSIONS=[
  {id:'width',name:'Ширина',mm:28,face:'поворот на 90°'},
  {id:'thickness',name:'Товщина',mm:18,face:'бічна грань'}
 ];
-const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{}};
+const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{},curriculumVersion:3};
 const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
 let memory={...initial};
 try{
@@ -45,55 +45,30 @@ try{
    completed:Array.isArray(p.completed)?p.completed.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    skipped:Array.isArray(p.skipped)?p.skipped.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    passed:!!p.passed};
-  // Existing students saw cards rather than experiments in the old 6/8.
-  // Revisit it once, preserving all other completed and assessment states.
-  if(memory.completed.includes(5)&&p.prefixLabProgress?.version!==2){
-   memory.completed=memory.completed.filter(n=>n!==5);
-   memory.skipped=memory.skipped.filter(n=>n!==5);
-   memory.scene=5;
-   memory.prefixLabProgress={version:2,step:0,timeIndex:0,freqIndex:0,pairIndex:0,
-    timeSeen:[0],freqSeen:[0],pairSeen:[]};
+  // Old numeric conversions have been replaced with physical drafting.
+  // Keep verified caliper progress but offer all three new geometry lessons.
+  if(p.curriculumVersion!==3){
+   memory.completed=memory.completed.filter(n=>n<3||n===6);
+   memory.skipped=memory.skipped.filter(n=>n<3||n===6);
+   memory.scene=Math.min(memory.scene,3);
+   memory.assessment=0;memory.passed=false;memory.curriculumVersion=3;
    try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}
   }
  }
 }catch{}
-// Seven powers-of-a-thousand prefixes; all measurements share the same SI logic.
-const TIME_ZOOM=[
- {label:'1 с',unit:'с',note:'1 с = 1 000 мс'},
- {label:'1 мс',unit:'мс',note:'1 мс = 1 000 мкс'},
- {label:'1 мкс',unit:'мкс',note:'1 мкс = 1 000 нс'},
- {label:'1 нс',unit:'нс',note:'1 нс = 10⁻⁹ с'}
-];
-const SIGNAL_FREQ=[
- {label:'1 Гц',span:'4 с',period:'1 с'},
- {label:'1 кГц',span:'4 мс',period:'1 мс'},
- {label:'1 МГц',span:'4 мкс',period:'1 мкс'},
- {label:'1 ГГц',span:'4 нс',period:'1 нс'}
-];
-const PERIOD_PAIRS=SIGNAL_FREQ.slice(1);
-let prefixLabStage=0,prefixTimeIndex=0,prefixFreqIndex=0,prefixPairIndex=0,
- prefixTimeSeen=new Set([0]),prefixFreqSeen=new Set([0]),prefixPairSeen=new Set(),prefixReferenceOpen=false;
-function restorePrefixLab(){
- const p=memory.prefixLabProgress&&typeof memory.prefixLabProgress==='object'?memory.prefixLabProgress:{};
- const idx=(v,max)=>Number.isInteger(v)?clamp(v,0,max):0;
- const sanitized=(xs,max)=>new Set(Array.isArray(xs)?xs.filter(x=>Number.isInteger(x)&&x>=0&&x<=max):[]);
- prefixLabStage=idx(p.step,2);
- prefixTimeIndex=idx(p.timeIndex,3);prefixFreqIndex=idx(p.freqIndex,3);prefixPairIndex=idx(p.pairIndex,2);
- prefixTimeSeen=sanitized(p.timeSeen,3);prefixTimeSeen.add(0);
- prefixFreqSeen=sanitized(p.freqSeen,3);prefixFreqSeen.add(0);
- prefixPairSeen=sanitized(p.pairSeen,2);
- prefixTimeSeen.add(prefixTimeIndex);prefixFreqSeen.add(prefixFreqIndex);
+// All dimensions are mm, physically laid out on the existing drafting board.
+const DRAW_ORIGIN={x:425,y:325};
+function geometryTask(){
+ if(mode==='quest')return {
+  1:{kind:'line',width:35},2:{kind:'rect',width:30,height:20},3:{kind:'circle',radius:12}
+ }[memory.assessment]||null;
+ return {
+  3:{kind:'line',width:50},4:{kind:'rect',width:40,height:25},5:{kind:'circle',radius:20}
+ }[memory.scene]||null;
 }
-function savePrefixLab(){
- memory.prefixLabProgress={version:2,step:prefixLabStage,timeIndex:prefixTimeIndex,freqIndex:prefixFreqIndex,
-  pairIndex:prefixPairIndex,timeSeen:[...prefixTimeSeen],freqSeen:[...prefixFreqSeen],pairSeen:[...prefixPairSeen]};
- persist();
-}
-const prefixSubstepComplete=()=>prefixLabStage===0?prefixTimeSeen.size===4:
- prefixLabStage===1?prefixFreqSeen.size===4:prefixPairSeen.size===3;
-const prefixLabComplete=()=>prefixLabStage===2&&prefixPairSeen.size===3;
+let geomPointer=null,geomDraft=null,geomDone=false,geomLast=null,geomKeyboard=0;
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
- answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
+ answers={},
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
  practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,solidPose={roll:0,yaw:0,pitch:0},turnAnimation=null,turning=false,assessmentTarget=42,assessmentSeed=0,
  caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
@@ -116,10 +91,10 @@ const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
  stopTurnAnimation();
- part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
- seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
-  prefixReferenceOpen=false;
-  if(mode==='demo'&&memory.scene===5)restorePrefixLab();
+ part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
+ hintLevel=0;feedback='';feedbackSuccess=false;
+ geomPointer=null;geomDraft=null;geomLast=null;geomKeyboard=0;
+ geomDone=mode==='demo'&&memory.completed.includes(memory.scene)&&memory.scene>=3&&memory.scene<=5;
  dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
   dimensionReadings=mode==='demo'&&memory.scene===6?
    Object.fromEntries(DIMENSIONS.filter(d=>memory.dimensionProgress?.[d.id]===d.mm).map(d=>[d.id,d.mm])):{};
@@ -148,9 +123,7 @@ function sceneComplete(){
   case 0:return !!choice;
   case 1:return caliperChosen&&moved&&gap===0;
   case 2:return answers.a===50&&answers.b===54;
-  case 3:return seenUnits.size===3;
-  case 4:return seenScale.size>=4&&answers.km===1;
-  case 5:return prefixLabComplete();
+  case 3:case 4:case 5:return geomDone;
   case 6:return DIMENSIONS.every(d=>dimensionReadings[d.id]===d.mm);
   case 7:return true;
  }
@@ -989,10 +962,10 @@ function respond(act){
  }
  if(act==='repeat'){
   cancelAdvanceTimer();
-  if(mode==='demo'&&(memory.scene===3||memory.scene===5||memory.scene===6)){
+  if(mode==='demo'&&(memory.scene>=3&&memory.scene<=6)){
    memory.completed=memory.completed.filter(x=>x!==memory.scene);
    if(memory.scene===6)memory.dimensionProgress={};
-   if(memory.scene===5)memory.prefixLabProgress={};
+   if(memory.scene>=3&&memory.scene<=5)memory.geometryProgress={};
    persist();
   }
   resetStep();render();return
@@ -1150,7 +1123,7 @@ window.GNSSLab01MissionV1={
  get assessment(){return memory.assessment},get passed(){return memory.passed},
  restart(){
   if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};memory.prefixLabProgress={};persist()}
+  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};memory.geometryProgress={};memory.curriculumVersion=3;persist()}
   resetStep();if(visible)render();
  }
 };
