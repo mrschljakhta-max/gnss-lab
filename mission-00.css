@@ -99,7 +99,7 @@ body.gnss-intro-active .eng-dock{display:none!important}
 @keyframes intro0Glow{50%{opacity:.45;transform:scale(1.12)}}
 @keyframes intro0Appear{from{opacity:0;stroke-dashoffset:24}to{opacity:1;stroke-dashoffset:0}}
 @keyframes intro0Cue{50%{transform:translate(7px,-7px);opacity:.4}}
-@keyframes intro0Float{to{transform:translateY(-7px)}}
+@keyframes intro0Float{to{opacity:.65}}
 @media(max-width:760px){
   #gnssIntro0 .intro0-head{left:14px;top:74px;max-width:calc(100% - 28px)}
   #gnssIntro0 .intro0-head h2{font-size:22px}
