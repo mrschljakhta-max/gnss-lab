@@ -92,16 +92,20 @@ function circleArc(r,from,to,sweep){
  const bx=r*Math.cos(to),by=r*Math.sin(to);
  return 'M '+ax+' '+ay+' A '+r+' '+r+' 0 0 '+sweep+' '+bx+' '+by;
 }
-const graduations=Array.from({length:181},(_,i)=>{
- const t=i*PI/180,r=i%10===0?116:i%5===0?120:125;
- const x1=r*Math.cos(t),y1=r*Math.sin(t),x2=134*Math.cos(t),y2=134*Math.sin(t);
- let fragment='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" class="'+(i%10===0?'gpr-tick-major':'gpr-tick')+'"/>';
- if(i%15===0){
-  const lr=98;
-  fragment+='<text x="'+(lr*Math.cos(t))+'" y="'+(lr*Math.sin(t))+'" class="gpr-graduation">'+i+'°</text>';
- }
- return fragment;
-}).join('');
+function graduations(side){
+ return Array.from({length:181},(_,i)=>{
+  const t=i*PI/180,r=i%10===0?116:i%5===0?120:125;
+  const x1=r*Math.cos(t),y1=r*Math.sin(t),x2=134*Math.cos(t),y2=134*Math.sin(t);
+  let fragment='<line x1="'+x1+'" y1="'+y1+'" x2="'+x2+'" y2="'+y2+'" class="'+(i%10===0?'gpr-tick-major':'gpr-tick')+'"/>';
+  if(i%15===0){
+   const lr=98,x=lr*Math.cos(t),y=lr*Math.sin(t);
+   // The arc flips to either side of AB, but the engraved degree numbers
+   // always remain upright on the screen.
+   fragment+='<text transform="translate('+x+' '+y+') scale(1 '+side+')" x="0" y="0" class="gpr-graduation">'+i+'°</text>';
+  }
+  return fragment;
+ }).join('');
+}
 function protractorImage(){
  const origin=selected.origin;
  const base=unit(origin,selected.base),orientation=Math.atan2(base.y,base.x)*180/PI;
@@ -111,7 +115,7 @@ function protractorImage(){
    '<path d="M-136 0 A136 136 0 0 1 136 0" class="gpr-outer-edge"/>'+
    '<path d="M-76 0 A76 76 0 0 1 76 0" class="gpr-inner-ring"/>'+
    '<line x1="-139" y1="0" x2="139" y2="0" class="gpr-base-line"/>'+
-   graduations+
+   graduations(side)+
    '<circle cx="0" cy="0" r="10" class="gpr-center-halo"/>'+
    '<circle cx="0" cy="0" r="3" class="gpr-center-dot"/>'+
    '</g>';
