@@ -1,0 +1,118 @@
+/* Free-drafting caliper: top-down steel instrument, contact glow and two-point UX. */
+#gnssFreeCaliper{
+ position:absolute;inset:0;z-index:12;overflow:hidden;
+ pointer-events:none;color:#e6fff1;font-family:Inter,Arial,sans-serif;
+ user-select:none;
+}
+#gnssFreeCaliper[hidden]{display:none!important}
+#gnssFreeCaliper #gfcSvg{
+ width:100%;height:100%;position:absolute;inset:0;
+ overflow:hidden;pointer-events:none;touch-action:none;
+}
+#gnssFreeCaliper #gfcSvg.gfc-picking{pointer-events:all;cursor:crosshair}
+#gnssFreeCaliper #gfcHint{
+ position:absolute;top:22px;left:22px;max-width:min(430px,55%);
+ font:650 12px/1.5 Inter,Arial,sans-serif;
+ background:#07283dcc;padding:9px 12px;border-left:2px solid #a8f07f;
+ color:#e1f8f5;letter-spacing:.1px;
+ backdrop-filter:blur(6px);
+}
+#gnssFreeCaliper #gfcReset{
+ position:absolute;right:75px;top:20px;
+ background:#0a2e44e8;color:#d9f7f4;
+ border:1px solid #8eb7be66;border-radius:5px;
+ padding:9px 12px;cursor:pointer;
+ font:650 12px Inter,Arial,sans-serif;
+ pointer-events:auto
+}
+#gnssFreeCaliper #gfcReset:hover{border-color:#bafa89;color:#bafa89}
+#gnssFreeCaliper .gfc-guides{font:650 13px ui-monospace,Consolas,monospace;fill:#e7f9fa;pointer-events:none}
+#gnssFreeCaliper .gfc-dot{
+ fill:#b9fa8b;stroke:#134956;stroke-width:2.4;
+ filter:drop-shadow(0 0 5px #aaf58396)
+}
+#gnssFreeCaliper .gfc-guide{
+ fill:none;stroke:#b8f986;stroke-width:2.3;
+ stroke-dasharray:9 7;filter:drop-shadow(0 0 4px #a9ee8280)
+}
+#gnssFreeCaliper .gfc-original-axis{
+ fill:none;stroke:#b9ff92;stroke-dasharray:6 6;
+ stroke-width:1.4;opacity:.36
+}
+#gnssFreeCaliper .gfc-instrument{filter:drop-shadow(3px 8px 8px #0015288c);pointer-events:none}
+#gnssFreeCaliper .gfc-rail{
+ fill:#9dafb9;stroke:#34546a;stroke-width:2.5;
+ filter:drop-shadow(0 1px 1px #f6fffc4f)
+}
+#gnssFreeCaliper .gfc-highlight{
+ fill:#edf5f5;opacity:.65;pointer-events:none
+}
+#gnssFreeCaliper .gfc-jaw-shadow{
+ fill:none;stroke:#1c4359;stroke-width:19;
+ stroke-linecap:square;stroke-linejoin:round
+}
+#gnssFreeCaliper .gfc-jaw-metal{
+ fill:none;stroke:#d6e2e6;stroke-width:12;
+ stroke-linecap:square;stroke-linejoin:round
+}
+#gnssFreeCaliper .gfc-tick{
+ stroke:#254658;stroke-width:1;pointer-events:none
+}
+#gnssFreeCaliper .gfc-mark{
+ fill:#173649;font:650 9px ui-monospace,Consolas,monospace;
+ text-anchor:middle;pointer-events:none
+}
+#gnssFreeCaliper .gfc-carriage{
+ fill:#879eac;stroke:#284f64;stroke-width:2;
+ filter:drop-shadow(1px 2px 2px #07253888)
+}
+#gnssFreeCaliper .gfc-vernier-tick{
+ stroke:#254457;stroke-width:1.5;pointer-events:none
+}
+#gnssFreeCaliper .gfc-thumb{
+ fill:#c8d7db;stroke:#345a70;stroke-width:2.5;
+ filter:drop-shadow(2px 3px 3px #0b2b4788)
+}
+#gnssFreeCaliper .gfc-thumb-hub{fill:#456a7a;stroke:#e6f7f6;stroke-width:1}
+#gnssFreeCaliper .gfc-grab{
+ fill:transparent;stroke:transparent;
+ pointer-events:all;cursor:ew-resize
+}
+#gnssFreeCaliper .gfc-body-grab{
+ fill:transparent;stroke:transparent;
+ pointer-events:all;cursor:ns-resize
+}
+#gnssFreeCaliper .gfc-grab:focus-visible,
+#gnssFreeCaliper .gfc-body-grab:focus-visible{
+ stroke:#b9fa8e;stroke-width:2;outline:none
+}
+#gnssFreeCaliper .gfc-status{
+ fill:#dbfafa;font:700 13px ui-monospace,Consolas,monospace;
+ text-anchor:middle;paint-order:stroke fill;
+ stroke:#0a3754;stroke-width:4;pointer-events:none
+}
+#gnssFreeCaliper .gfc-contour{fill:none;pointer-events:none}
+#gnssFreeCaliper .gfc-contour>*{
+ stroke:#b4fa8c;stroke-width:4;
+ filter:drop-shadow(0 0 7px #a8f67a);
+}
+#gnssFreeCaliper .gfc-near{opacity:.24}
+#gnssFreeCaliper .gfc-contact{opacity:.55;animation:gfc-outline-light .7s ease-out}
+#gnssFreeCaliper .gfc-points{pointer-events:none}
+#gnssFreeCaliper .gfc-contact-ring{
+ fill:none;stroke:#baff8d;stroke-width:1.8;
+ filter:drop-shadow(0 0 8px #baff8dbb)
+}
+#gnssFreeCaliper .gfc-contact-core{
+ fill:#edffcc;filter:drop-shadow(0 0 5px #baff8d)
+}
+@keyframes gfc-outline-light{
+ 0%{opacity:1}100%{opacity:.55}
+}
+@media(max-width:750px){
+ #gnssFreeCaliper #gfcHint{top:15px;left:12px;max-width:60%;font-size:11px}
+ #gnssFreeCaliper #gfcReset{top:15px;right:15px;font-size:10px}
+}
+@media(prefers-reduced-motion:reduce){
+ #gnssFreeCaliper .gfc-contact{animation:none}
+}
