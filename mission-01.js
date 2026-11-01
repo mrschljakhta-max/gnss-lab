@@ -586,7 +586,11 @@ function respond(act){
   }
   return;
  }
- if(act==='repeat'){cancelAdvanceTimer();resetStep();render();return}
+ if(act==='repeat'){
+  cancelAdvanceTimer();
+  if(mode==='demo'&&memory.scene===3){memory.completed=memory.completed.filter(x=>x!==3);persist()}
+  resetStep();render();return
+ }
  if(act==='choose-a'||act==='choose-b'){
   if(mode!=='demo'||memory.scene!==0||choice)return;
   choice=act.slice(-1);success('✓ Обрано. Перевіримо вимірюванням.');render();
