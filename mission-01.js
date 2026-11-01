@@ -167,7 +167,7 @@ function orientableBlockSvg(){
  const h=(dimensionIndex===0?28:42)*MM,y=dimensionIndex===0?268:246;
  const base='<rect x="0" y="0" width="'+w+'" height="'+h+'" rx="5" fill="url(#m01Ceramic)"/>';
  let face='';
- if(dimensionIndex===1){
+ if(dimensionIndex!==0){
   // Rotate the original wood grain instead of stretching it through 90 degrees.
   face='<g transform="translate('+w+' 0) rotate(90)">'+woodSurface(0,0,h,w)+'</g>';
  }else{
@@ -180,8 +180,8 @@ function orientableBlockSvg(){
  return '<g class="m01-workpiece m01-wood-workpiece m01-rotatable-block" data-wood="true"'+
   ' data-orientation="'+dim.id+'" aria-label="Дерев’яний брусок, '+dim.name.toLowerCase()+'">'+
   '<rect x="'+(X0+8)+'" y="'+(y+10)+'" width="'+w+'" height="'+h+'" rx="5" fill="#001b2b" opacity=".32"/>'+
-  '<g class="m01-rotating-face" transform="translate('+X0+' '+y+')">'+
-   base+face+highlight+'</g>'+
+  '<g class="m01-rotating-face" transform="translate('+X0+' '+y+')"><g class="m01-face-animation">'+
+   base+face+highlight+'</g></g>'+
   '<rect class="m01-rotate-hit" x="'+(X0+9)+'" y="'+(y+5)+'" width="'+Math.max(w-20,29)+'" height="'+(h-10)+'"'+
   ' rx="8" fill="transparent" role="button" tabindex="0" data-rotate-block="true"'+
   ' aria-label="Повернути дерев’яний брусок, наступна грань" />'+
