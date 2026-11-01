@@ -381,19 +381,160 @@ function scaleScene(){
  s+='<text x="285" y="402" fill="#d2eef2" font-size="18">0</text><text x="916" y="402" text-anchor="end" fill="#d2eef2" font-size="18">'+labels[zoomIndex]+'</text>';
  return s;
 }
+
+function prefixLabPrompt(){
+ if(prefixLabComplete())return 'Готово! Ти пов’язав масштаб часу з частотою. Натисни «До вимірювань →».';
+ if(prefixLabStage===0)return prefixSubstepComplete()?'Ти дійшов до наносекунди. Відкрий генератор сигналу.':'Збільшуй часову шкалу в 1 000 разів. Дійди до наносекунди.';
+ if(prefixLabStage===1)return prefixSubstepComplete()?'Ти побачив чотири частоти. Тепер досліди їхні періоди.':'Підвищуй частоту. Осцилограф автоматично змінює часову розгортку.';
+ return 'Обери 1 кГц, 1 МГц і 1 ГГц та знайди тривалість одного коливання.';
+}
+function prefixLabControls(){
+ const stageNames=['ЗБІЛЬШЕННЯ ЧАСУ','ГЕНЕРАТОР СИГНАЛУ','ЧАСТОТА ↔ ПЕРІОД'];
+ const selected=prefixLabStage===0?prefixTimeIndex:prefixLabStage===1?prefixFreqIndex:prefixPairIndex;
+ const current=prefixLabStage===0?TIME_ZOOM[prefixTimeIndex].label:
+  prefixLabStage===1?SIGNAL_FREQ[prefixFreqIndex].label:PERIOD_PAIRS[prefixPairIndex].label;
+ const seen=prefixLabStage===0?prefixTimeSeen.size:prefixLabStage===1?prefixFreqSeen.size:prefixPairSeen.size;
+ const total=prefixLabStage===2?3:4;
+ let controlsHtml='';
+ if(prefixLabStage!==2){
+  const names=prefixLabStage===0?TIME_ZOOM:SIGNAL_FREQ;
+  controlsHtml='<div class="m01-prefix-current" aria-live="polite">'+current+'</div>'+
+   '<div class="m01-prefix-slider-wrap"><label for="m01PrefixRange" class="m01-prefix-sr">Рівень '+(prefixLabStage===0?'збільшення':'частоти')+'</label>'+
+   '<input id="m01PrefixRange" data-prefix-range="true" type="range" min="0" max="3" step="1" value="'+selected+'" aria-valuetext="'+current+'" /></div>'+
+   '<div class="m01-prefix-row">'+
+   '<button type="button" data-act="prefix-dec"'+(selected===0?' disabled':'')+' aria-label="Попередній масштаб">−</button>'+
+   '<button type="button" class="m01-prefix-grow" data-act="prefix-inc"'+(selected===3?' disabled':'')+'>'+
+    (prefixLabStage===0?'Збільшити ×1 000':'Частота ×1 000')+' →</button></div>'+
+   '<div class="m01-prefix-steps">'+names.map((d,i)=>
+    '<button type="button" data-act="prefix-set-'+i+'"'+(i===selected?' class="active"':'')+
+    ' aria-pressed="'+(i===selected)+'">'+d.label+'</button>').join('')+'</div>';
+ }else{
+  controlsHtml='<div class="m01-prefix-steps m01-prefix-pair-buttons">'+PERIOD_PAIRS.map((d,i)=>
+    '<button type="button" data-act="prefix-pair-'+i+'" class="'+(i===selected?'active ':'')+
+    (prefixPairSeen.has(i)?'seen':'')+'" aria-pressed="'+(i===selected)+'">'+
+    (prefixPairSeen.has(i)?'✓ ':'')+d.label+'</button>').join('')+'</div>'+
+   '<div class="m01-prefix-relationship">f ↑ · T ↓</div>';
+ }
+ const references=[
+  ['Гіга','G','10⁹'],['Мега','M','10⁶'],['Кіло','k','10³'],
+  ['Без префікса','—','10⁰'],['Мілі','m','10⁻³'],['Мікро','µ','10⁻⁶'],['Нано','n','10⁻⁹']
+ ];
+ return '<div class="m01-prefix-panel">'+
+  '<div class="m01-prefix-heading"><span>ЕКСПЕРИМЕНТ '+(prefixLabStage+1)+' / 3</span><span>'+seen+'/'+total+' ✓</span></div>'+
+  '<div class="m01-control-title">'+stageNames[prefixLabStage]+'</div>'+
+  controlsHtml+
+  (prefixSubstepComplete()&&prefixLabStage<2?
+   '<button type="button" class="m01-prefix-proceed" data-act="prefix-phase-next">'+
+   (prefixLabStage===0?'До генератора →':'До періоду →')+'</button>':'')+
+  (prefixLabComplete()?'<div class="m01-prefix-ok">✓ Відкрито всі три взаємозв’язки</div>':'')+
+  '<button type="button" class="m01-prefix-reference-toggle" data-act="prefix-reference" aria-expanded="'+prefixReferenceOpen+'">'+
+   (prefixReferenceOpen?'▾ Сховати префікси':'▸ Таблиця префіксів')+'</button>'+
+  (prefixReferenceOpen?'<div class="m01-prefix-reference" aria-label="Сім масштабів SI">'+
+   references.map(([name,symbol,power])=>'<span>'+name+'</span><b>'+symbol+'</b><span>'+power+'</span>').join('')+
+   '<small>m = мілі · M = мега · µ = мікро</small></div>':'')+
+  '</div>';
+}
+function prefixLabAction(act){
+ if(!visible||mode!=='demo'||memory.scene!==5)return;
+ if(act==='prefix-reference'){
+  prefixReferenceOpen=!prefixReferenceOpen;render();return;
+ }
+ if(act==='prefix-phase-next'){
+  if(prefixLabStage<2&&prefixSubstepComplete()){
+   prefixLabStage+=1;prefixReferenceOpen=false;savePrefixLab();
+   announce(prefixLabStage===1?'✓ Масштаби часу відкрито. Тепер керуй частотою.':'✓ Частоти відкрито. Досліди період.',true);
+   render();
+  }
+  return;
+ }
+ if(act==='prefix-dec'||act==='prefix-inc'){
+  const current=prefixLabStage===0?prefixTimeIndex:prefixFreqIndex;
+  if(prefixLabStage>1)return;
+  prefixSelect(clamp(current+(act==='prefix-inc'?1:-1),0,3));return;
+ }
+ if(act.startsWith('prefix-set-')&&prefixLabStage<2){
+  const i=Number(act.slice('prefix-set-'.length));
+  if(Number.isInteger(i)&&i>=0&&i<=3)prefixSelect(i);
+  return;
+ }
+ if(act.startsWith('prefix-pair-')&&prefixLabStage===2){
+  const i=Number(act.slice('prefix-pair-'.length));
+  if(!Number.isInteger(i)||i<0||i>2)return;
+  prefixPairIndex=i;prefixPairSeen.add(i);savePrefixLab();
+  if(prefixLabComplete()&&!memory.completed.includes(5)){
+   success('✓ Частота та час пов’язані: T = 1/f. Натисни «До вимірювань →».');
+  }
+  render();
+ }
+}
+function prefixSelect(i){
+ if(!Number.isInteger(i)||i<0||i>3||prefixLabStage>1)return;
+ if(prefixLabStage===0){prefixTimeIndex=i;prefixTimeSeen.add(i)}
+ else {prefixFreqIndex=i;prefixFreqSeen.add(i)}
+ savePrefixLab();render();
+}
+function prefixWavePath(x,y,w,h,cycles){
+ let d='';
+ for(let i=0;i<=160;i++){
+  const xx=x+w*i/160,yy=y-Math.sin(i/160*Math.PI*2*cycles)*h;
+  d+=(i===0?'M':'L')+xx.toFixed(2)+' '+yy.toFixed(2)+' ';
+ }
+ return d;
+}
+function prefixScopeBase(x=235,y=242,w=695,h=270){
+ let out='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="12" fill="#061e30" fill-opacity=".82" stroke="#729fae" stroke-width="2"/>';
+ for(let i=1;i<8;i++)out+='<line x1="'+(x+w*i/8)+'" y1="'+y+'" x2="'+(x+w*i/8)+'" y2="'+(y+h)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
+ for(let j=1;j<5;j++)out+='<line x1="'+x+'" y1="'+(y+h*j/5)+'" x2="'+(x+w)+'" y2="'+(y+h*j/5)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
+ return out;
+}
 function prefixScene(){
  let s=schematic();
- const blocks=prefixIndex===0?3:prefixIndex===1?6:9;
- const label=['КІЛО · 10³','МЕГА · 10⁶','ГІГА · 10⁹'][prefixIndex];
- s+='<text x="600" y="222" fill="#e6f5f8" font-size="32" font-weight="700" text-anchor="middle">'+label+'</text>';
- for(let i=0;i<blocks;i++){
-  const x=445+(i%3)*110,y=267+Math.floor(i/3)*79;
-  s+='<rect x="'+x+'" y="'+y+'" width="95" height="59" rx="5" fill="#6d93a5" fill-opacity=".45" stroke="#c4e8e8" stroke-width="1.5"/>'+
-   '<rect x="'+(x+9)+'" y="'+(y+10)+'" width="77" height="39" fill="#9fcf96" fill-opacity=".40"/>';
+ if(mode==='quest'){
+  s+=prefixScopeBase();
+  s+='<path d="'+prefixWavePath(252,382,652,64,4)+'" fill="none" stroke="#b6f78b" stroke-width="4"/>'+
+   '<text x="585" y="212" text-anchor="middle" font-size="28" fill="#e5f7f8">Мегагерци → кілогерци</text>';
+  return s;
  }
- s+='<text x="600" y="545" fill="#c7e2e9" font-size="15" text-anchor="middle">Один блок символізує групу одиниць, а не їхню кількість на екрані.</text>';
+ const stage=prefixLabStage;
+ if(stage===0){
+  const t=TIME_ZOOM[prefixTimeIndex],x=255,w=640;
+  s+='<text x="575" y="218" font-size="25" font-weight="750" text-anchor="middle" fill="#ebf9f6">Часове вікно: '+t.label+'</text>'+
+    prefixScopeBase(225,253,700,258);
+  s+='<line x1="'+x+'" y1="420" x2="'+(x+w)+'" y2="420" stroke="#b6f88c" stroke-width="4"/>';
+  for(let i=0;i<=10;i++){
+   const px=x+w*i/10;
+   s+='<line x1="'+px+'" y1="406" x2="'+px+'" y2="'+(i%5===0?445:436)+'" stroke="#dceff0" stroke-width="'+(i%5===0?3:1.5)+'"/>';
+  }
+  for(const [n,pos] of [[0,0],[0.25,0.25],[0.5,0.5],[0.75,0.75],[1,1]]){
+   s+='<text x="'+(x+w*pos)+'" y="473" font-size="16" fill="#e3f2f6" text-anchor="middle">'+
+   (n===0?'0':String(n).replace('.',','))+'</text>';
+  }
+  s+='<rect class="m01-prefix-focus" x="'+(x+w*.45)+'" y="285" width="'+(w*.10)+'" height="110" rx="6" fill="#b4f68b" fill-opacity=".10" stroke="#b4f68b" stroke-dasharray="7 6" stroke-width="2"/>';
+  s+='<text x="575" y="550" text-anchor="middle" font-size="18" fill="#c1e7e7">'+t.note+'</text>';
+ }else{
+  const freq=stage===1?SIGNAL_FREQ[prefixFreqIndex]:PERIOD_PAIRS[prefixPairIndex];
+  const cycles=stage===1?4:1;
+  const x=260,w=635,y=380;
+  s+='<text x="575" y="218" text-anchor="middle" font-size="28" font-weight="750" fill="#e9faf2">'+freq.label+'</text>';
+  s+=prefixScopeBase(225,253,700,258);
+  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+w)+'" y2="'+y+'" stroke="#a1cbd3" stroke-opacity=".42" stroke-width="2"/>';
+  s+='<path class="m01-prefix-wave" d="'+prefixWavePath(x,y,w,82,cycles)+'" fill="none" stroke="#baf990" stroke-width="3.7" stroke-linejoin="round"/>';
+  if(stage===1){
+   for(let i=0;i<=4;i++){
+    const xx=x+w*i/4;
+    s+='<line x1="'+xx+'" y1="270" x2="'+xx+'" y2="483" stroke="#bde4e8" stroke-opacity=".24" stroke-dasharray="6 7"/>';
+   }
+   s+='<text x="575" y="549" text-anchor="middle" fill="#d5ebf1" font-size="18">Розгортка: '+freq.span+' · 4 коливання</text>';
+  }else{
+   s+='<line x1="'+x+'" y1="481" x2="'+(x+w)+'" y2="481" stroke="#baf990" stroke-width="2.4"/>'+
+    '<path d="M'+x+' 470v22 m0-11l12-7m-12 7l12 7 M'+(x+w)+' 470v22m0-11l-12-7m12 7l-12 7" stroke="#baf990" stroke-width="2" fill="none"/>';
+   s+='<text x="575" y="547" text-anchor="middle" fill="#d4ffb5" font-size="25" font-weight="750">T = '+freq.period+'</text>'+
+    '<text x="575" y="581" text-anchor="middle" fill="#aaceda" font-size="16">T = 1 / f</text>';
+  }
+ }
  return s;
 }
+
 function summaryScene(){
  let s=schematic(),done=mode==='quest'?memory.passed||memory.assessment>=4:memory.completed.length===7;
  if(done){
