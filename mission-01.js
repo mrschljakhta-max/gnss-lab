@@ -45,6 +45,16 @@ try{
    completed:Array.isArray(p.completed)?p.completed.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    skipped:Array.isArray(p.skipped)?p.skipped.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    passed:!!p.passed};
+  // Existing students saw cards rather than experiments in the old 6/8.
+  // Revisit it once, preserving all other completed and assessment states.
+  if(memory.completed.includes(5)&&p.prefixLabProgress?.version!==2){
+   memory.completed=memory.completed.filter(n=>n!==5);
+   memory.skipped=memory.skipped.filter(n=>n!==5);
+   memory.scene=5;
+   memory.prefixLabProgress={version:2,step:0,timeIndex:0,freqIndex:0,pairIndex:0,
+    timeSeen:[0],freqSeen:[0],pairSeen:[]};
+   try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}
+  }
  }
 }catch{}
 // Seven powers-of-a-thousand prefixes; all measurements share the same SI logic.
