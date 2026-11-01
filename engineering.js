@@ -46,7 +46,7 @@ container.innerHTML=`
   </aside>
   <div class="eng-dock" aria-label="Інженерні інструменти">
     <div class="eng-tools" id="engTools">
-      <button type="button" data-tool="ruler" title="Лінійка"><span class="eng-tool-icon">▤</span><small>Лінійка</small></button>
+      
       <button type="button" data-tool="line" title="Провести відрізок"><span class="eng-tool-icon">╱</span><small>Лінія</small></button>
       <button type="button" data-tool="rectangle" title="Прямокутник: протягни діагональ, Ctrl — квадрат" aria-label="Прямокутник, Ctrl — квадрат"><span class="eng-tool-icon">▭</span><small>Прямокутник</small></button>
       <button type="button" data-tool="triangle" title="Трикутник: протягни діагональ, Ctrl — рівносторонній" aria-label="Трикутник, Ctrl — рівносторонній"><span class="eng-tool-icon">△</span><small>Трикутник</small></button>
