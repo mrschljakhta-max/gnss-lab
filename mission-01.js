@@ -83,6 +83,7 @@ root.innerHTML=
  '<svg id="m01Canvas" class="m01-canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Інтерактивна навчальна сцена"></svg>'+
  '<section class="m01-scale-loupe" id="m01ScaleLoupe" aria-label="Збільшена механічна шкала" hidden></section>'+
  '<div class="m01-controls" id="m01Controls"></div>'+
+ '<div class="m01-measure-answer" id="m01MeasureAnswer" aria-label="Введення результату вимірювання" hidden></div>'+
  '<div class="m01-feedback" id="m01Feedback" role="status" aria-live="polite"></div>'+
  '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint" title="Підказка" aria-label="Підказка">?</button><button type="button" data-act="restart-all" id="m01Reset" title="Скинути місію та почати з 1/8" aria-label="Скинути весь прогрес місії та повернутися до першого рівня">↻</button></div>'+
  '<div class="m01-footer-right"><span id="m01Progress"></span><button type="button" data-act="skip" id="m01Skip">Пропустити</button><button type="button" data-act="next" id="m01Next" class="m01-primary">Далі →</button></div></footer>';
@@ -368,7 +369,9 @@ function scaleLoupeMarkup(){
 }
 function renderScaleLoupe(){
  const loupe=el('m01ScaleLoupe');
- const show=caliperStep()&&!calibration()&&settledContact&&atContact();
+ // Calibrating to zero requires reading the moving scale throughout the motion.
+ // On other measurements, reveal it only after physical jaw contact.
+ const show=caliperStep()&&(calibration()||(settledContact&&atContact()));
  loupe.hidden=!show;
  if(show)loupe.innerHTML=scaleLoupeMarkup();
  else loupe.replaceChildren();
@@ -598,31 +601,15 @@ function controlView(){
    (dimensionIndex===i?' current':'')+(dimensionReadings[d.id]===d.mm?' measured':'')+'"'+
    ' aria-pressed="'+(dimensionIndex===i)+'" title="Клавіатурний вибір грані">'+
    (dimensionReadings[d.id]===d.mm?'✓ ':'○ ')+d.name+'</button>').join('');
-  const input=!sceneComplete()&&dimensionReadings[dim.id]!==dim.mm&&canMeasure()
-   ?promptInput('Розмір грані','Зчитай шкалу','мм')+
-    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'';
   return '<div class="m01-dim-panel">'+
    '<div class="m01-control-title">Грань '+(dimensionIndex+1)+' / 3 · '+dim.name+'</div>'+
    '<div class="m01-dim-chips" aria-label="Виміряні грані">'+chips+'</div>'+
    '<div class="m01-manual-hint"><span class="m01-hand-symbol">✋</span>'+
     '<span>Утримуй брусок і тягни: <strong>праворуч → ширина, вгору ↑ товщина</strong>. Відпусти для фіксації.</span></div>'+
-   '<div class="m01-dim-progress">'+done+'/3 виміряно</div>'+
-   input+'</div>';
+   '<div class="m01-dim-progress">'+done+'/3 виміряно</div></div>';
  }
- if((!quest&&(step===1||step===2))||(quest&&step===0)){
-  const isZero=!quest&&step===1,measurement=!isZero;
-  let content='';
-  // No extra tool-selection button: the mechanical caliper is already on the bench.
-  if(!isZero&&!quest&&step===2){
-   content+='<div class="m01-buttons">'+selectButton('part-a','Деталь A',part==='a')+selectButton('part-b','Деталь B',part==='b')+'</div>';
-   content+='<span class="m01-dots" aria-label="Виміряні деталі">'+(answers.a===50?'✓ A':'○ A')+' · '+(answers.b===54?'✓ B':'○ B')+'</span>';
-  }
-  if(measurement&&canMeasure()){
-   content+=promptInput('Твій відлік','Введи значення','мм')+
-    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>';
-  }
-    return content;
- }
+ // The caliper is already on the table. Its reading entry lives at the bottom.
+ if((!quest&&(step===1||step===2))||(quest&&step===0))return '';
  if(geometryTask()){
   const task=geometryTask();
   const kind=task.kind==='line'?'ЛІНІЙКА + ОЛІВЕЦЬ':task.kind==='rect'?'КУТНИК + ОЛІВЕЦЬ':'ЦИРКУЛЬ';
@@ -693,7 +680,10 @@ function syncCaliperVisual(){
  const prompt=el('m01Prompt');
  if(prompt)prompt.textContent=caliperInstruction();
  const loupe=el('m01ScaleLoupe');
- if(loupe&&(!settledContact||!atContact()))loupe.hidden=true;
+ if(loupe&&calibration()){
+  // Live optical reading while the movable jaw slides towards zero.
+  loupe.hidden=false;loupe.innerHTML=scaleLoupeMarkup();
+ }else if(loupe&&(!settledContact||!atContact()))loupe.hidden=true;
 }
 function render(){
  if(!visible)return;
@@ -712,6 +702,9 @@ function render(){
  renderScaleLoupe();
  controls.innerHTML=controlView();
  controls.hidden=!controls.innerHTML.trim();
+ const answerDock=el('m01MeasureAnswer');
+ answerDock.innerHTML=measurementAnswerView();
+ answerDock.hidden=!answerDock.innerHTML.trim();
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
 
@@ -724,6 +717,15 @@ function render(){
 
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
   '✓ '+memory.completed.length+'/7';
+}
+// A compact, dedicated answer dock shared by training, final block and assessment.
+function measurementAnswerView(){
+ if(!caliperStep()||calibration()||!canMeasure())return '';
+ if(mode==='demo'&&memory.scene===2&&answers[part]===target())return '';
+ if(mode==='demo'&&memory.scene===6&&dimensionReadings[DIMENSIONS[dimensionIndex].id]===target())return '';
+ return '<input id="m01Value" type="text" inputmode="decimal" autocomplete="off"'+
+  ' placeholder="Введи значення, мм" aria-label="Результат вимірювання в міліметрах" />'+
+  '<button type="button" class="m01-submit" data-act="check">Підтвердити</button>';
 }
 function hintMessage(){
  const stage=memory.scene;
@@ -760,7 +762,7 @@ function onSuccess(){
  }else success();
 }
 function check(){
- const text=controls.querySelector('#m01Value'),value=text?parse(text.value):NaN;
+ const text=el('m01Value'),value=text?parse(text.value):NaN;
  if(!Number.isFinite(value)){announce('Введи відлік штангенциркуля в міліметрах.');return}
  let expected=null;
  if(mode==='quest'){
