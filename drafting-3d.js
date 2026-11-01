@@ -26,7 +26,7 @@ const hint=document.createElement('div');hint.className='gnss-draft-feedback';bo
 let mode='demo',tool='line',step=0,complete=false,first=null,cursor=null,motion=null;
 let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null,eraser=null,eraserMotion=null;
 let ctx=null,ratio=1,w=0,h=0;
-let shapePlayback=null;
+let shapePlayback=null,lessonPlayback=null;
 const COMPASS_INITIAL=20;
 // Orthographic calibration: 1 mm = 3 SVG units, exactly 150 mm on one ruler.
 const RULER_SPAN=450,RULER_LEFT=-11,RULER_RIGHT=485;
@@ -88,6 +88,8 @@ window.GNSSDrafting3D={
  get animating(){return !!motion||!!eraserMotion||!!shapePlayback},
  get erasing(){return !!eraserMotion},
  cancel(){cancel()},
+ // Reuse the same physical instruments during Mission 01, without sandbox commits.
+ playLesson(shape,options){return playLessonShape(shape,options)},
 };
 function node(tag,attrs={},text){
  const e=document.createElementNS(NS,tag);
@@ -193,6 +195,7 @@ function valid(shape){
 }
 function clear(){first=null;cursor=null;preview.replaceChildren()}
 function cancel(){
+ if(lessonPlayback){lessonPlayback.active=false;lessonPlayback=null}
  shapePlayback=null;
  document.body.classList.remove('gnss-shape-drawing');
  if(eraserMotion)cancelErase();
@@ -730,7 +733,7 @@ function circlePose(t,radius){
   lift
  };
 }
-function paintFallback(shape,t,progress,pose){
+function paintFallback(shape,t,progress,pose,unitFactor=1){
  if(!ctx)ctx=fallback.getContext('2d');
  if(!ctx)return;
  ctx.setTransform(ratio,0,0,ratio,0,0);ctx.clearRect(0,0,w,h);
@@ -744,7 +747,7 @@ function paintFallback(shape,t,progress,pose){
   const ox=(P.offset-(1-P.entry)*55)*scale;
   const oy=-(1-P.entry)*25*scale-P.lift*12*scale;
   ctx.translate(a.x+ux*ox,a.y+uy*ox+oy);
-  ctx.rotate(angle);ctx.scale(scale,scale);
+  ctx.rotate(angle);ctx.scale(scale*unitFactor,scale*unitFactor);
   ctx.shadowColor='#001c30a0';ctx.shadowBlur=11;ctx.shadowOffsetY=6;
   ctx.drawImage(getRulerArtwork(),RULER_LEFT,RULER_TOP,
     RULER_RIGHT-RULER_LEFT,RULER_BOTTOM-RULER_TOP);
@@ -752,7 +755,7 @@ function paintFallback(shape,t,progress,pose){
   ctx.restore();ctx.save();
   if(P.pencilVisible&&P.phase!=='enter'){
    const x=lerp(a.x,b.x,P.draw),y=lerp(a.y,b.y,P.draw);
-   ctx.translate(x,y-12*P.penLift*scale);ctx.rotate(-.20);ctx.scale(scale,scale);
+   ctx.translate(x,y-12*P.penLift*scale);ctx.rotate(-.20);ctx.scale(scale*unitFactor,scale*unitFactor);
    ctx.shadowColor='rgba(1,17,31,.50)';ctx.shadowBlur=12;ctx.shadowOffsetX=6;ctx.shadowOffsetY=8;
    const tube=(top,bottom,r,stops)=>{
     const grad=ctx.createLinearGradient(-r,0,r,0);
@@ -822,9 +825,9 @@ function paintFallback(shape,t,progress,pose){
  }
  ctx.restore();
 }
-function paint3D(shape,t,progress,pose){
- if(!renderer||!three){paintFallback(shape,t,progress,pose);return}
- const sc=unitScale();
+function paint3D(shape,t,progress,pose,unitFactor=1){
+ if(!renderer||!three){paintFallback(shape,t,progress,pose,unitFactor);return}
+ const sc=unitScale(),rulerScale=sc*(Number.isFinite(unitFactor)?unitFactor:1);
  ruler.visible=pencil.visible=compass.visible=false;
  if(shape.type==='line'){
   const a=screen({x:shape.x1,y:shape.y1}),b=screen({x:shape.x2,y:shape.y2});
@@ -832,7 +835,7 @@ function paint3D(shape,t,progress,pose){
   const P=pose||{offset:0,entry:ease(t/.2),draw:progress,pencilVisible:t>.2,penLift:0,lift:0,phase:'trace'};
   const slide=(P.offset-(1-P.entry)*55)*sc;
   ruler.visible=P.phase!=='exit'||P.lift<.85;
-  ruler.scale.setScalar(sc);
+  ruler.scale.setScalar(rulerScale);
   ruler.rotation.set(0,0,angle);
   ruler.position.set(
    a.x+ux*slide,
@@ -840,7 +843,7 @@ function paint3D(shape,t,progress,pose){
    5+P.lift*15
   );
   if(P.pencilVisible){
-   pencil.visible=true;pencil.scale.setScalar(sc);
+   pencil.visible=true;pencil.scale.setScalar(rulerScale);
    let px=lerp(a.x,b.x,P.draw),py=lerp(a.y,b.y,P.draw);
    if(P.phase==='approach'){
     const lead=1-P.penLift;
@@ -1142,6 +1145,53 @@ document.addEventListener('gnss:shape-draw-start',e=>{
  const d=e.detail||{};
  d.accepted=runShapePlayback(d.shape);
 });
+// The lesson passes measured geometry to exactly the same Three.js / fallback
+// instrument engine that powers the sandbox. No separate SVG tool models.
+function playLessonShape(shape,hooks={}){
+ if(!shape||!['line','circle','rect'].includes(shape.type)||
+    !document.body.classList.contains('gnss-mission-active'))return null;
+ const required=shape.type==='line'?['x1','y1','x2','y2']:
+  shape.type==='circle'?['x','y','r']:['x','y','w','h'];
+ if(required.some(k=>!Number.isFinite(shape[k])))return null;
+ if(lessonPlayback||motion||shapePlayback||eraserMotion)cancel();
+ const task={active:true},scale=Number.isFinite(hooks.unitScaleFactor)&&hooks.unitScaleFactor>0?
+  hooks.unitScaleFactor:1;
+ lessonPlayback=task;
+ const edges=shape.type==='rect'?shapeEdgesForPlayback(shape):[shape];
+ if(!edges.length){lessonPlayback=null;return null}
+ const completed=[];
+ function finish(){
+  if(!task.active||lessonPlayback!==task)return;
+  task.active=false;lessonPlayback=null;
+  hooks.onComplete?.(true);
+ }
+ function step(index){
+  if(!task.active||lessonPlayback!==task)return;
+  if(index>=edges.length){finish();return}
+  const current=edges[index];
+  play(current,false,{
+   compact:shape.type==='rect',
+   unitScaleFactor:scale,
+   onFrame:()=>{
+    if(!task.active||lessonPlayback!==task)return;
+    for(const prev of completed)preview.append(node('line',{
+      x1:prev.x1,y1:prev.y1,x2:prev.x2,y2:prev.y2,class:'gnss-drawn'
+    }));
+   },
+   onComplete:()=>{
+    if(!task.active||lessonPlayback!==task)return;
+    completed.push(current);step(index+1);
+   }
+  });
+ }
+ step(0);
+ return {cancel(){
+  if(!task.active)return;
+  task.active=false;lessonPlayback=null;
+  cancel();
+ }};
+}
+
 function play(shape,demo=false,options=null){
  if(motion)cancel();
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1163,7 +1213,7 @@ function play(shape,demo=false,options=null){
   playback.progress=fraction;
   display(shape,(pose?.phase==='enter'||pose?.phase==='approach'||(cp&&t<.47))?null:fraction);
   if(options?.onFrame)options.onFrame();
-  paint3D(shape,t,fraction,pose);
+  paint3D(shape,t,fraction,pose,options?.unitScaleFactor||1);
   if(t>=1){
    motion=null;
    finishScene();
@@ -1179,6 +1229,7 @@ function play(shape,demo=false,options=null){
  animationHandle=requestAnimationFrame(animate);
 }
 function startDemo(){
+ if(document.body.classList.contains('gnss-mission-active'))return;
  if(window.GNSSLab01Journey?.active)return;
  if(demoInit||mode!=='demo'||!document.body.classList.contains('engineering-live'))return;
  demoInit=true;
