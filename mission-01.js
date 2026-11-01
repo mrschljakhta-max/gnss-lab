@@ -20,7 +20,7 @@ const specs=[
  {name:'Одиниці',title:'Зміни одиниці',prompt:'Натисни «см», потім «м». Подивись, як змінюється шкала.'},
  {name:'Масштаб',title:'Зміни масштаб',prompt:'Від метра до кілометра.'},
  {name:'Префікси',title:'Кіло · Мега · Гіга',prompt:'Згрупуй величини по тисячі.'},
- {name:'Закріплення',title:'Перевір себе',prompt:'Три короткі задачі.'},
+ {name:'Закріплення',title:'Обертай і вимірюй',prompt:'Поверни брусок і виміряй довжину, ширину та товщину.'},
  {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
 const tasks=[
@@ -29,7 +29,13 @@ const tasks=[
  {name:'Відстань',prompt:'Перетвори км у м.'},
  {name:'Масштаби',prompt:'Перетвори мега в кіло.'}
 ];
-const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0};
+// One wooden specimen (millimetres); the caliper measures each horizontal face.
+const DIMENSIONS=[
+ {id:'length',name:'Довжина',mm:42,face:'верхня грань'},
+ {id:'width',name:'Ширина',mm:28,face:'поворот на 90°'},
+ {id:'thickness',name:'Товщина',mm:18,face:'бічна грань'}
+];
+const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{}};
 const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
 let memory={...initial};
 try{
@@ -44,7 +50,7 @@ try{
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
  answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
- practiceIndex=0,practiced=new Set(),assessmentTarget=42,assessmentSeed=0,
+ practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,suppressTurnClick=false,assessmentTarget=42,assessmentSeed=0,
  caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
 const root=document.createElement('section');
 root.id='gnssMissionV1';
@@ -67,10 +73,15 @@ function resetStep(){
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
  dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
+  dimensionReadings=mode==='demo'&&memory.scene===6?
+   Object.fromEntries(DIMENSIONS.filter(d=>memory.dimensionProgress?.[d.id]===d.mm).map(d=>[d.id,d.mm])):{};
+  dimensionIndex=mode==='demo'&&memory.scene===6?
+   Math.max(0,DIMENSIONS.findIndex(d=>dimensionReadings[d.id]!==d.mm)):0;
+  turnPointer=null;suppressTurnClick=false;
  if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
   assessmentTarget=[42,47,63,38,69][assessmentSeed];gap=assessmentTarget+24;}
  if(mode==='demo'&&memory.scene===2)gap=70;
- if(mode==='demo'&&memory.scene===6)gap=66;
+ if(mode==='demo'&&memory.scene===6)gap=target()+24;
  if(mode==='demo'&&memory.scene===1)gap=12;
  caliperChosen=mode==='quest'&&memory.assessment===0||mode==='demo'&&(
   memory.scene===1||memory.scene===2||memory.scene===6);
@@ -79,7 +90,7 @@ function resetStep(){
 function target(){
  if(mode==='quest')return assessmentTarget;
  if(memory.scene===2)return part==='a'?50:54;
- if(memory.scene===6)return 42;
+ if(memory.scene===6)return DIMENSIONS[dimensionIndex].mm;
  return 50;
 }
 function canMeasure(){return caliperChosen&&moved&&settledContact&&Math.abs(gap-target())<.001}
@@ -92,7 +103,7 @@ function sceneComplete(){
   case 3:return seenUnits.size===3;
   case 4:return seenScale.size>=4&&answers.km===1;
   case 5:return seenPrefix.size>=3&&prefixIndex>=2;
-  case 6:return practiceIndex>=3;
+  case 6:return DIMENSIONS.every(d=>dimensionReadings[d.id]===d.mm);
   case 7:return true;
  }
  return false;
@@ -150,6 +161,38 @@ function blockSvg(x,y,w,title,selected=false,dim=true){
   (selected?'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+height+'" rx="6" fill="none" stroke="#b6fb91" stroke-width="2.5"/>':'')+
   (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
 }
+
+/* A 2.5D orthographic turn of the SAME 42×28×18 mm block.
+ * The dimension exposed between the jaws is always target()*MM.
+ * Length: top face; width: 90° around vertical axis of screen;
+ * thickness: tip onto the 42×18 mm side face.
+ */
+function orientableBlockSvg(){
+ const dim=DIMENSIONS[dimensionIndex],w=dim.mm*MM;
+ const h=(dimensionIndex===0?28:42)*MM,y=dimensionIndex===0?268:246;
+ const base='<rect x="0" y="0" width="'+w+'" height="'+h+'" rx="5" fill="url(#m01Ceramic)"/>';
+ let face='';
+ if(dimensionIndex!==0){
+  // Rotate the original wood grain instead of stretching it through 90 degrees.
+  face='<g transform="translate('+w+' 0) rotate(90)">'+woodSurface(0,0,h,w)+'</g>';
+ }else{
+  face=woodSurface(0,0,w,h);
+ }
+ const highlight=dimensionIndex===2
+  ?'<path d="M3 7v'+(h-14)+'" stroke="#fff4d8" stroke-width="4" stroke-opacity=".25"/>'+
+   '<path d="M'+(w-5)+' 9v'+(h-18)+'" stroke="#6d4f31" stroke-width="4" stroke-opacity=".42"/>'
+  :'<path d="M7 4h'+(w-14)+'" stroke="#ffedd3" stroke-width="2" stroke-opacity=".35"/>';
+ return '<g class="m01-workpiece m01-wood-workpiece m01-rotatable-block" data-wood="true"'+
+  ' data-orientation="'+dim.id+'" aria-label="Дерев’яний брусок, '+dim.name.toLowerCase()+'">'+
+  '<rect x="'+(X0+8)+'" y="'+(y+10)+'" width="'+w+'" height="'+h+'" rx="5" fill="#001b2b" opacity=".32"/>'+
+  '<g class="m01-rotating-face" transform="translate('+X0+' '+y+')"><g class="m01-face-animation">'+
+   base+face+highlight+'</g></g>'+
+  '<rect class="m01-rotate-hit" x="'+(X0+9)+'" y="'+(y+5)+'" width="'+Math.max(w-20,29)+'" height="'+(h-10)+'"'+
+  ' rx="8" fill="transparent" role="button" tabindex="0" data-rotate-block="true"'+
+  ' aria-label="Повернути дерев’яний брусок, наступна грань" />'+
+  '</g>';
+}
+
 function overviewScene(){
  let s=schematic();
  s+='<g class="m01-choice'+(choice==='a'?' m01-chosen':'')+'" data-guess="a" role="button" tabindex="0" aria-label="Обрати деталь A" aria-pressed="'+(choice==='a')+'">'+
@@ -162,9 +205,9 @@ function caliperScene(calTarget,calGap,showBlock=true){
  let s=schematic();
  const jawX=X0+calGap*MM,contact=Math.abs(calGap-calTarget)<.001;
  const travelStart=calGap,limit=showBlock?calTarget:0;
- const label=mode==='quest'?'Невідома деталь':memory.scene===6?'Нова деталь':part==='a'?'Деталь A':'Деталь B';
+ const label=mode==='quest'?'Невідома деталь':memory.scene===6?DIMENSIONS[dimensionIndex].name:part==='a'?'Деталь A':'Деталь B';
  if(showBlock){
-  s+=blockSvg(X0,265,calTarget*MM,'',false,false);
+  s+=mode==='demo'&&memory.scene===6?orientableBlockSvg():blockSvg(X0,265,calTarget*MM,'',false,false);
   s+='<text x="'+(X0+calTarget*MM/2)+'" y="242" fill="#e3efdf" text-anchor="middle" font-size="17">'+label+'</text>';
  }
  s+='<g class="m01-caliper" aria-label="Механічний штангенциркуль">'+
@@ -340,9 +383,7 @@ function mainScene(){
  if(scene===3)return unitRulerScene();
  if(scene===4)return scaleScene();
  if(scene===5)return prefixScene();
- if(scene===6&&practiceIndex===0)return caliperScene(42,gap);
- if(scene===6&&practiceIndex===1)return conversionScene();
- if(scene===6&&practiceIndex===2)return prefixScene();
+ if(scene===6)return caliperScene(target(),gap);
  return summaryScene();
 }
 function controlView(){
@@ -350,7 +391,23 @@ function controlView(){
  if(quest&&step>=4)return '';
  if(!quest&&step===7)return '';
  if(!quest&&step===0)return '';
- if((!quest&&(step===1||step===2||step===6&&practiceIndex===0))||(quest&&step===0)){
+ if(!quest&&step===6){
+  const dim=DIMENSIONS[dimensionIndex],done=Object.keys(dimensionReadings).length;
+  const chips=DIMENSIONS.map((d,i)=>'<span class="m01-dim-chip'+(dimensionIndex===i?' current':'')+
+   (dimensionReadings[d.id]===d.mm?' measured':'')+'">'+
+   (dimensionReadings[d.id]===d.mm?'✓ ':'○ ')+d.name+'</span>').join('');
+  const input=!sceneComplete()&&dimensionReadings[dim.id]!==dim.mm&&canMeasure()
+   ?promptInput('Розмір грані','Зчитай шкалу','мм')+
+    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'';
+  return '<div class="m01-dim-panel">'+
+   '<div class="m01-control-title">Грань '+(dimensionIndex+1)+' / 3 · '+dim.name+'</div>'+
+   '<div class="m01-dim-chips" aria-label="Виміряні грані">'+chips+'</div>'+
+   '<button type="button" class="m01-rotate-button" data-act="rotate-block"'+
+    ' aria-label="Повернути брусок до наступної грані">↻ Повернути брусок</button>'+
+   '<div class="m01-dim-progress">'+done+'/3 виміряно</div>'+
+   input+'</div>';
+ }
+ if((!quest&&(step===1||step===2))||(quest&&step===0)){
   const isZero=!quest&&step===1,measurement=!isZero;
   let content='';
   // No extra tool-selection button: the mechanical caliper is already on the bench.
@@ -389,12 +446,6 @@ function controlView(){
    (seenPrefix.size===3?promptInput(prefixIndex>-1&&unitsIndex===0?'3 М = скільки к?':'2 Г = скільки М?','Введи число',unitsIndex===0?'к':'М')+
     '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
  }
- if(!quest&&step===6){
-  return practiceIndex===1?'<div class="m01-control-title">Задача 2 / 3</div>'+
-   promptInput('75 мм = скільки см?','Введи значення','см')+'<button type="button" class="m01-submit" data-act="check">Перевірити</button>':
-   '<div class="m01-control-title">Задача 3 / 3</div>'+
-   promptInput('4 М = скільки к?','Введи значення','к')+'<button type="button" class="m01-submit" data-act="check">Перевірити</button>';
- }
  if(quest&&step===1){
   return '<div class="m01-control-title">Нова величина</div>'+promptInput('86 мм = скільки см?','Введи результат','см')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
  }
@@ -415,7 +466,7 @@ function guidance(){
   'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
   'Масштаб зображення і одиниця вимірювання — різні речі.',
   'Переходи k → M → G щоразу означають множення на тисячу.',
-  'Спробуй сам: це ще тренування, підказки доступні.',
+  'Натисни на брусок або поверни його свайпом. Виміряй кожну грань штангенциркулем.',
   'Готово! Тепер закріпи навички в режимі «Тести».'
  ];
  return msgs[memory.scene]||'';
@@ -423,11 +474,20 @@ function guidance(){
 function caliperStep(){
  return mode==='quest'&&memory.assessment===0||
   mode==='demo'&&(memory.scene===1||memory.scene===2||
-    memory.scene===6&&practiceIndex===0);
+    memory.scene===6);
 }
 function calibration(){return mode==='demo'&&memory.scene===1}
 function atContact(){return Math.abs(gap-(calibration()?0:target()))<.001}
 function caliperInstruction(){
+ if(mode==='demo'&&memory.scene===6){
+  const dim=DIMENSIONS[dimensionIndex];
+  if(sceneComplete())return '✓ Три грані виміряно. Натисни «Далі →».';
+  if(dimensionReadings[dim.id]===dim.mm)return '✓ '+dim.name+' виміряна. Поверни брусок.';
+  if(caliperPhase==='answer')return 'Контакт. Зчитай '+dim.name.toLowerCase()+' за шкалою.';
+  if(caliperPhase==='contact')return 'Контакт. Відпусти каретку.';
+  if(caliperPhase==='drag')return 'Підведи губку до деталі.';
+  return 'Виміряй '+dim.name.toLowerCase()+'. Зведи губки до торця.';
+ }
  if(caliperPhase==='success')return '✓ Вимірювання підтверджено';
  if(caliperPhase==='answer')return 'Контакт. Прочитай показ у лупі та введи його.';
  if(caliperPhase==='contact')return 'Контакт. Відпусти каретку.';
@@ -476,8 +536,8 @@ function render(){
  const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
- next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===3&&allowed?'До масштабу →':'Далі →';
- next.classList.toggle('m01-unit-next-ready',mode==='demo'&&current===3&&allowed);
+ next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current===3&&allowed?'До масштабу →':'Далі →';
+ next.classList.toggle('m01-unit-next-ready',mode==='demo'&&(current===3||current===6)&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
@@ -492,7 +552,7 @@ function hintMessage(){
   ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
   ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
   ['Переглянь k, M і G.','Кожен перехід між ними — множник 1 000.','3 М = 3 000 к; 2 Г = 2 000 М.'],
-  ['Почни з вимірювання невідомої деталі.','Після вимірювання перетвори сантиметри.','Перехід М → к множить число на 1 000.']
+  ['Виміряй довжину: потягни рухому губку до дерев’яного бруска.','Натисни «↻ Повернути брусок» або проведи пальцем по ньому.','Потрібно виміряти 3 грані: довжину, ширину і товщину.']
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
 }
@@ -515,11 +575,6 @@ function onSuccess(){
    document.dispatchEvent(new CustomEvent('gnss:mission-one-complete',{detail:{mission:1,completed:true,attempts:memory.assessmentAttempts}}));
    announce('✓ Практичний залік завершено. Усі чотири навички підтверджено.',true);
   }else announce('✓ Правильно! Наступна практична задача.',true);
- }else if(memory.scene===6){
-  practiceIndex+=1;gap=66;caliperChosen=practiceIndex===0;moved=false;settledContact=false;caliperPhase='idle';
-  if(practiceIndex===3){success('✓ Усі три тренувальні задачі виконано.');}
-  else{announce('✓ Виконано. Наступна вправа.',true)}
-  render();
  }else success();
 }
 function check(){
@@ -536,9 +591,8 @@ function check(){
  else if(memory.scene===4)expected=1;
  else if(memory.scene===5)expected=[3000,2000][Math.min(unitsIndex,1)];
  else if(memory.scene===6){
-  if(practiceIndex===0){if(!canMeasure()){announce('Спочатку зведи губки до контакту.');return}expected=42}
-  if(practiceIndex===1)expected=7.5;
-  if(practiceIndex===2)expected=4000;
+  if(!canMeasure()){announce('Підведи губки до контакту з обраною гранню.');return}
+  expected=target();
  }
  const tolerance=Math.abs(expected)>=30?(mode==='quest'&&memory.assessment===0?0.5:0.5):0.00001;
  if(expected===null||Math.abs(value-expected)>tolerance){
@@ -560,7 +614,14 @@ function check(){
  // Scene 3 is an instrument-led experiment; its assessment remains a separate task.
  if(memory.scene===4){answers.km=1;success('✓ 1 000 м = 1 км. Зміна одиниці не змінює відстань.')}
  if(memory.scene===5){unitsIndex+=1;if(unitsIndex>=2)success('✓ Мега = 1 000 кіло, гіга = 1 000 мега.');else announce('✓ Правильно. Залишився ще один масштаб.',true)}
- if(memory.scene===6){caliperPhase='success';onSuccess();return}
+ if(memory.scene===6){
+  const d=DIMENSIONS[dimensionIndex];
+  dimensionReadings[d.id]=d.mm;
+  memory.dimensionProgress={...dimensionReadings};persist();
+  if(sceneComplete())success('✓ Виміряно всі три грані! Натисни «До підсумку →».');
+  else announce('✓ '+d.name+' — '+d.mm+' мм. Поверни брусок для наступного вимірювання.',true);
+  caliperPhase='success';render();return;
+ }
  render();
 }
 function updateGap(v,passive=false){
@@ -589,6 +650,14 @@ function finishCaliperMotion(){
  }else caliperPhase='idle';
  render();
 }
+function rotateSpecimen(){
+ if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null)return;
+ dimensionIndex=(dimensionIndex+1)%DIMENSIONS.length;
+ gap=target()+24;
+ caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;
+ feedback='';feedbackSuccess=false;hintLevel=0;
+ render();
+}
 function respond(act){
  if(act==='hint'){hintLevel=Math.min(3,hintLevel+1);render();return}
  if(act==='show'){hintLevel=3;render();return}
@@ -606,7 +675,11 @@ function respond(act){
  }
  if(act==='repeat'){
   cancelAdvanceTimer();
-  if(mode==='demo'&&memory.scene===3){memory.completed=memory.completed.filter(x=>x!==3);persist()}
+  if(mode==='demo'&&(memory.scene===3||memory.scene===6)){
+   memory.completed=memory.completed.filter(x=>x!==memory.scene);
+   if(memory.scene===6)memory.dimensionProgress={};
+   persist();
+  }
   resetStep();render();return
  }
  if(act==='choose-a'||act==='choose-b'){
@@ -628,6 +701,7 @@ function respond(act){
   controls.querySelector('[data-act="unit-'+unit+'"]')?.focus({preventScroll:true});
   return;
  }
+ if(act==='rotate-block'){rotateSpecimen();return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
  if(act.startsWith('prefix-')){prefixIndex=Number(act.slice(7));seenPrefix.add(prefixIndex);render();return}
@@ -638,6 +712,10 @@ root.addEventListener('click',e=>{
 });
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
+ if(memory.scene===6&&e.target.closest('[data-rotate-block]')){
+  if(suppressTurnClick){suppressTurnClick=false;return}
+  rotateSpecimen();return;
+ }
  if(memory.scene===3&&e.target.closest('[data-unit-cycle]')){
   const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
@@ -671,6 +749,15 @@ canvas.addEventListener('pointerout',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointerdown',e=>{
+ if(visible&&mode==='demo'&&memory.scene===6&&e.button===0&&e.target.closest('[data-rotate-block]')){
+  const p=clientToSvg(e);
+  if(!p)return;
+  suppressTurnClick=false;
+  turnPointer={id:e.pointerId,x:p.x,y:p.y};
+  e.preventDefault();
+  try{canvas.setPointerCapture(e.pointerId)}catch{}
+  return;
+ }
  if(!visible||!caliperStep()||e.button!==0||!e.target.closest('[data-jaw]'))return;
  const p=clientToSvg(e);if(!p)return;
  dragOffset=p.x-(X0+gap*MM);
@@ -680,11 +767,20 @@ canvas.addEventListener('pointerdown',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointermove',e=>{
+ if(turnPointer&&turnPointer.id===e.pointerId)return;
  if(dragId!==e.pointerId)return;
  const p=clientToSvg(e);
  if(p)updateGap((p.x-dragOffset-X0)/MM,true);
 });
 function release(e){
+ if(turnPointer&&turnPointer.id===e.pointerId){
+  turnPointer=null;
+  try{canvas.releasePointerCapture(e.pointerId)}catch{}
+  // A tap or swipe turns the wooden solid; suppress any synthetic click.
+  suppressTurnClick=true;
+  rotateSpecimen();
+  return;
+ }
  if(dragId!==e.pointerId)return;
  dragId=null;
  try{canvas.releasePointerCapture(e.pointerId)}catch{}
@@ -692,10 +788,17 @@ function release(e){
 }
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',e=>{
+ if(turnPointer&&turnPointer.id===e.pointerId){
+  turnPointer=null;suppressTurnClick=false;return;
+ }
  if(dragId!==e.pointerId)return;
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
+ if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&['Enter',' ','ArrowRight','ArrowLeft'].includes(e.key)){
+  e.preventDefault();rotateSpecimen();
+  canvas.querySelector('[data-rotate-block]')?.focus({preventScroll:true});return;
+ }
  if(visible&&mode==='demo'&&memory.scene===3&&e.target.closest('[data-unit-cycle]')&&['Enter',' '].includes(e.key)){
   e.preventDefault();const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
@@ -745,7 +848,7 @@ window.GNSSLab01MissionV1={
  get assessment(){return memory.assessment},get passed(){return memory.passed},
  restart(){
   if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];persist()}
+  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};persist()}
   resetStep();if(visible)render();
  }
 };

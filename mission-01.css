@@ -542,3 +542,71 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
  #gnssMissionV1 .m01-canvas .m01-unit-reading,
  #gnssMissionV1 button.m01-unit-next-ready{animation:none!important}
 }
+
+/* Lesson 01 · station 07: physically turn the 42 × 28 × 18 mm wooden specimen. */
+#gnssMissionV1 .m01-canvas .m01-rotating-face{pointer-events:none}
+#gnssMissionV1 .m01-canvas .m01-face-animation{
+ pointer-events:none;transform-box:fill-box;transform-origin:center;
+ animation:m01-face-turn .43s cubic-bezier(.2,.75,.23,1) both;
+}
+#gnssMissionV1 .m01-canvas .m01-rotatable-block{
+ pointer-events:none;
+}
+#gnssMissionV1 .m01-canvas .m01-rotate-hit{
+ cursor:grab;touch-action:none;pointer-events:all!important;
+ outline:none;stroke:transparent;stroke-width:2;
+}
+#gnssMissionV1 .m01-canvas .m01-rotate-hit:active{cursor:grabbing}
+#gnssMissionV1 .m01-canvas .m01-rotate-hit:hover,
+#gnssMissionV1 .m01-canvas .m01-rotate-hit:focus-visible{
+ stroke:#b9f88a;stroke-dasharray:6 5;
+ filter:drop-shadow(0 0 7px #b6f88a72);
+}
+#gnssMissionV1 .m01-controls:has(.m01-dim-panel){
+ width:295px;max-width:calc(100% - 48px);
+ top:auto;bottom:15%;right:24px;
+ padding:13px 14px;max-height:55%;overflow-y:auto;
+ background:rgba(4,30,43,.89);border:1px solid #6897a0;border-radius:9px;
+}
+#gnssMissionV1 .m01-dim-panel .m01-control-title{
+ font-size:13px;font-weight:750;margin-bottom:10px;color:#e0fae4;
+}
+#gnssMissionV1 .m01-dim-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:11px}
+#gnssMissionV1 .m01-dim-chip{
+ border:1px solid #506c7a;border-radius:5px;
+ background:rgba(11,49,69,.8);color:#bfdbdf;
+ padding:5px 7px;font:700 10px/1.3 system-ui,sans-serif;
+}
+#gnssMissionV1 .m01-dim-chip.current{border-color:#b7f38e;color:#e2f8d2}
+#gnssMissionV1 .m01-dim-chip.measured{border-color:#6aa76b;color:#b3f28f}
+#gnssMissionV1 .m01-rotate-button{
+ width:100%;min-height:47px;text-align:center;
+ background:linear-gradient(135deg,#245440,#164c42)!important;
+ border:1px solid #a3e782!important;color:#e9ffdc!important;
+ font-size:13px!important;font-weight:760!important;
+}
+#gnssMissionV1 .m01-rotate-button:hover{background:#37644e!important}
+#gnssMissionV1 .m01-dim-progress{
+ color:#adcfd5;font:700 11px/1.3 ui-monospace,Consolas,monospace;
+ margin:8px 0 0;
+}
+#gnssMissionV1 .m01-dim-panel .m01-answer{margin-top:10px!important}
+@keyframes m01-face-turn{
+ 0%{opacity:.45;transform:scaleX(.45) skewY(-3deg)}
+ 55%{opacity:.82;transform:scaleX(1.025)}
+ 100%{opacity:1;transform:scaleX(1)}
+}
+@media(max-width:900px){
+ #gnssMissionV1 .m01-controls:has(.m01-dim-panel){right:12px;width:275px;bottom:16%}
+}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-controls:has(.m01-dim-panel){
+  top:auto;right:8px;bottom:84px;max-width:78vw;
+  width:265px;padding:9px;max-height:46%;
+ }
+ #gnssMissionV1 .m01-dim-chip{font-size:9px;padding:4px 5px}
+ #gnssMissionV1 .m01-rotate-button{min-height:42px;font-size:12px!important}
+}
+@media(prefers-reduced-motion:reduce){
+ #gnssMissionV1 .m01-canvas .m01-face-animation{animation:none!important}
+}
