@@ -102,6 +102,12 @@ for(const [name,label] of Object.entries(names)){
   }
  }
 }
+// Match the visual reading order of the approved shelf while keeping the
+// existing buttons and their delegated click handlers fully intact.
+for(const key of ['line','protractor','triangle','rectangle','compass','caliper','eraser','units']){
+ const button=tools.querySelector('button[data-tool="'+key+'"]');
+ if(button)tools.append(button);
+}
 // All selection states are still maintained by engineering.js.
 // Keep aria-pressed in sync without changing the event handlers.
 const watch=new MutationObserver(mutations=>{
