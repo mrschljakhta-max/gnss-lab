@@ -673,9 +673,9 @@ body.gnss-mission-active #gnssIntroReplay{
 }
 
 
-/* Mission 01 · 1/8: keep the question in the middle of the drafting table,
- * directly above specimens A and B, not in the upper-left corner. */
-#gnssMissionV1.m01-stage0-active .m01-header{
+/* Mission 01 · 1/8 and 2/8: center the short instruction above the workpiece.
+ * Keep caliper geometry and other lesson headings unchanged. */
+#gnssMissionV1.m01-centered-heading .m01-header{
  left:50%;
  right:auto;
  top:clamp(73px,10vh,106px);
@@ -684,21 +684,21 @@ body.gnss-mission-active #gnssIntroReplay{
  max-width:calc(100% - 32px);
  text-align:center;
 }
-#gnssMissionV1.m01-stage0-active .m01-kicker{
+#gnssMissionV1.m01-centered-heading .m01-kicker{
  display:none!important;
 }
-#gnssMissionV1.m01-stage0-active .m01-header h2{
+#gnssMissionV1.m01-centered-heading .m01-header h2{
  margin:0 0 8px;
  font-size:clamp(21px,2.2vw,30px);
  text-align:center;
 }
-#gnssMissionV1.m01-stage0-active .m01-header p{
+#gnssMissionV1.m01-centered-heading .m01-header p{
  margin:0 auto;
  max-width:none;
  font-size:clamp(12px,1.05vw,15px);
  text-align:center;
 }
-#gnssMissionV1.m01-stage0-active .m01-guidance:not(:empty){
+#gnssMissionV1.m01-centered-heading .m01-guidance:not(:empty){
  left:50%;
  right:auto;
  top:clamp(164px,21vh,203px);
@@ -708,19 +708,19 @@ body.gnss-mission-active #gnssIntroReplay{
  text-align:center;
 }
 @media(max-width:650px){
- #gnssMissionV1.m01-stage0-active .m01-header{
+ #gnssMissionV1.m01-centered-heading .m01-header{
   top:81px;
   width:calc(100% - 24px);
   max-width:calc(100% - 24px);
  }
- #gnssMissionV1.m01-stage0-active .m01-header h2{
+ #gnssMissionV1.m01-centered-heading .m01-header h2{
   font-size:clamp(19px,5vw,23px);
  }
- #gnssMissionV1.m01-stage0-active .m01-header p{
+ #gnssMissionV1.m01-centered-heading .m01-header p{
   font-size:12px;
   max-width:100%;
  }
- #gnssMissionV1.m01-stage0-active .m01-guidance:not(:empty){
+ #gnssMissionV1.m01-centered-heading .m01-guidance:not(:empty){
   top:178px;
   width:calc(100% - 28px);
   max-width:calc(100% - 28px);
