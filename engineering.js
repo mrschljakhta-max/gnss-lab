@@ -51,6 +51,7 @@ container.innerHTML=`
       <button type="button" data-tool="rectangle" title="Прямокутник: протягни діагональ, Ctrl — квадрат" aria-label="Прямокутник, Ctrl — квадрат"><span class="eng-tool-icon">▭</span><small>Прямокутник</small></button>
       <button type="button" data-tool="triangle" title="Трикутник: протягни діагональ, Ctrl — рівносторонній" aria-label="Трикутник, Ctrl — рівносторонній"><span class="eng-tool-icon">△</span><small>Трикутник</small></button>
       <button type="button" data-tool="compass" title="Накреслити коло"><span class="eng-tool-icon">◉</span><small>Циркуль</small></button>
+      <button type="button" data-tool="protractor" title="Побудувати кут від існуючого відрізка" aria-label="Транспортир — обери вершину і напрям другого променя"><span class="eng-tool-icon">◠</span><small>Транспортир</small></button>
       <button type="button" data-tool="caliper" title="Виміряти фігуру: вкажи дві точки A і B" aria-label="Штангенциркуль — виміряти на цьому кресленні"><span class="eng-tool-icon">⊣</span><small>Штангенциркуль</small></button>
       <button type="button" data-tool="eraser" title="Видалити елемент"><span class="eng-tool-icon">⌫</span><small>Гумка</small></button>
       <span class="eng-divider"></span>
@@ -76,6 +77,9 @@ function safeFreeShape(s){
  if(!keys||keys.some(k=>!Number.isFinite(s[k])||Math.abs(s[k])>10000))return null;
  if((s.type==='circle'&&s.r<=0)||((s.type==='rect'||s.type==='triangle')&&(s.w<=0||s.h<=0)))return null;
  const clean={type:s.type,...Object.fromEntries(keys.map(k=>[k,s[k]]))};
+ if(s.type==='line'&&s.angleFrom&&Number.isFinite(s.angleFrom.x)&&Number.isFinite(s.angleFrom.y)&&
+  Math.abs(s.angleFrom.x)<10000&&Math.abs(s.angleFrom.y)<10000)
+  clean.angleFrom={x:s.angleFrom.x,y:s.angleFrom.y};
  if(s.type==='triangle'&&Array.isArray(s.vertices)&&s.vertices.length===3&&
     s.vertices.every(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y)&&Math.abs(p.x)<10000&&Math.abs(p.y)<10000))
   clean.vertices=s.vertices.map(p=>({x:p.x,y:p.y}));
@@ -300,6 +304,31 @@ function dimensionText(shape){
  if(shape.type==='line')return fmt(Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1)/state.scale);
  return 'Ø '+fmt(shape.r*2/state.scale);
 }
+// The angle is stored with its new ray so the line, arc and label form one
+// persistent, undoable measurement and remain linked to the common vertex.
+function angleAnnotation(root,shape){
+ if(shape?.type!=='line'||!shape.angleFrom)return;
+ const origin={x:shape.x1,y:shape.y1};
+ const a={x:shape.angleFrom.x-origin.x,y:shape.angleFrom.y-origin.y};
+ const b={x:shape.x2-origin.x,y:shape.y2-origin.y};
+ const al=Math.hypot(a.x,a.y),bl=Math.hypot(b.x,b.y);
+ if(al<.01||bl<.01)return;
+ const a0=Math.atan2(a.y,a.x);
+ const turn=Math.atan2(a.x*b.y-a.y*b.x,a.x*b.x+a.y*b.y);
+ const degrees=Math.abs(turn)*180/Math.PI;
+ const radius=clamp(Math.min(al,bl)*.3,21,53);
+ const start={x:origin.x+radius*Math.cos(a0),y:origin.y+radius*Math.sin(a0)};
+ const end={x:origin.x+radius*Math.cos(a0+turn),y:origin.y+radius*Math.sin(a0+turn)};
+ root.append(svgEl('path',{d:`M ${start.x} ${start.y} A ${radius} ${radius} 0 0 ${turn>=0?1:0} ${end.x} ${end.y}`,
+  class:'eng-angle-arc','pointer-events':'none'}));
+ const middle=a0+turn/2;
+ const lx=origin.x+(radius+24)*Math.cos(middle);
+ const ly=origin.y+(radius+24)*Math.sin(middle);
+ const label=svgEl('text',{x:lx,y:ly,class:'eng-angle-label','text-anchor':'middle',
+  'dominant-baseline':'central','pointer-events':'none'});
+ label.textContent=(Math.round(degrees*10)/10).toLocaleString('uk-UA',{maximumFractionDigits:1})+'°';
+ root.append(label);
+}
 function addDraftMeasure(root,shape,position){
  const fallback=shape.type==='triangle'
   ?shape.vertices
@@ -407,6 +436,7 @@ function draw(){
   saved.forEach((shape,i)=>{
    const path=addShape(actual,shape);
    const label=addDraftMeasure(actual,shape,measurePositions[i]);
+   angleAnnotation(actual,shape);
    path.setAttribute('data-record-index',String(i));
    label.setAttribute('data-record-label',String(i));
    if(eraserVisual?.index===i)applyEraserVisual(shape,path,label,eraserVisual);
@@ -698,6 +728,23 @@ document.addEventListener('gnss:ruler-check',e=>{
  d.accepted=lesson()===0&&state.mode!=='demo'&&!state.complete&&
   (state.mode!=='quest'||state.stage===0)&&validLine(d.a,d.b)&&checkTarget(p);
  if(!d.accepted&&state.mode==='quest')toast('↔ Перевір точки');
+});
+document.addEventListener('gnss:protractor-commit',e=>{
+ const p=e.detail?.shape;
+ if(!p||p.type!=='line'||state.mode!=='explore'||state.complete||lesson()!==0)return;
+ const o=p.angleFrom;
+ if(!o||![p.x1,p.y1,p.x2,p.y2,o.x,o.y].every(Number.isFinite)||
+  !validLine({x:p.x1,y:p.y1},{x:p.x2,y:p.y2})||
+  dist({x:p.x1,y:p.y1},o)<12)return;
+ const angle=Math.abs(Math.atan2(
+  (o.x-p.x1)*(p.y2-p.y1)-(o.y-p.y1)*(p.x2-p.x1),
+  (o.x-p.x1)*(p.x2-p.x1)+(o.y-p.y1)*(p.y2-p.y1)))*180/Math.PI;
+ if(angle<.2)return;
+ saveHistory();
+ state.records.push({type:'line',x1:p.x1,y1:p.y1,x2:p.x2,y2:p.y2,
+  angleFrom:{x:o.x,y:o.y}});
+ state.pending=null;
+ draw();
 });
 document.addEventListener('gnss:ruler-commit',e=>{
  const d=e.detail||{};
