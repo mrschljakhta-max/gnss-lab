@@ -272,9 +272,14 @@ function woodSolidMesh(pose,cx){
   const woodId='m01WoodFace'+f.id;
   out+='<polygon points="'+path+'" fill="'+f.tint+'" stroke="#654c31" stroke-width="1.7" stroke-linejoin="round"/>';
   if(ww>2&&hh>2){
+   // Affine-map the existing wooden photograph onto each planar 3D face.
+   // The grain now rotates WITH the solid instead of sticking to the screen.
+   const [p0,p1,p2,p3]=f.pts,mat=[
+    p1.x-p0.x,p1.y-p0.y,p3.x-p0.x,p3.y-p0.y,p0.x,p0.y
+   ].map(v=>v.toFixed(4)).join(' ');
    out+='<clipPath id="'+woodId+'"><polygon points="'+path+'"/></clipPath>'+
-    '<image href="'+WOOD_SPECIMEN+'" x="'+lx.toFixed(2)+'" y="'+ly.toFixed(2)+'"'+
-    ' width="'+ww.toFixed(2)+'" height="'+hh.toFixed(2)+'" preserveAspectRatio="none"'+
+    '<image href="'+WOOD_SPECIMEN+'" x="0" y="0" width="1" height="1"'+
+    ' preserveAspectRatio="none" transform="matrix('+mat+')"'+
     ' clip-path="url(#'+woodId+')" opacity="'+(f.name==='front'||f.name==='back'?.92:.68)+'"/>';
   }
   const shade=f.name==='front'?'#f4e2c1':f.name==='back'?'#a57d53':'#98683b';
