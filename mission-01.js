@@ -578,7 +578,7 @@ canvas.addEventListener('keydown',e=>{
 function show(nextMode){
  cancelChoiceTimer();visible=true;mode=nextMode;root.hidden=false;
  // A skipped final screen is not a completed course. Resume the first missing activity.
- if(nextMode==='demo'&&memory.scene===7&&firstUnfinished()<7){
+ if(nextMode==='demo'&&firstUnfinished()<memory.scene){
   memory.scene=firstUnfinished();persist();
  }
  document.body.classList.add('gnss-mission-active');
