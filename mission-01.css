@@ -648,9 +648,7 @@ body.gnss-mission-active.gnss-mission-tool-playback .gnss-draft-preview
 }
 
 
-/* The arrow at bottom-left resets the ENTIRE mission, including the final quiz.
- * "Повторити крок" is a separate action and never wipes unrelated progress.
- */
+/* Keep the full-mission ↻ reset. The redundant single-step replay control is removed. */
 #gnssMissionV1 #m01Reset{
  font-size:20px;line-height:1;min-width:38px;min-height:38px;
  padding:7px!important;font-weight:700;
@@ -659,10 +657,17 @@ body.gnss-mission-active.gnss-mission-tool-playback .gnss-draft-preview
 #gnssMissionV1 #m01Reset:focus-visible{
  border-color:#b9f78f;color:#d8ffbb;
 }
-#gnssMissionV1 .m01-footer-left button[data-act="repeat"]{
- font-size:10px;letter-spacing:0;padding:8px 9px;
-}
 @media(max-width:650px){
  #gnssMissionV1 #m01Reset{min-width:34px;min-height:34px;font-size:18px}
- #gnssMissionV1 .m01-footer-left button[data-act="repeat"]{font-size:9px;padding:7px}
+}
+ 
+/* Minimal drawing workspace: the shape and dimensions are already centered
+ * on the board and in the tool panel, so don't repeat them top-left. */
+#gnssMissionV1.m01-geometry-active .m01-header{
+ display:none!important;
+}
+/* The floating intro/mission-00 replay belongs to a different lesson.
+ * Hide it throughout Mission 01 (including drawing, caliper and quiz). */
+body.gnss-mission-active #gnssIntroReplay{
+ display:none!important;
 }
