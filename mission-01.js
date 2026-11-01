@@ -209,35 +209,92 @@ function blockSvg(x,y,w,title,selected=false,dim=true){
   (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
 }
 
-/* A 2.5D orthographic turn of the SAME 42×28×18 mm block.
- * The dimension exposed between the jaws is always target()*MM.
- * Length: top face; width: 90° around vertical axis of screen;
- * thickness: tip onto the 42×18 mm side face.
+/* A single 42×28×18 mm solid. Its six physical faces are projected from
+ * three-dimensional vertices. Dragging redraws the mesh in place, frame by
+ * frame; measured widths are authoritative only when a face has snapped.
+ * Keeping the photo texture on the faces also avoids another image download.
  */
-function orientableBlockSvg(){
- const dim=DIMENSIONS[dimensionIndex],w=dim.mm*MM;
- const h=(dimensionIndex===0?28:42)*MM,y=dimensionIndex===0?268:246;
- const base='<rect x="0" y="0" width="'+w+'" height="'+h+'" rx="5" fill="url(#m01Ceramic)"/>';
- let face='';
- if(dimensionIndex!==0){
-  // Rotate the original wood grain instead of stretching it through 90 degrees.
-  face='<g transform="translate('+w+' 0) rotate(90)">'+woodSurface(0,0,h,w)+'</g>';
- }else{
-  face=woodSurface(0,0,w,h);
+const SOLID_PI=Math.PI;
+const FACE_POSES=[
+ {roll:0,yaw:0,pitch:0},
+ {roll:-SOLID_PI/2,yaw:0,pitch:0},
+ {roll:0,yaw:SOLID_PI/2,pitch:0}
+];
+function facePose(index){return {...FACE_POSES[index]}}
+function angleGap(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b))}
+function nearestFace(pose){
+ const candidates=[
+  {index:0,roll:0,yaw:0},
+  {index:1,roll:-SOLID_PI/2,yaw:0},
+  {index:1,roll:SOLID_PI/2,yaw:0},
+  {index:2,roll:0,yaw:SOLID_PI/2},
+  {index:2,roll:0,yaw:-SOLID_PI/2}
+ ];
+ let best=candidates[0],distance=Infinity;
+ for(const c of candidates){
+  const d=Math.pow(angleGap(pose.roll,c.roll),2)+Math.pow(angleGap(pose.yaw,c.yaw),2);
+  if(d<distance){best=c;distance=d}
  }
- const highlight=dimensionIndex===2
-  ?'<path d="M3 7v'+(h-14)+'" stroke="#fff4d8" stroke-width="4" stroke-opacity=".25"/>'+
-   '<path d="M'+(w-5)+' 9v'+(h-18)+'" stroke="#6d4f31" stroke-width="4" stroke-opacity=".42"/>'
-  :'<path d="M7 4h'+(w-14)+'" stroke="#ffedd3" stroke-width="2" stroke-opacity=".35"/>';
+ return best;
+}
+function solidPoint(pose,vec,cx,cy){
+ const [x,y,z]=vec,cY=Math.cos(pose.yaw),sY=Math.sin(pose.yaw),
+  cP=Math.cos(pose.pitch||0),sP=Math.sin(pose.pitch||0),
+  cR=Math.cos(pose.roll),sR=Math.sin(pose.roll);
+ const a=x*cY+z*sY,b=z*cY-x*sY,yy=y*cP-b*sP,zz=y*sP+b*cP;
+ return {x:cx+a*cR-yy*sR,y:cy+a*sR+yy*cR,z:zz};
+}
+function woodSolidMesh(pose,cx){
+ const L=42*MM/2,W=28*MM/2,T=18*MM/2,cy=313;
+ const faces=[
+  {name:'front',n:[0,0,1],corners:[[-L,-W,T],[L,-W,T],[L,W,T],[-L,W,T]],tint:'#ead4aa'},
+  {name:'back',n:[0,0,-1],corners:[[L,-W,-T],[-L,-W,-T],[-L,W,-T],[L,W,-T]],tint:'#d7b78c'},
+  {name:'right',n:[1,0,0],corners:[[L,-W,T],[L,-W,-T],[L,W,-T],[L,W,T]],tint:'#ad8255'},
+  {name:'left',n:[-1,0,0],corners:[[-L,-W,-T],[-L,-W,T],[-L,W,T],[-L,W,-T]],tint:'#ae8054'},
+  {name:'top',n:[0,-1,0],corners:[[-L,-W,-T],[L,-W,-T],[L,-W,T],[-L,-W,T]],tint:'#f0dcba'},
+  {name:'bottom',n:[0,1,0],corners:[[-L,W,T],[L,W,T],[L,W,-T],[-L,W,-T]],tint:'#a98256'}
+ ];
+ const visible=faces.map((f,i)=>{
+  const n=solidPoint(pose,f.n,0,0),d=n.z;
+  const pts=f.corners.map(p=>solidPoint(pose,p,cx,cy));
+  return {...f,id:i,d,pts,depth:pts.reduce((sum,p)=>sum+p.z,0)/4};
+ }).filter(f=>f.d>.0001).sort((a,b)=>a.depth-b.depth);
+ let out='<defs>'+
+  '<filter id="m01SolidShadow" x="-30%" y="-30%" width="160%" height="170%">'+
+  '<feGaussianBlur stdDeviation="5"/></filter>'+
+  '</defs>';
+ out+='<ellipse cx="'+(cx+8).toFixed(2)+'" cy="378" rx="85" ry="12" fill="#031b2b" opacity=".26" filter="url(#m01SolidShadow)"/>';
+ for(const f of visible){
+  const path=f.pts.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ');
+  const xs=f.pts.map(p=>p.x),ys=f.pts.map(p=>p.y),
+   lx=Math.min(...xs),ly=Math.min(...ys),ww=Math.max(...xs)-lx,hh=Math.max(...ys)-ly;
+  const woodId='m01WoodFace'+f.id;
+  out+='<polygon points="'+path+'" fill="'+f.tint+'" stroke="#654c31" stroke-width="1.7" stroke-linejoin="round"/>';
+  if(ww>2&&hh>2){
+   out+='<clipPath id="'+woodId+'"><polygon points="'+path+'"/></clipPath>'+
+    '<image href="'+WOOD_SPECIMEN+'" x="'+lx.toFixed(2)+'" y="'+ly.toFixed(2)+'"'+
+    ' width="'+ww.toFixed(2)+'" height="'+hh.toFixed(2)+'" preserveAspectRatio="none"'+
+    ' clip-path="url(#'+woodId+')" opacity="'+(f.name==='front'||f.name==='back'?.92:.68)+'"/>';
+  }
+  const shade=f.name==='front'?'#f4e2c1':f.name==='back'?'#a57d53':'#98683b';
+  out+='<polygon points="'+path+'" fill="'+shade+'" fill-opacity="'+(f.name==='front'?.08:.22)+'"'+
+   ' stroke="#efd7aa" stroke-opacity=".53" stroke-width="1"/>';
+ }
+ return out;
+}
+function orientableBlockSvg(){
+ const dim=DIMENSIONS[dimensionIndex],activeWidth=dim.mm*MM,cx=X0+activeWidth/2;
  return '<g class="m01-workpiece m01-wood-workpiece m01-rotatable-block" data-wood="true"'+
-  ' data-orientation="'+dim.id+'" aria-label="Дерев’яний брусок, '+dim.name.toLowerCase()+'">'+
-  '<rect x="'+(X0+8)+'" y="'+(y+10)+'" width="'+w+'" height="'+h+'" rx="5" fill="#001b2b" opacity=".32"/>'+
-  '<g class="m01-rotating-face" transform="translate('+X0+' '+y+')"><g class="m01-face-animation">'+
-   base+face+highlight+'</g></g>'+
-  '<rect class="m01-rotate-hit" x="'+(X0+9)+'" y="'+(y+5)+'" width="'+Math.max(w-20,29)+'" height="'+(h-10)+'"'+
-  ' rx="8" fill="transparent" role="button" tabindex="0" data-rotate-block="true"'+
-  ' aria-label="Повернути дерев’яний брусок, наступна грань" />'+
+  ' data-orientation="'+dim.id+'" aria-label="Дерев’яний брусок: утримуй і перетягуй для обертання">'+
+  '<g data-solid-mesh="true">'+woodSolidMesh(solidPose,cx)+'</g>'+
+  '<rect class="m01-rotate-hit" x="'+(cx-100)+'" y="225" width="200" height="164"'+
+  ' rx="15" fill="transparent" role="button" tabindex="0" data-rotate-block="true"'+
+  ' aria-label="Схопити брусок та повернути перетягуванням. Клавіші зі стрілками змінюють грань." />'+
   '</g>';
+}
+function updateManualMesh(pose,cx){
+ const g=canvas.querySelector('[data-solid-mesh]');
+ if(g)g.innerHTML=woodSolidMesh(pose,cx);
 }
 
 function overviewScene(){
