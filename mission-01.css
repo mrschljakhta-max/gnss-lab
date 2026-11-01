@@ -407,3 +407,21 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-feedback{bottom:250px}
  #gnssMissionV1 .m01-footer{right:71px}
  #gnssMissionV1 .m01-footer-right{justify-content:flex-end}
 }
+
+
+/* CTA safety zone: the existing floating tool buttons occupy the lower-right
+   corner. Only the lesson footer is inset, the app's panels stay unchanged. */
+body.gnss-mission-active #gnssMissionV1 .m01-footer{
+ right:150px!important;
+}
+body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
+ max-width:calc(100% - 35px);
+ gap:9px;
+}
+@media(max-width:900px){
+ body.gnss-mission-active #gnssMissionV1 .m01-footer{right:104px!important}
+}
+@media(max-width:650px){
+ body.gnss-mission-active #gnssMissionV1 .m01-footer{right:78px!important}
+ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{max-width:100%}
+}
