@@ -75,7 +75,11 @@ function safeFreeShape(s){
   (s.type==='rect'||s.type==='triangle')?['x','y','w','h']:null;
  if(!keys||keys.some(k=>!Number.isFinite(s[k])||Math.abs(s[k])>10000))return null;
  if((s.type==='circle'&&s.r<=0)||((s.type==='rect'||s.type==='triangle')&&(s.w<=0||s.h<=0)))return null;
- return {type:s.type,...Object.fromEntries(keys.map(k=>[k,s[k]]))};
+ const clean={type:s.type,...Object.fromEntries(keys.map(k=>[k,s[k]]))};
+ if(s.type==='triangle'&&Array.isArray(s.vertices)&&s.vertices.length===3&&
+    s.vertices.every(p=>Number.isFinite(p?.x)&&Number.isFinite(p?.y)&&Math.abs(p.x)<10000&&Math.abs(p.y)<10000))
+  clean.vertices=s.vertices.map(p=>({x:p.x,y:p.y}));
+ return clean;
 }
 function readFreeDrawing(){
  try{
@@ -135,8 +139,7 @@ function snapVertices(){
    put(s.x,s.y,i,'Вершина');put(s.x+s.w,s.y,i,'Вершина');
    put(s.x+s.w,s.y+s.h,i,'Вершина');put(s.x,s.y+s.h,i,'Вершина');
   }else if(s.type==='triangle'){
-   put(s.x+s.w/2,s.y,i,'Вершина');put(s.x+s.w,s.y+s.h,i,'Вершина');
-   put(s.x,s.y+s.h,i,'Вершина');
+   triangleVertices(s).forEach(p=>put(p.x,p.y,i,'Вершина'));
   }else if(s.type==='circle'){
    put(s.x,s.y,i,'Центр кола');
   }
@@ -208,14 +211,41 @@ function triangleFromDiagonal(a,b,equilateral=false){
  const x=Math.min(a.x,a.x+dx),y=Math.min(a.y,a.y+dy);
  return {type:'triangle',x,y,w:Math.abs(dx),h:Math.abs(dy)};
 }
-function triangleEdges(shape){
+function triangleVertices(shape){
+ if(Array.isArray(shape.vertices)&&shape.vertices.length===3)return shape.vertices;
  const {x,y,w,h}=shape;
- const apex={x:x+w/2,y},left={x,y:y+h},right={x:x+w,y:y+h};
- return [
-  {type:'line',x1:apex.x,y1:apex.y,x2:right.x,y2:right.y},
-  {type:'line',x1:right.x,y1:right.y,x2:left.x,y2:left.y},
-  {type:'line',x1:left.x,y1:left.y,x2:apex.x,y2:apex.y}
+ return [{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}];
+}
+// Reuse a saved segment as the precise base when both endpoints are snapped.
+// For arbitrary angles the triangle stores three true points, not a false
+// axis-aligned bounding triangle. The construction is equilateral.
+function triangleFromExistingBase(a,b){
+ const near=(p,q)=>dist(p,q)<1;
+ const edge=state.records.find(sh=>sh.type==='line'&&(
+  (near(a,{x:sh.x1,y:sh.y1})&&near(b,{x:sh.x2,y:sh.y2}))||
+  (near(a,{x:sh.x2,y:sh.y2})&&near(b,{x:sh.x1,y:sh.y1}))
+ ));
+ if(!edge)return null;
+ const len=dist(a,b);if(len<12)return null;
+ const u={x:(b.x-a.x)/len,y:(b.y-a.y)/len};
+ const normal={x:-u.y,y:u.x},mid={x:(a.x+b.x)/2,y:(a.y+b.y)/2};
+ const h=len*Math.sqrt(3)/2;
+ const candidates=[
+  {x:mid.x+normal.x*h,y:mid.y+normal.y*h},
+  {x:mid.x-normal.x*h,y:mid.y-normal.y*h}
  ];
+ const clearance=p=>Math.min(p.x-18,1182-p.x,p.y-18,642-p.y);
+ const apex=clearance(candidates[0])>=clearance(candidates[1])?candidates[0]:candidates[1];
+ const vertices=[{...a},{...b},apex],xs=vertices.map(v=>v.x),ys=vertices.map(v=>v.y);
+ return {type:'triangle',x:Math.min(...xs),y:Math.min(...ys),
+  w:Math.max(...xs)-Math.min(...xs),h:Math.max(...ys)-Math.min(...ys),vertices};
+}
+function triangleEdges(shape){
+ const pts=triangleVertices(shape);
+ return pts.map((p,i)=>{
+  const q=pts[(i+1)%pts.length];
+  return {type:'line',x1:p.x,y1:p.y,x2:q.x,y2:q.y};
+ });
 }
 function shapeEdges(shape){
  return shape.type==='rect'?rectEdges(shape):shape.type==='triangle'?triangleEdges(shape):[];
@@ -250,13 +280,18 @@ function addShape(root,shape,opts={}){
  else if(shape.type==='circle')el=svgEl('circle',{cx:shape.x,cy:shape.y,r:shape.r,class:cls});
  else if(shape.type==='rect')el=svgEl('rect',{x:shape.x,y:shape.y,width:shape.w,height:shape.h,class:cls});
  else if(shape.type==='triangle'){
-  const {x,y,w,h}=shape;
-  el=svgEl('polygon',{points:`${x+w/2},${y} ${x+w},${y+h} ${x},${y+h}`,class:cls});
+  const pts=triangleVertices(shape);
+  el=svgEl('polygon',{points:pts.map(p=>p.x+','+p.y).join(' '),class:cls});
  }
  else return null;
  root.append(el);return el;
 }
 function dimensionText(shape){
+ if(shape.type==='triangle'&&shape.vertices){
+  const pts=triangleVertices(shape);
+  const base=dist(pts[0],pts[1])/state.scale;
+  return fmt(base)+' · △';
+ }
  if(shape.type==='rect'||shape.type==='triangle'){
   const divisor=state.measureUnit==='cm'?10:1;
   const number=v=>(Math.round(v/state.scale/divisor*10)/10).toLocaleString('uk-UA');
@@ -267,7 +302,10 @@ function dimensionText(shape){
 }
 function addDraftMeasure(root,shape,position){
  const fallback=shape.type==='triangle'
-  ?{x:shape.x+shape.w/2,y:shape.y+shape.h+26}
+  ?shape.vertices
+   ?{x:(shape.vertices[0].x+shape.vertices[1].x)/2,
+     y:(shape.vertices[0].y+shape.vertices[1].y)/2+25}
+   :{x:shape.x+shape.w/2,y:shape.y+shape.h+26}
   :shape.type==='rect'
   ?{x:shape.x+shape.w/2,y:shape.y<48?shape.y+shape.h+27:shape.y-18}
   :shape.type==='line'
@@ -355,7 +393,10 @@ function draw(){
   measureShapes.map(s=>s.type==='rect'
    ?{type:'line',x1:s.x,y1:s.y,x2:s.x+s.w,y2:s.y}
    :s.type==='triangle'
-   ?{type:'line',x1:s.x,y1:s.y+s.h,x2:s.x+s.w,y2:s.y+s.h}:s),
+   ?s.vertices
+    ?{type:'line',x1:s.vertices[0].x,y1:s.vertices[0].y,
+      x2:s.vertices[1].x,y2:s.vertices[1].y}
+    :{type:'line',x1:s.x,y1:s.y+s.h,x2:s.x+s.w,y2:s.y+s.h}:s),
   measureShapes.map(dimensionText),
   {font:13,obstacles:measureShapes.flatMap(shapeEdges)}
  )||[];
@@ -525,7 +566,9 @@ function handleMove(e){
  }
  if(q.kind==='rectangle'||q.kind==='triangle'){
   q.last=drawingPoint(p);q.ctrl=!!e.ctrlKey;
-  state.pending=q.kind==='triangle'?triangleFromDiagonal(q.start,q.last,q.ctrl):rectFromDiagonal(q.start,q.last,q.ctrl);
+  state.pending=q.kind==='triangle'
+   ?triangleFromExistingBase(q.start,q.last)||triangleFromDiagonal(q.start,q.last,q.ctrl)
+   :rectFromDiagonal(q.start,q.last,q.ctrl);
  }
  if(q.kind==='circle'){
   const at=drawingPoint(p,'circle');
@@ -542,7 +585,9 @@ function handleUp(e){if(!state.pointer)return;
   const end=!released&&Number.isFinite(e?.clientX)&&Number.isFinite(e?.clientY)
    ?drawingPoint(pt(e)):q.last;
   const constrained=typeof e?.ctrlKey==='boolean'?e.ctrlKey:q.ctrl;
-  const shape=q.kind==='triangle'?triangleFromDiagonal(q.start,end,constrained):rectFromDiagonal(q.start,end,constrained);
+  const shape=q.kind==='triangle'
+   ?triangleFromExistingBase(q.start,end)||triangleFromDiagonal(q.start,end,constrained)
+   :rectFromDiagonal(q.start,end,constrained);
   let animated=false;
   if(!released&&shape.w>=state.scale*2&&shape.h>=state.scale*2){
    const detail={shape,accepted:false};
@@ -693,7 +738,8 @@ window.addEventListener('keydown',e=>{if(lesson()!==0||mode()==='demo')return;
  if(e.key==='Control'&&(state.pointer?.kind==='rectangle'||state.pointer?.kind==='triangle')){
   state.pointer.ctrl=true;
   state.pending=state.pointer.kind==='triangle'
-   ?triangleFromDiagonal(state.pointer.start,state.pointer.last,true)
+   ?triangleFromExistingBase(state.pointer.start,state.pointer.last)||
+      triangleFromDiagonal(state.pointer.start,state.pointer.last,true)
    :rectFromDiagonal(state.pointer.start,state.pointer.last,true);
   draw();
  }
@@ -708,7 +754,8 @@ window.addEventListener('keyup',e=>{
  if(e.key==='Control'&&(state.pointer?.kind==='rectangle'||state.pointer?.kind==='triangle')){
   state.pointer.ctrl=false;
   state.pending=state.pointer.kind==='triangle'
-   ?triangleFromDiagonal(state.pointer.start,state.pointer.last,false)
+   ?triangleFromExistingBase(state.pointer.start,state.pointer.last)||
+      triangleFromDiagonal(state.pointer.start,state.pointer.last,false)
    :rectFromDiagonal(state.pointer.start,state.pointer.last,false);
   draw();
  }
