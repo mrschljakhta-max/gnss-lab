@@ -687,6 +687,19 @@ function syncCaliperVisual(){
   loupe.hidden=false;loupe.innerHTML=scaleLoupeMarkup();
  }else if(loupe&&(!settledContact||!atContact()))loupe.hidden=true;
 }
+// Keep the face controls directly below the real loupe instead of covering it.
+// The magnifier moves on short viewports, so its actual rendered height is measured.
+function positionFaceControls(){
+ if(mode!=='demo'||memory.scene!==6)return;
+ const loupe=el('m01ScaleLoupe');
+ const rootRect=root.getBoundingClientRect?.();
+ const loupeRect=!loupe.hidden?loupe.getBoundingClientRect?.():null;
+ const fallback=(window.innerHeight||740)<=650?375:425;
+ const below=loupeRect&&rootRect&&loupeRect.height>0?
+  Math.ceil(loupeRect.bottom-rootRect.top+14):fallback;
+ root.style.setProperty('--m01-face-panel-top',Math.max(0,below)+'px');
+}
+
 function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
@@ -705,6 +718,7 @@ function render(){
  renderScaleLoupe();
  controls.innerHTML=controlView();
  controls.hidden=!controls.innerHTML.trim();
+ positionFaceControls();
  const answerDock=el('m01MeasureAnswer');
  answerDock.innerHTML=measurementAnswerView();
  answerDock.hidden=!answerDock.innerHTML.trim();
@@ -1081,6 +1095,7 @@ function sync(){
  if(!visible||mode!==next)show(next);
 }
 new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
+window.addEventListener('resize',()=>{if(visible)positionFaceControls()});
 window.GNSSLab01MissionV1={
  get active(){return visible},get scene(){return memory.scene},
  get assessment(){return memory.assessment},get passed(){return memory.passed},

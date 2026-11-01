@@ -804,25 +804,23 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
 }
 
 
-/* 7/8 · The instrument stays on the table; the face selector moves to the
- * open upper-right area so it no longer competes with the footer/answer dock.
- * The existing .m01-centered-heading style centers the instruction above it. */
-@media(min-width:901px){
+/* On stage 7 the loupe occupies the top-right. The face selection card
+ * must live BELOW its measured bottom edge, not overlap its mechanical scale.
+ * JS sets --m01-face-panel-top from real layout, including short viewports.
+ * Reserve the bottom footer region: tall cards scroll instead of covering it. */
+@media(min-width:651px){
  #gnssMissionV1.m01-stage7-active .m01-controls:has(.m01-dim-panel){
-  top:clamp(175px,28vh,220px);
-  right:24px;
+  top:var(--m01-face-panel-top,425px);
   bottom:auto;
+  right:clamp(12px,1.8vw,25px);
   width:295px;
-  max-height:calc(100% - 290px);
+  max-height:max(80px,calc(100% - var(--m01-face-panel-top,425px) - 82px));
+  overflow-y:auto;
  }
 }
 @media(min-width:651px) and (max-width:900px){
  #gnssMissionV1.m01-stage7-active .m01-controls:has(.m01-dim-panel){
-  top:clamp(160px,27vh,205px);
-  right:12px;
-  bottom:auto;
   width:255px;
-  max-height:calc(100% - 260px);
  }
 }
 /* On narrow phones preserve the earlier non-overlapping lower placement.
