@@ -387,12 +387,14 @@ function hintMessage(){
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
 }
-let choiceTimer=null;
+let choiceTimer=null,advanceTimer=null;
 function cancelChoiceTimer(){if(choiceTimer!==null){clearTimeout(choiceTimer);choiceTimer=null}}
+function cancelAdvanceTimer(){if(advanceTimer!==null){clearTimeout(advanceTimer);advanceTimer=null}}
 function setScene(index){
- cancelChoiceTimer();memory.scene=clamp(index,0,7);persist();resetStep();render();
+ cancelChoiceTimer();cancelAdvanceTimer();memory.scene=clamp(index,0,7);persist();resetStep();render();
 }
 function setAssessment(index){
+ cancelAdvanceTimer();
  memory.assessment=clamp(index,0,4);persist();resetStep();render();
 }
 function onSuccess(){
@@ -466,7 +468,15 @@ function finishCaliperMotion(){
  settledContact=atContact()&&moved;
  if(settledContact){
   caliperPhase=calibration()?'success':'answer';
-  if(calibration())success('✓ Нуль установлено.');
+  if(calibration()){
+   success('✓ Нуль установлено.');
+   // Calibration is preparation, not a destination. Show the specimen automatically.
+   cancelAdvanceTimer();
+   advanceTimer=setTimeout(()=>{
+    advanceTimer=null;
+    if(visible&&mode==='demo'&&memory.scene===1&&memory.completed.includes(1))setScene(2);
+   },750);
+  }
  }else caliperPhase='idle';
  render();
 }
@@ -485,7 +495,7 @@ function respond(act){
   }
   return;
  }
- if(act==='repeat'){resetStep();render();return}
+ if(act==='repeat'){cancelAdvanceTimer();resetStep();render();return}
  if(act==='choose-a'||act==='choose-b'){
   if(mode!=='demo'||memory.scene!==0||choice)return;
   choice=act.slice(-1);success('✓ Обрано. Перевіримо вимірюванням.');render();
@@ -576,9 +586,10 @@ canvas.addEventListener('keydown',e=>{
  }
 });
 function show(nextMode){
- cancelChoiceTimer();visible=true;mode=nextMode;root.hidden=false;
- // A skipped final screen is not a completed course. Resume the first missing activity.
- if(nextMode==='demo'&&firstUnfinished()<memory.scene){
+ cancelChoiceTimer();cancelAdvanceTimer();visible=true;mode=nextMode;root.hidden=false;
+ // On reload, don't leave a student on an already-completed calibration or a skipped ending.
+ if(nextMode==='demo'&&(firstUnfinished()<memory.scene||
+   memory.scene<7&&memory.completed.includes(memory.scene))){
   memory.scene=firstUnfinished();persist();
  }
  document.body.classList.add('gnss-mission-active');
@@ -588,7 +599,7 @@ function show(nextMode){
 }
 function hide(){
  if(!visible)return;
- cancelChoiceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
+ cancelChoiceTimer();cancelAdvanceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
  const legacy=document.getElementById('jRestoreRoute');
  if(legacy&&document.body.dataset.expMode==='explore')legacy.hidden=false;
 }
@@ -604,7 +615,7 @@ window.GNSSLab01MissionV1={
  get assessment(){return memory.assessment},get passed(){return memory.passed},
  restart(){
   if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {cancelChoiceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];persist()}
+  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];persist()}
   resetStep();if(visible)render();
  }
 };
