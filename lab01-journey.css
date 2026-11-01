@@ -88,7 +88,7 @@ body.lab01-route .mode-peek{z-index:90}
 #lab01Journey #jCaliperLens{pointer-events:none}
 body.gnss-caliper-3d-ready #jCaliperHardware{visibility:hidden}
 #lab01Journey .j-caliper-entry{
- position:absolute;right:30px;bottom:75px;z-index:35;width:265px;
+ position:absolute;left:35px;top:204px;right:auto;bottom:auto;z-index:35;width:245px;
  display:flex;flex-direction:column;gap:8px;
  padding:10px 0 12px;
  border-bottom:1px solid rgba(185,240,217,.45);
@@ -113,7 +113,7 @@ body.gnss-caliper-3d-ready #jCaliperHardware{visibility:hidden}
 #lab01Journey .j-caliper-input input::placeholder{color:#96b4be;font-size:15px}
 #lab01Journey .j-caliper-input span{font:700 12px ui-monospace,monospace;color:#b7dada}
 @media(max-width:780px){
- #lab01Journey .j-caliper-entry{right:12px;bottom:90px;width:200px;padding:8px 0}
+ #lab01Journey .j-caliper-entry{left:12px;top:238px;right:auto;bottom:auto;width:185px;padding:8px 0}
  #lab01Journey .j-caliper-input input{font-size:16px;padding:7px}
  #lab01Journey .j-caliper-entry label{font-size:11px}
 }
