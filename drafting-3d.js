@@ -26,6 +26,7 @@ const hint=document.createElement('div');hint.className='gnss-draft-feedback';bo
 let mode='demo',tool='line',step=0,complete=false,first=null,cursor=null,motion=null;
 let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null,eraser=null,eraserMotion=null;
 let ctx=null,ratio=1,w=0,h=0;
+let shapePlayback=null;
 const COMPASS_INITIAL=20;
 // Orthographic calibration: 1 mm = 3 SVG units, exactly 150 mm on one ruler.
 const RULER_SPAN=450,RULER_LEFT=-11,RULER_RIGHT=485;
@@ -84,7 +85,7 @@ const kind=()=>tool==='compass'?'circle':'line';
 window.GNSSDrafting3D={
  get intercepts(){return interactive()},
  get demoRunning(){return !!motion?.demo},
- get animating(){return !!motion||!!eraserMotion},
+ get animating(){return !!motion||!!eraserMotion||!!shapePlayback},
  get erasing(){return !!eraserMotion},
  cancel(){cancel()},
 };
@@ -192,6 +193,8 @@ function valid(shape){
 }
 function clear(){first=null;cursor=null;preview.replaceChildren()}
 function cancel(){
+ shapePlayback=null;
+ document.body.classList.remove('gnss-shape-drawing');
  if(eraserMotion)cancelErase();
  const previous=motion;motion=null;cancelAnimationFrame(animationHandle);
  if(previous)finishScene();
@@ -238,12 +241,12 @@ svg.addEventListener('pointermove',pointerMove,true);
 svg.addEventListener('pointerleave',()=>{if(!motion&&first){cursor=null;display(geometry())}},true);
 document.addEventListener('gnss:draft-state',sync);
 document.addEventListener('click',e=>{
- if(e.target.closest('#engFloatUndo')&&(first||motion||eraserMotion)){
+ if(e.target.closest('#engFloatUndo')&&(first||motion||eraserMotion||shapePlayback)){
   e.preventDefault();e.stopImmediatePropagation();cancel();
  }
 },true);
 document.addEventListener('keydown',e=>{
- if((e.key==='Escape'||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'))&&(first||motion||eraserMotion)){
+ if((e.key==='Escape'||((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'))&&(first||motion||eraserMotion||shapePlayback)){
   e.preventDefault();e.stopImmediatePropagation();e.stopPropagation();cancel();
  }
 },true);
@@ -664,15 +667,15 @@ function finishScene(){
 /* Timed measured passes: the ruler is always exactly 150 mm long.
  * An arbitrary long A-B segment is drawn with consecutive ruler placements.
  */
-function linePlan(shape,reduced=false){
+function linePlan(shape,reduced=false,compact=false){
  const L=Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
  const parts=[];
  const count=Math.max(1,Math.ceil(L/RULER_SPAN));
  for(let i=0;i<count;i++){
   const from=i*RULER_SPAN,to=Math.min(L,(i+1)*RULER_SPAN);
-  parts.push({from,to,ms:reduced?90:Math.max(430,Math.round(1060*(to-from)/RULER_SPAN))});
+  parts.push({from,to,ms:reduced?90:compact?Math.max(290,Math.round(760*(to-from)/RULER_SPAN)):Math.max(430,Math.round(1060*(to-from)/RULER_SPAN))});
  }
- const intro=reduced?45:590,lead=reduced?30:270,shift=reduced?35:410,outro=reduced?40:360;
+ const intro=reduced?45:compact?270:590,lead=reduced?30:compact?150:270,shift=reduced?35:compact?220:410,outro=reduced?40:compact?170:360;
  const duration=intro+lead+parts.reduce((sum,p)=>sum+p.ms,0)+shift*(parts.length-1)+outro;
  return {L,parts,intro,lead,shift,outro,duration};
 }
@@ -1063,16 +1066,85 @@ document.addEventListener('gnss:erase-start',e=>{
  const detail=e.detail||{};
  detail.accepted=beginErase(detail);
 });
-function play(shape,demo=false){
+// Compound figures use the existing physical ruler-and-pencil line animation,
+ // but are committed to the drawing engine once, as a single editable record.
+function shapeEdgesForPlayback(shape){
+ const {x,y,w,h}=shape;
+ if(![x,y,w,h].every(Number.isFinite)||w<6||h<6)return [];
+ const vertices=shape.type==='rect'?
+  [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]:
+  shape.type==='triangle'?
+  [{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}]:[];
+ return vertices.map((a,i)=>{
+  const b=vertices[(i+1)%vertices.length];
+  return {type:'line',x1:a.x,y1:a.y,x2:b.x,y2:b.y};
+ });
+}
+function addShapeInkOverlay(job){
+ if(!job||shapePlayback!==job)return;
+ const {shape,done}=job;
+ const vertices=shape.type==='rect'
+  ?[[shape.x,shape.y],[shape.x+shape.w,shape.y],
+    [shape.x+shape.w,shape.y+shape.h],[shape.x,shape.y+shape.h]]
+  :[[shape.x+shape.w/2,shape.y],[shape.x+shape.w,shape.y+shape.h],
+    [shape.x,shape.y+shape.h]];
+ const outline='M'+vertices.map(v=>v.join(' ')).join(' L')+' Z';
+ const guide=node('path',{d:outline,class:'gnss-guide'});
+ guide.setAttribute('opacity','.28');
+ preview.insertBefore(guide,preview.firstChild);
+ for(const edge of done){
+  preview.append(node('line',{
+   x1:edge.x1,y1:edge.y1,x2:edge.x2,y2:edge.y2,
+   class:'gnss-drawn'
+  }));
+ }
+}
+function runShapePlayback(shape){
+ if(shapePlayback||motion||eraserMotion||mode!=='explore'||complete)return false;
+ if(!['rect','triangle'].includes(shape.type))return false;
+ const edges=shapeEdgesForPlayback(shape);
+ if(edges.length<3)return false;
+ const job={shape:{...shape},edges,done:[],index:0};
+ shapePlayback=job;
+ document.body.classList.add('gnss-shape-drawing');
+ function nextEdge(){
+  if(shapePlayback!==job)return;
+  if(job.index>=job.edges.length){
+   shapePlayback=null;
+   document.body.classList.remove('gnss-shape-drawing');
+   document.dispatchEvent(new CustomEvent('gnss:shape-draw-commit',
+    {detail:{shape:job.shape}}));
+   return;
+  }
+  const edge=job.edges[job.index];
+  play(edge,false,{
+   compact:true,
+   onFrame:()=>addShapeInkOverlay(job),
+   onComplete:()=>{
+    if(shapePlayback!==job)return;
+    job.done.push(edge);job.index++;
+    nextEdge();
+   }
+  });
+ }
+ nextEdge();
+ return true;
+}
+document.addEventListener('gnss:shape-draw-start',e=>{
+ const d=e.detail||{};
+ d.accepted=runShapePlayback(d.shape);
+});
+function play(shape,demo=false,options=null){
  if(motion)cancel();
  const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
- const plan=shape.type==='line'?linePlan(shape,reduced):null;
+ const plan=shape.type==='line'?linePlan(shape,reduced,!!options?.compact):null;
  const duration=plan?plan.duration:reduced?400:4200;
  const playback={shape,demo,started:performance.now(),duration,plan,paused:false,pausedAt:0,progress:0};
  motion=playback;
  if(demo)document.dispatchEvent(new CustomEvent('gnss:ruler-demo-begin'));
  document.body.classList.add('gnss-draft-animating');
  showStage();display(shape,0);
+ if(options?.onFrame)options.onFrame();
  function animate(now){
   if(motion!==playback)return;
   if(playback.paused){animationHandle=requestAnimationFrame(animate);return}
@@ -1082,13 +1154,15 @@ function play(shape,demo=false){
   const fraction=pose?pose.draw:cp?cp.draw:0;
   playback.progress=fraction;
   display(shape,(pose?.phase==='enter'||pose?.phase==='approach'||(cp&&t<.47))?null:fraction);
+  if(options?.onFrame)options.onFrame();
   paint3D(shape,t,fraction,pose);
   if(t>=1){
    motion=null;
    finishScene();
    document.body.classList.remove('gnss-draft-animating');
    preview.replaceChildren();
-   if(demo)document.dispatchEvent(new CustomEvent('gnss:ruler-demo-finished'));
+   if(options?.onComplete)options.onComplete();
+   else if(demo)document.dispatchEvent(new CustomEvent('gnss:ruler-demo-finished'));
    else document.dispatchEvent(new CustomEvent('gnss:draw-commit',{detail:{shape}}));
    return;
   }
