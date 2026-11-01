@@ -18,6 +18,12 @@ try{const a=JSON.parse(localStorage.getItem('gnss-lab-journey-01')||'{}');
  if(Number.isInteger(a.stage))state.stage=clamp(a.stage,0,6);
  if(Array.isArray(a.done)&&a.done.length===7)state.done=a.done.map(Boolean);
 }catch{}
+try{
+ if(!localStorage.getItem('gnss-caliper-mechanical-v2')){
+  state.done[6]=false;
+  localStorage.setItem('gnss-caliper-mechanical-v2','1');
+ }
+}catch{}
 let stage=state.stage,mode=document.body.dataset.expMode||'demo',open=false,drag=null,drawer=false,begin=performance.now(),lastFrame=0;
 let length=75,angle=35,radius=63,width=315,height=165,unit='mm',used=new Set(),object='block',gap=156,measured=new Set(),timer;
 const root=document.createElement('section');root.id='lab01Journey';
@@ -101,20 +107,20 @@ function vernierMagnifier(){
  const base=Math.max(0,Math.floor(gap)-2);
  const main=Array.from({length:17},(_,i)=>{
   const x=899+i*13,mm=base+i;
-  return L(x,560,x,mm%5===0?578:570,'j-cal-tick')+
-    (i%2===0?T(x,594,String(mm),'j-cal-number'):'');
+  return L(x,460,x,mm%5===0?478:470,'j-cal-tick')+
+    (i%2===0?T(x,494,String(mm),'j-cal-number'):'');
  }).join('');
  const offset=(gap-base)*13;
  const secondary=Array.from({length:11},(_,i)=>{
   const x=899+offset+i*11.7;
-  return L(x,614,x,i%5===0?632:624,'j-cal-vernier-tick')+
-   (i%5===0?T(x,645,String(i),'j-cal-vernier-num'):'');
+  return L(x,514,x,i%5===0?532:524,'j-cal-vernier-tick')+
+   (i%5===0?T(x,545,String(i),'j-cal-vernier-num'):'');
  }).join('');
  return '<g id="jCaliperLens" aria-label="Збільшена основна шкала і ноніус">'+
-  '<rect x="877" y="524" width="309" height="126" rx="5" fill="#092a3e" fill-opacity=".93" stroke="#8dabb7" stroke-opacity=".66"/>'+
-  T(1026,543,'ОСНОВНА ШКАЛА / НОНІУС ×4','j-cal-heading')+
-  '<path d="M889 551H1176" stroke="#c9d6d7" stroke-width="1"/>'+
-  main+'<path d="M889 609H1176" stroke="#9daeb6" stroke-width="1"/>'+
+  '<rect x="877" y="424" width="309" height="126" rx="5" fill="#092a3e" fill-opacity=".93" stroke="#8dabb7" stroke-opacity=".66"/>'+
+  T(1026,443,'ОСНОВНА ШКАЛА / НОНІУС ×4','j-cal-heading')+
+  '<path d="M889 451H1176" stroke="#c9d6d7" stroke-width="1"/>'+
+  main+'<path d="M889 509H1176" stroke="#9daeb6" stroke-width="1"/>'+
   secondary+'</g>';
 }
 function caliperScene(){
@@ -181,7 +187,10 @@ function scene(){
 }
 function render(){
  if(!open)return;
- sketch.innerHTML=scene();$('#jMetrics').innerHTML=metrics();
+ const focused=stage===6&&document.activeElement?.dataset?.grab==='jaw';
+ sketch.innerHTML=scene();
+ if(focused)sketch.querySelector('[data-grab="jaw"]')?.focus?.({preventScroll:true});
+ $('#jMetrics').innerHTML=metrics();
  units.hidden=stage!==1;
  $('#jCaliperEntry').hidden=stage!==6||mode==='demo';
  if(stage===6)document.dispatchEvent(new CustomEvent('gnss:caliper-pose',{detail:{active:true,...caliperFrame(),gap,contact:gap<=caliperTarget()+.04}}));
@@ -285,7 +294,11 @@ units.addEventListener('click',e=>{
  if(mode==='quest'&&used.size===3)say('✓ Три одиниці використано');
 });
 toggle.addEventListener('click',()=>{drawer=!drawer;nav.hidden=!drawer;toggle.setAttribute('aria-expanded',String(drawer))});
-replay.addEventListener('click',()=>{begin=performance.now();reset();refresh()});
+replay.addEventListener('click',()=>{
+ begin=performance.now();reset();
+ if(stage===6){state.done[6]=false;save()}
+ refresh();
+});
 next.addEventListener('click',()=>selected((stage+1)%7));
 check.addEventListener('click',verify);
 function selected(i){
