@@ -20,7 +20,7 @@ const specs=[
  {name:'Одиниці',title:'Зміни одиниці',prompt:'Натисни «см», потім «м». Подивись, як змінюється шкала.'},
  {name:'Масштаб',title:'Зміни масштаб',prompt:'Від метра до кілометра.'},
  {name:'Префікси',title:'Кіло · Мега · Гіга',prompt:'Згрупуй величини по тисячі.'},
- {name:'Закріплення',title:'Перевір себе',prompt:'Три короткі задачі.'},
+ {name:'Закріплення',title:'Обертай і вимірюй',prompt:'Поверни брусок і виміряй довжину, ширину та товщину.'},
  {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
 const tasks=[
@@ -28,6 +28,12 @@ const tasks=[
  {name:'Одиниці',prompt:'Перетвори мм у см.'},
  {name:'Відстань',prompt:'Перетвори км у м.'},
  {name:'Масштаби',prompt:'Перетвори мега в кіло.'}
+];
+// One wooden specimen (millimetres); the caliper measures each horizontal face.
+const DIMENSIONS=[
+ {id:'length',name:'Довжина',mm:42,face:'верхня грань'},
+ {id:'width',name:'Ширина',mm:28,face:'поворот на 90°'},
+ {id:'thickness',name:'Товщина',mm:18,face:'бічна грань'}
 ];
 const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0};
 const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
@@ -44,7 +50,7 @@ try{
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
  answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
- practiceIndex=0,practiced=new Set(),assessmentTarget=42,assessmentSeed=0,
+ practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,suppressTurnClick=false,assessmentTarget=42,assessmentSeed=0,
  caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
 const root=document.createElement('section');
 root.id='gnssMissionV1';
@@ -66,11 +72,11 @@ const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{
 function resetStep(){
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
- dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
+ dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();dimensionIndex=0;dimensionReadings={};turnPointer=null;suppressTurnClick=false;
  if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
   assessmentTarget=[42,47,63,38,69][assessmentSeed];gap=assessmentTarget+24;}
  if(mode==='demo'&&memory.scene===2)gap=70;
- if(mode==='demo'&&memory.scene===6)gap=66;
+ if(mode==='demo'&&memory.scene===6)gap=DIMENSIONS[0].mm+24;
  if(mode==='demo'&&memory.scene===1)gap=12;
  caliperChosen=mode==='quest'&&memory.assessment===0||mode==='demo'&&(
   memory.scene===1||memory.scene===2||memory.scene===6);
@@ -79,7 +85,7 @@ function resetStep(){
 function target(){
  if(mode==='quest')return assessmentTarget;
  if(memory.scene===2)return part==='a'?50:54;
- if(memory.scene===6)return 42;
+ if(memory.scene===6)return DIMENSIONS[dimensionIndex].mm;
  return 50;
 }
 function canMeasure(){return caliperChosen&&moved&&settledContact&&Math.abs(gap-target())<.001}
@@ -92,7 +98,7 @@ function sceneComplete(){
   case 3:return seenUnits.size===3;
   case 4:return seenScale.size>=4&&answers.km===1;
   case 5:return seenPrefix.size>=3&&prefixIndex>=2;
-  case 6:return practiceIndex>=3;
+  case 6:return DIMENSIONS.every(d=>dimensionReadings[d.id]===d.mm);
   case 7:return true;
  }
  return false;
@@ -150,6 +156,38 @@ function blockSvg(x,y,w,title,selected=false,dim=true){
   (selected?'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+height+'" rx="6" fill="none" stroke="#b6fb91" stroke-width="2.5"/>':'')+
   (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
 }
+
+/* A 2.5D orthographic turn of the SAME 42×28×18 mm block.
+ * The dimension exposed between the jaws is always target()*MM.
+ * Length: top face; width: 90° around vertical axis of screen;
+ * thickness: tip onto the 42×18 mm side face.
+ */
+function orientableBlockSvg(){
+ const dim=DIMENSIONS[dimensionIndex],w=dim.mm*MM;
+ const h=(dimensionIndex===0?28:42)*MM,y=dimensionIndex===0?268:246;
+ const base='<rect x="0" y="0" width="'+w+'" height="'+h+'" rx="5" fill="url(#m01Ceramic)"/>';
+ let face='';
+ if(dimensionIndex===1){
+  // Rotate the original wood grain instead of stretching it through 90 degrees.
+  face='<g transform="translate('+w+' 0) rotate(90)">'+woodSurface(0,0,h,w)+'</g>';
+ }else{
+  face=woodSurface(0,0,w,h);
+ }
+ const highlight=dimensionIndex===2
+  ?'<path d="M3 7v'+(h-14)+'" stroke="#fff4d8" stroke-width="4" stroke-opacity=".25"/>'+
+   '<path d="M'+(w-5)+' 9v'+(h-18)+'" stroke="#6d4f31" stroke-width="4" stroke-opacity=".42"/>'
+  :'<path d="M7 4h'+(w-14)+'" stroke="#ffedd3" stroke-width="2" stroke-opacity=".35"/>';
+ return '<g class="m01-workpiece m01-wood-workpiece m01-rotatable-block" data-wood="true"'+
+  ' data-orientation="'+dim.id+'" aria-label="Дерев’яний брусок, '+dim.name.toLowerCase()+'">'+
+  '<rect x="'+(X0+8)+'" y="'+(y+10)+'" width="'+w+'" height="'+h+'" rx="5" fill="#001b2b" opacity=".32"/>'+
+  '<g class="m01-rotating-face" transform="translate('+X0+' '+y+')">'+
+   base+face+highlight+'</g>'+
+  '<rect class="m01-rotate-hit" x="'+(X0+9)+'" y="'+(y+5)+'" width="'+Math.max(w-20,29)+'" height="'+(h-10)+'"'+
+  ' rx="8" fill="transparent" role="button" tabindex="0" data-rotate-block="true"'+
+  ' aria-label="Повернути дерев’яний брусок, наступна грань" />'+
+  '</g>';
+}
+
 function overviewScene(){
  let s=schematic();
  s+='<g class="m01-choice'+(choice==='a'?' m01-chosen':'')+'" data-guess="a" role="button" tabindex="0" aria-label="Обрати деталь A" aria-pressed="'+(choice==='a')+'">'+
@@ -162,9 +200,9 @@ function caliperScene(calTarget,calGap,showBlock=true){
  let s=schematic();
  const jawX=X0+calGap*MM,contact=Math.abs(calGap-calTarget)<.001;
  const travelStart=calGap,limit=showBlock?calTarget:0;
- const label=mode==='quest'?'Невідома деталь':memory.scene===6?'Нова деталь':part==='a'?'Деталь A':'Деталь B';
+ const label=mode==='quest'?'Невідома деталь':memory.scene===6?DIMENSIONS[dimensionIndex].name:part==='a'?'Деталь A':'Деталь B';
  if(showBlock){
-  s+=blockSvg(X0,265,calTarget*MM,'',false,false);
+  s+=mode==='demo'&&memory.scene===6?orientableBlockSvg():blockSvg(X0,265,calTarget*MM,'',false,false);
   s+='<text x="'+(X0+calTarget*MM/2)+'" y="242" fill="#e3efdf" text-anchor="middle" font-size="17">'+label+'</text>';
  }
  s+='<g class="m01-caliper" aria-label="Механічний штангенциркуль">'+
@@ -340,9 +378,7 @@ function mainScene(){
  if(scene===3)return unitRulerScene();
  if(scene===4)return scaleScene();
  if(scene===5)return prefixScene();
- if(scene===6&&practiceIndex===0)return caliperScene(42,gap);
- if(scene===6&&practiceIndex===1)return conversionScene();
- if(scene===6&&practiceIndex===2)return prefixScene();
+ if(scene===6)return caliperScene(target(),gap);
  return summaryScene();
 }
 function controlView(){
