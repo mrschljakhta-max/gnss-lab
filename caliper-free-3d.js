@@ -15,8 +15,11 @@ host.append(canvas);board.append(host);
 let T,renderer,scene,camera,instrument,slider,thumb,ready=false;
 let pose={active:false},lastX=NaN,W=0,H=0,raf=0;
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-function mat(color,metal=.66,rough=.28){
- return new T.MeshStandardMaterial({color,metalness:metal,roughness:rough});
+// With no HDR environment map, high-metalness steel reflects a nearly black
+// scene. Use a bright satin-metal finish with visible diffuse lighting.
+function mat(color,metal=.18,rough=.59){
+ return new T.MeshStandardMaterial({color,metalness:metal,roughness:rough,
+  side:T.DoubleSide});
 }
 function box(parent,w,h,d,x,y,z,m){
  const mesh=new T.Mesh(new T.BoxGeometry(w,h,d),m);
@@ -84,33 +87,36 @@ function ring(parent,x,y,r,z,color,thickness=1.2){
  g.position.set(x,y,z);parent.add(g);return g;
 }
 function screw(parent,x,y,z){
- const disk=disc(parent,x,y,z,5.2,2,mat(0x697985,.72,.26));
- disc(parent,x,y,z+1.4,3.5,1,mat(0xc3d3dc,.78,.22));
+ const disk=disc(parent,x,y,z,5.2,2,mat(0x8496a2,.25,.48));
+ disc(parent,x,y,z+1.4,3.5,1,mat(0xe3edf0,.22,.43));
  ring(parent,x,y,4.2,z+2.2,0x233b48,.65);
  straight(parent,x-2.2,y-2.2,x+2.2,y+2.2,z+2.55,0x223c4b,1);
  straight(parent,x-2.2,y+2.2,x+2.2,y-2.2,z+2.55,0x223c4b,1);
  return disk;
 }
 function brushedSteel(){
- const sheet=document.createElement('canvas');sheet.width=512;sheet.height=96;
+ // Large, low-frequency satin gradient. Previous microscopic horizontal
+ // stripes aliased into a dark moiré pattern at the default zoom level.
+ const sheet=document.createElement('canvas');sheet.width=512;sheet.height=128;
  const ctx=sheet.getContext('2d');
- if(!ctx)return mat(0xb9c7cd,.75,.29);
- const g=ctx.createLinearGradient(0,0,0,96);
- g.addColorStop(0,'#e7eef0');g.addColorStop(.18,'#cbd5d9');
- g.addColorStop(.55,'#a9b8c2');g.addColorStop(.82,'#b8c3ca');
- g.addColorStop(1,'#8796a1');
- ctx.fillStyle=g;ctx.fillRect(0,0,512,96);
- for(let i=0;i<340;i++){
-  const y=(i*29)%96;
-  const opacity=.012+(i%7)*.003;
-  ctx.fillStyle='rgba(42,61,75,'+opacity+')';
-  ctx.fillRect((i*37)%512,y,170+(i%8)*25,(i%4===0?1:.42));
+ if(!ctx)return mat(0xd7e1e6,.19,.59);
+ const gradient=ctx.createLinearGradient(0,0,0,128);
+ gradient.addColorStop(0,'#f5f9fa');
+ gradient.addColorStop(.15,'#e7eff2');
+ gradient.addColorStop(.44,'#d5e0e5');
+ gradient.addColorStop(.72,'#bfced6');
+ gradient.addColorStop(.9,'#dce6e9');
+ gradient.addColorStop(1,'#adbfc9');
+ ctx.fillStyle=gradient;ctx.fillRect(0,0,512,128);
+ for(const y of [19,58,104]){
+  ctx.fillStyle='rgba(80,111,130,.055)';
+  ctx.fillRect(0,y,512,1);
  }
  const texture=new T.CanvasTexture(sheet);
  texture.colorSpace=T.SRGBColorSpace;
  texture.anisotropy=Math.min(renderer?.capabilities?.getMaxAnisotropy?.()||4,8);
- return new T.MeshStandardMaterial({map:texture,color:0xf3f8fa,
-  metalness:.76,roughness:.31,side:T.DoubleSide});
+ return new T.MeshStandardMaterial({map:texture,color:0xffffff,
+  metalness:.18,roughness:.62,side:T.DoubleSide});
 }
 function engraving(parent,y,z){
  // Real metric geometry: fixed main scale is never moved with the carriage.
@@ -124,25 +130,24 @@ function engraving(parent,y,z){
 }
 function geometry(){
  instrument=new T.Group();scene.add(instrument);
- const frame=mat(0x43545e,.68,.31),steel=brushedSteel();
- const bright=mat(0xeaf2f5,.69,.22),cut=mat(0x9caeb9,.65,.27);
- const dark=mat(0x34444e,.48,.49),graphite=mat(0x273943,.4,.52);
- const silver=mat(0xbfcbd1,.73,.29),glow=new T.MeshBasicMaterial({color:0xa6f26c});
+ // Broad pale surfaces with narrow graphite detailing, similar to an
+ // actual cleaned stainless-steel vernier under diffuse workshop lights.
+ const frame=mat(0xa5b6c0,.22,.55),steel=brushedSteel();
+ const bright=mat(0xf3f8f8,.13,.44),cut=mat(0xb8c8d0,.16,.62);
+ const dark=mat(0x8b9eaa,.18,.65),graphite=mat(0xc6d3da,.16,.62);
+ const silver=mat(0xd4e0e6,.18,.52),glow=new T.MeshBasicMaterial({color:0xa6f26c});
  // 1. Full-length rail: extruded machined block with a separate brushed face.
  contour(instrument,[[-45,-2],[533,-2],[539,3],[539,60],[531,66],[-44,66]],0,8,frame,1.2);
  contour(instrument,[[-37,3],[529,3],[531,57],[-39,57]],8,3,steel,.4);
  box(instrument,569,3,1,245,-2,11,bright);
- box(instrument,569,2,1,245,62,11,dark);
+ box(instrument,569,2,1,245,62,11,cut);
  straight(instrument,-38,8,531,8,12.4,0xeef7f7,1.3);
- straight(instrument,-38,57,531,57,12.4,0x506470,1);
+ straight(instrument,-38,57,531,57,12.4,0x728a98,1);
  engraving(instrument,11,13.3);
  // Laser-engraved mm unit, visible without an electronic readout.
  label(instrument,'mm',518,44,11,13.4);
- // Fine brushed machining bands on the rail.
- for(let i=0;i<13;i++){
-  const y=8+i*3.8;
-  straight(instrument,-36,y,530,y,12.02,i%3===0?0xd0e3e6:0x94a5ae,.23);
- }
+ // One fine machined highlight; avoid closely spaced moiré stripes.
+ straight(instrument,-35,45,530,45,12.15,0xe5f0f2,.65);
  // Accent line, mimicking engraved paint in the approved reference.
  straight(instrument,0,61,490,61,14,0xa6f76a,2.2);
  // 2. Fixed upper measuring jaw. Inner measuring face is at X = 0.
@@ -150,9 +155,11 @@ function geometry(){
   [-44,61],[-44,3],[-27,-8],[-27,-108],[-3,-108],[-3,-58],
   [0,-40],[28,-40],[28,-11],[0,-11],[0,64]
  ],13,9,graphite,.75);
- contour(instrument,[[-23,-108],[-4,-108],[-4,-91],[-23,-91]],22,2,bright,.35);
+ // Brighter jaw faces visually separate each measuring blade from the board.
+ contour(instrument,[[-23,-103],[-7,-103],[-7,-47],[-23,-47]],22.2,2.1,silver,.35);
+ contour(instrument,[[-23,-108],[-4,-108],[-4,-91],[-23,-91]],23.1,2,bright,.35);
  contour(instrument,[[-37,-10],[-26,-10],[-26,-42],[-37,-42]],20,3,silver,.4);
- straight(instrument,-26,-99,-26,-13,25,0xb2c2ca,1.2);
+ straight(instrument,-26,-99,-26,-13,25,0x657d8b,1.6);
  straight(instrument,-3,-91,-3,-58,25,0xf2f8f7,1.3);
  // Left fixed foot, screw heads, reference zero ring.
  contour(instrument,[[-45,-3],[-13,-3],[-13,68],[-45,68]],14,5,dark,.7);
@@ -164,7 +171,8 @@ function geometry(){
  slider=new T.Group();instrument.add(slider);
  // Main carriage is a dark bridge over the upper rail.
  contour(slider,[[-36,-10],[-23,-25],[86,-25],[97,-11],[97,3],[-34,3]],15,7,dark,.9);
- contour(slider,[[-29,-19],[80,-19],[89,-8],[-35,-8]],22,1,graphite,.4);
+ contour(slider,[[-29,-19],[80,-19],[89,-8],[-35,-8]],22,1,bright,.4);
+ straight(slider,-27,-19,80,-19,24.1,0x7895a2,1.2);
  straight(slider,45,-15,92,-15,24.3,0xb1f56c,3);
  straight(slider,-30,-3,95,-3,23.5,0xadbfc4,1);
  screw(slider,-19,-12,24);screw(slider,87,-12,24);
@@ -173,14 +181,15 @@ function geometry(){
   [40,62],[40,4],[25,-9],[25,-108],[3,-108],[3,-58],
   [0,-40],[-28,-40],[-28,-11],[0,-11],[0,65]
  ],13,11,graphite,.65);
- contour(slider,[[4,-108],[23,-108],[23,-91],[4,-91]],23,2,bright,.35);
+ contour(slider,[[7,-103],[22,-103],[22,-48],[7,-48]],24,2.1,silver,.3);
+ contour(slider,[[4,-108],[23,-108],[23,-91],[4,-91]],25.1,2,bright,.35);
  contour(slider,[[26,-42],[38,-42],[38,-10],[26,-10]],21,3,silver,.35);
- straight(slider,3,-91,3,-58,26,0xf0f8f9,1.2);
+ straight(slider,3,-91,3,-58,28,0x637e8c,1.4);
  ring(slider,0,2.5,8,27,0xa9f66b,2.7);
  ring(slider,0,2.5,3.4,27.2,0x263d4a,1.4);
  // Nonius module hangs below the beam and moves as a single machined plate.
- contour(slider,[[-20,59],[109,59],[111,112],[93,119],[-17,119]],18,8,frame,.8);
- contour(slider,[[-17,65],[105,65],[105,108],[-17,108]],26,2,steel,.5);
+ contour(slider,[[-20,59],[109,59],[111,112],[93,119],[-17,119]],18,8,dark,.8);
+ contour(slider,[[-17,65],[105,65],[105,108],[-17,108]],26,2,bright,.5);
  straight(slider,-16,65,104,65,29,0xe7f3f4,1.2);
  // 0.1mm vernier: 10 graduations occupy 9 main-scale millimetres.
  const marks=[];
@@ -194,9 +203,9 @@ function geometry(){
  screw(slider,-8,103,29);screw(slider,98,103,29);
  // Knurled metal thumb wheel centered under the moving carriage.
  thumb=new T.Group();thumb.position.set(44,145,26);slider.add(thumb);
- disc(thumb,0,0,0,19,8,mat(0x3e525e,.74,.27));
+ disc(thumb,0,0,0,19,8,mat(0x8497a3,.24,.43));
  disc(thumb,0,0,4,16,4,silver);
- disc(thumb,0,0,7,13,3,mat(0x768b96,.78,.25));
+ disc(thumb,0,0,7,13,3,mat(0xb4c5cf,.20,.43));
  disc(thumb,0,0,10,8,2,bright);
  ring(thumb,0,0,13,13,0xa8f66b,1.5);
  disc(thumb,0,0,11,3,1,graphite);
@@ -205,7 +214,7 @@ function geometry(){
   const a=i*Math.PI*2/56,cs=Math.cos(a),sn=Math.sin(a);
   knurls.push([cs*17,sn*17,cs*19.6,sn*19.6,13]);
  }
- segments(thumb,knurls,0x213d50);
+ segments(thumb,knurls,0x647e8e);
  // High contrast reference index on vernier.
  straight(slider,0,55,0,101,30.6,0x93e968,1.3);
 }
@@ -277,13 +286,18 @@ async function init(){
   renderer=new T.WebGLRenderer({canvas,alpha:true,antialias:true,powerPreference:'low-power'});
   renderer.setClearColor(0x000000,0);
   renderer.outputColorSpace=T.SRGBColorSpace;
-  renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.62;
+  renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.3;
   scene=new T.Scene();
   camera=new T.OrthographicCamera(0,1,0,1,.1,1100);
   camera.position.set(0,0,650);camera.lookAt(0,0,0);
-  scene.add(new T.AmbientLight(0xe7f8ff,1.65));
-  const a=new T.DirectionalLight(0xffffff,2.5);a.position.set(-320,-230,540);scene.add(a);
-  const b=new T.DirectionalLight(0xd1edff,1.0);b.position.set(280,300,440);scene.add(b);
+  // Broad, neutral front lighting: keeps both jaws bright in top-down view.
+  scene.add(new T.AmbientLight(0xf8fcff,2.1));
+  const a=new T.DirectionalLight(0xffffff,2.2);
+  a.position.set(-220,-180,570);scene.add(a);
+  const b=new T.DirectionalLight(0xe3f1ff,1.25);
+  b.position.set(300,260,520);scene.add(b);
+  const front=new T.DirectionalLight(0xffffff,.8);
+  front.position.set(0,-40,700);scene.add(front);
   geometry();ready=true;
   document.body.classList.add('gnss-free-caliper-3d-ready');
   document.dispatchEvent(new CustomEvent('gnss:request-free-caliper-pose'));
