@@ -602,3 +602,9 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
  #gnssMissionV1 .m01-canvas .m01-geom-handle{animation:none!important}
 }
 
+#gnssMissionV1 .m01-footer button.m01-next-ready{
+ background:#b8f68c!important;color:#153626!important;
+ border-color:#b8f68c!important;font-weight:800!important;
+ box-shadow:0 0 0 3px #b8f68c24;
+}
+#gnssMissionV1 .m01-footer button.m01-next-ready:hover{background:#d2ffb4!important}
