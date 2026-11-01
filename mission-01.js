@@ -134,9 +134,9 @@ function blockSvg(x,y,w,title,selected=false,dim=true){
 function overviewScene(){
  let s=schematic();
  s+='<g class="m01-choice'+(choice==='a'?' m01-chosen':'')+'" data-guess="a" role="button" tabindex="0" aria-label="Обрати деталь A" aria-pressed="'+(choice==='a')+'">'+
-    blockSvg(350,242,50*MM,'A',choice==='a')+'</g>';
+    blockSvg(350,242,50*MM,'A',choice==='a')+'<rect class="m01-choice-hit" x="335" y="215" width="195" height="152" rx="9" fill="transparent" pointer-events="all"/></g>';
  s+='<g class="m01-choice'+(choice==='b'?' m01-chosen':'')+'" data-guess="b" role="button" tabindex="0" aria-label="Обрати деталь B" aria-pressed="'+(choice==='b')+'">'+
-    blockSvg(665,242,54*MM,'B',choice==='b')+'</g>';
+    blockSvg(665,242,54*MM,'B',choice==='b')+'<rect class="m01-choice-hit" x="650" y="215" width="208" height="152" rx="9" fill="transparent" pointer-events="all"/></g>';
  return s;
 }
 function caliperScene(calTarget,calGap,showBlock=true){
