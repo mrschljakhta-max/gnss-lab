@@ -348,7 +348,8 @@ function rulerShape(root){
 }
 // Animated eraser owns a single record; it is not deleted until the last frame.
 let eraserVisual=null;
-const measureShapeLength=shape=>shape.type==='triangle'?shape.w+2*Math.hypot(shape.w/2,shape.h):
+const measureShapeLength=shape=>shape.type==='triangle'?
+ triangleEdges(shape).reduce((n,e)=>n+Math.hypot(e.x2-e.x1,e.y2-e.y1),0):
  shape.type==='rect'?2*(shape.w+shape.h):
  shape.type==='circle'?Math.PI*2*shape.r:Math.hypot(shape.x2-shape.x1,shape.y2-shape.y1);
 function applyEraserVisual(shape,path,label,visual){
