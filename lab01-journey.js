@@ -311,9 +311,23 @@ $('#jCaliperAB').addEventListener('click',()=>{
  document.querySelector('#engTools button[data-tool="caliper"]')?.click();
 });
 restore.addEventListener('click',()=>{restore.hidden=true;activate()});
+// Any selection of the mechanical caliper in the normal tool shelf must
+// dismiss the educational overlay. It is a tool, never a route transition.
+document.addEventListener('gnss:draft-state',event=>{
+ const data=event.detail||{};
+ if(data.mode==='explore'&&data.tool==='caliper'&&open){
+  deactivate();restore.hidden=false;
+ }
+});
 new MutationObserver(()=>{
  const m=document.body.dataset.expMode||'demo';
- if(m!==mode){mode=m;begin=performance.now();reset();refresh()}
+ if(m!==mode){
+  mode=m;begin=performance.now();reset();
+  // Switching back to the sandbox returns to the actual blueprint with
+  // all saved shapes, rather than a remembered practice station.
+  if(m==='explore'&&open){deactivate();restore.hidden=false}
+  refresh();
+ }
  root.style.pointerEvents=document.body.classList.contains('engineering-live')?'':'none';
 }).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
 function tick(now){
@@ -342,5 +356,13 @@ window.GNSSLab01Journey={get active(){return open},get stage(){return stage},
  close:deactivate};
 $('#jLensZoom').addEventListener('click',()=>{lensZoom=lensZoom===1?1.5:1;$('#jLensZoom').textContent='Лупа ×'+lensZoom;render()});
  root.addEventListener('keydown',e=>{if(e.key==='Escape'){drag=null;if(stage===6){deactivate();restore.hidden=false}}});
- reset();activate();requestAnimationFrame(tick);
+ reset();
+// The last completed practice station is not the starting workspace.
+// Sandbox opens the free drafting paper, while the seven learning stations
+// remain available through the explicit "Практика 01" button.
+if(mode==='explore'){
+ restore.hidden=false;
+ root.hidden=true;
+}else activate();
+requestAnimationFrame(tick);
 })();
