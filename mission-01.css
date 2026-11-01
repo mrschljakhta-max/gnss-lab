@@ -395,3 +395,15 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-feedback{bottom:250px}
   transition:none!important;transform:none!important;
  }
 }
+
+
+/* Reserve the pre-existing bottom-right floating instrument controls.
+   They previously covered the mission CTA on the final screen. */
+#gnssMissionV1 .m01-footer{right:108px}
+@media(max-width:900px){
+ #gnssMissionV1 .m01-footer{right:90px}
+}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-footer{right:71px}
+ #gnssMissionV1 .m01-footer-right{justify-content:flex-end}
+}
