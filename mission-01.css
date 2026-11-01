@@ -692,7 +692,7 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
  background:#061c2bf0;
 }
 #gnssMissionV1 .m01-prefix-reference b{color:#c0f6a0;text-align:center}
-#gnssMissionV1 .m01-prefix-reference span:last-of-type{text-align:right}
+#gnssMissionV1 .m01-prefix-reference span:nth-child(3n){text-align:right}
 #gnssMissionV1 .m01-prefix-reference small{
  grid-column:1/-1;border-top:1px solid #34576a;padding-top:8px;
  color:#c0dfec;font-size:10px;
