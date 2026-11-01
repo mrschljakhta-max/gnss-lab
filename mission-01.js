@@ -19,7 +19,7 @@ const specs=[
  {name:'Вимірювання',title:'Виміряй обидві деталі',prompt:'Зведи губки до торців і зчитай показ.'},
  {name:'Одиниці',title:'Зміни одиниці',prompt:'Натисни «см», потім «м». Подивись, як змінюється шкала.'},
  {name:'Масштаб',title:'Зміни масштаб',prompt:'Від метра до кілометра.'},
- {name:'Префікси',title:'Кіло · Мега · Гіга',prompt:'Згрупуй величини по тисячі.'},
+ {name:'Префікси',title:'Від нано до гіга',prompt:'Натисни ×1 000, щоб побачити дедалі менші проміжки часу.'},
  {name:'Закріплення',title:'Обертай і вимірюй',prompt:'Поверни брусок і виміряй довжину, ширину та товщину.'},
  {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
@@ -27,7 +27,7 @@ const tasks=[
  {name:'Виміряй деталь',prompt:'Зведи губки й зчитай шкалу.'},
  {name:'Одиниці',prompt:'Перетвори мм у см.'},
  {name:'Відстань',prompt:'Перетвори км у м.'},
- {name:'Масштаби',prompt:'Перетвори мега в кіло.'}
+ {name:'Частота',prompt:'Перетвори мегагерци в кілогерци.'}
 ];
 // One wooden specimen (millimetres); the caliper measures each horizontal face.
 const DIMENSIONS=[
@@ -47,6 +47,41 @@ try{
    passed:!!p.passed};
  }
 }catch{}
+// Seven powers-of-a-thousand prefixes; all measurements share the same SI logic.
+const TIME_ZOOM=[
+ {label:'1 с',unit:'с',note:'1 с = 1 000 мс'},
+ {label:'1 мс',unit:'мс',note:'1 мс = 1 000 мкс'},
+ {label:'1 мкс',unit:'мкс',note:'1 мкс = 1 000 нс'},
+ {label:'1 нс',unit:'нс',note:'1 нс = 10⁻⁹ с'}
+];
+const SIGNAL_FREQ=[
+ {label:'1 Гц',span:'4 с',period:'1 с'},
+ {label:'1 кГц',span:'4 мс',period:'1 мс'},
+ {label:'1 МГц',span:'4 мкс',period:'1 мкс'},
+ {label:'1 ГГц',span:'4 нс',period:'1 нс'}
+];
+const PERIOD_PAIRS=SIGNAL_FREQ.slice(1);
+let prefixLabStage=0,prefixTimeIndex=0,prefixFreqIndex=0,prefixPairIndex=0,
+ prefixTimeSeen=new Set([0]),prefixFreqSeen=new Set([0]),prefixPairSeen=new Set(),prefixReferenceOpen=false;
+function restorePrefixLab(){
+ const p=memory.prefixLabProgress&&typeof memory.prefixLabProgress==='object'?memory.prefixLabProgress:{};
+ const idx=(v,max)=>Number.isInteger(v)?clamp(v,0,max):0;
+ const sanitized=(xs,max)=>new Set(Array.isArray(xs)?xs.filter(x=>Number.isInteger(x)&&x>=0&&x<=max):[]);
+ prefixLabStage=idx(p.step,2);
+ prefixTimeIndex=idx(p.timeIndex,3);prefixFreqIndex=idx(p.freqIndex,3);prefixPairIndex=idx(p.pairIndex,2);
+ prefixTimeSeen=sanitized(p.timeSeen,3);prefixTimeSeen.add(0);
+ prefixFreqSeen=sanitized(p.freqSeen,3);prefixFreqSeen.add(0);
+ prefixPairSeen=sanitized(p.pairSeen,2);
+ prefixTimeSeen.add(prefixTimeIndex);prefixFreqSeen.add(prefixFreqIndex);
+}
+function savePrefixLab(){
+ memory.prefixLabProgress={version:2,step:prefixLabStage,timeIndex:prefixTimeIndex,freqIndex:prefixFreqIndex,
+  pairIndex:prefixPairIndex,timeSeen:[...prefixTimeSeen],freqSeen:[...prefixFreqSeen],pairSeen:[...prefixPairSeen]};
+ persist();
+}
+const prefixSubstepComplete=()=>prefixLabStage===0?prefixTimeSeen.size===4:
+ prefixLabStage===1?prefixFreqSeen.size===4:prefixPairSeen.size===3;
+const prefixLabComplete=()=>prefixLabStage===2&&prefixPairSeen.size===3;
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
  answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
@@ -72,6 +107,8 @@ const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{
 function resetStep(){
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
+  prefixReferenceOpen=false;
+  if(mode==='demo'&&memory.scene===5)restorePrefixLab();
  dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
   dimensionReadings=mode==='demo'&&memory.scene===6?
    Object.fromEntries(DIMENSIONS.filter(d=>memory.dimensionProgress?.[d.id]===d.mm).map(d=>[d.id,d.mm])):{};
@@ -102,7 +139,7 @@ function sceneComplete(){
   case 2:return answers.a===50&&answers.b===54;
   case 3:return seenUnits.size===3;
   case 4:return seenScale.size>=4&&answers.km===1;
-  case 5:return seenPrefix.size>=3&&prefixIndex>=2;
+  case 5:return prefixLabComplete();
   case 6:return DIMENSIONS.every(d=>dimensionReadings[d.id]===d.mm);
   case 7:return true;
  }
@@ -344,19 +381,160 @@ function scaleScene(){
  s+='<text x="285" y="402" fill="#d2eef2" font-size="18">0</text><text x="916" y="402" text-anchor="end" fill="#d2eef2" font-size="18">'+labels[zoomIndex]+'</text>';
  return s;
 }
+
+function prefixLabPrompt(){
+ if(prefixLabComplete())return 'Готово! Ти пов’язав масштаб часу з частотою. Натисни «До вимірювань →».';
+ if(prefixLabStage===0)return prefixSubstepComplete()?'Ти дійшов до наносекунди. Відкрий генератор сигналу.':'Збільшуй часову шкалу в 1 000 разів. Дійди до наносекунди.';
+ if(prefixLabStage===1)return prefixSubstepComplete()?'Ти побачив чотири частоти. Тепер досліди їхні періоди.':'Підвищуй частоту. Осцилограф автоматично змінює часову розгортку.';
+ return 'Обери 1 кГц, 1 МГц і 1 ГГц та знайди тривалість одного коливання.';
+}
+function prefixLabControls(){
+ const stageNames=['ЗБІЛЬШЕННЯ ЧАСУ','ГЕНЕРАТОР СИГНАЛУ','ЧАСТОТА ↔ ПЕРІОД'];
+ const selected=prefixLabStage===0?prefixTimeIndex:prefixLabStage===1?prefixFreqIndex:prefixPairIndex;
+ const current=prefixLabStage===0?TIME_ZOOM[prefixTimeIndex].label:
+  prefixLabStage===1?SIGNAL_FREQ[prefixFreqIndex].label:PERIOD_PAIRS[prefixPairIndex].label;
+ const seen=prefixLabStage===0?prefixTimeSeen.size:prefixLabStage===1?prefixFreqSeen.size:prefixPairSeen.size;
+ const total=prefixLabStage===2?3:4;
+ let controlsHtml='';
+ if(prefixLabStage!==2){
+  const names=prefixLabStage===0?TIME_ZOOM:SIGNAL_FREQ;
+  controlsHtml='<div class="m01-prefix-current" aria-live="polite">'+current+'</div>'+
+   '<div class="m01-prefix-slider-wrap"><label for="m01PrefixRange" class="m01-prefix-sr">Рівень '+(prefixLabStage===0?'збільшення':'частоти')+'</label>'+
+   '<input id="m01PrefixRange" data-prefix-range="true" type="range" min="0" max="3" step="1" value="'+selected+'" aria-valuetext="'+current+'" /></div>'+
+   '<div class="m01-prefix-row">'+
+   '<button type="button" data-act="prefix-dec"'+(selected===0?' disabled':'')+' aria-label="Попередній масштаб">−</button>'+
+   '<button type="button" class="m01-prefix-grow" data-act="prefix-inc"'+(selected===3?' disabled':'')+'>'+
+    (prefixLabStage===0?'Збільшити ×1 000':'Частота ×1 000')+' →</button></div>'+
+   '<div class="m01-prefix-steps">'+names.map((d,i)=>
+    '<button type="button" data-act="prefix-set-'+i+'"'+(i===selected?' class="active"':'')+
+    ' aria-pressed="'+(i===selected)+'">'+d.label+'</button>').join('')+'</div>';
+ }else{
+  controlsHtml='<div class="m01-prefix-steps m01-prefix-pair-buttons">'+PERIOD_PAIRS.map((d,i)=>
+    '<button type="button" data-act="prefix-pair-'+i+'" class="'+(i===selected?'active ':'')+
+    (prefixPairSeen.has(i)?'seen':'')+'" aria-pressed="'+(i===selected)+'">'+
+    (prefixPairSeen.has(i)?'✓ ':'')+d.label+'</button>').join('')+'</div>'+
+   '<div class="m01-prefix-relationship">f ↑ · T ↓</div>';
+ }
+ const references=[
+  ['Гіга','G','10⁹'],['Мега','M','10⁶'],['Кіло','k','10³'],
+  ['Без префікса','—','10⁰'],['Мілі','m','10⁻³'],['Мікро','µ','10⁻⁶'],['Нано','n','10⁻⁹']
+ ];
+ return '<div class="m01-prefix-panel">'+
+  '<div class="m01-prefix-heading"><span>ЕКСПЕРИМЕНТ '+(prefixLabStage+1)+' / 3</span><span>'+seen+'/'+total+' ✓</span></div>'+
+  '<div class="m01-control-title">'+stageNames[prefixLabStage]+'</div>'+
+  controlsHtml+
+  (prefixSubstepComplete()&&prefixLabStage<2?
+   '<button type="button" class="m01-prefix-proceed" data-act="prefix-phase-next">'+
+   (prefixLabStage===0?'До генератора →':'До періоду →')+'</button>':'')+
+  (prefixLabComplete()?'<div class="m01-prefix-ok">✓ Відкрито всі три взаємозв’язки</div>':'')+
+  '<button type="button" class="m01-prefix-reference-toggle" data-act="prefix-reference" aria-expanded="'+prefixReferenceOpen+'">'+
+   (prefixReferenceOpen?'▾ Сховати префікси':'▸ Таблиця префіксів')+'</button>'+
+  (prefixReferenceOpen?'<div class="m01-prefix-reference" aria-label="Сім масштабів SI">'+
+   references.map(([name,symbol,power])=>'<span>'+name+'</span><b>'+symbol+'</b><span>'+power+'</span>').join('')+
+   '<small>m = мілі · M = мега · µ = мікро</small></div>':'')+
+  '</div>';
+}
+function prefixLabAction(act){
+ if(!visible||mode!=='demo'||memory.scene!==5)return;
+ if(act==='prefix-reference'){
+  prefixReferenceOpen=!prefixReferenceOpen;render();return;
+ }
+ if(act==='prefix-phase-next'){
+  if(prefixLabStage<2&&prefixSubstepComplete()){
+   prefixLabStage+=1;prefixReferenceOpen=false;savePrefixLab();
+   announce(prefixLabStage===1?'✓ Масштаби часу відкрито. Тепер керуй частотою.':'✓ Частоти відкрито. Досліди період.',true);
+   render();
+  }
+  return;
+ }
+ if(act==='prefix-dec'||act==='prefix-inc'){
+  const current=prefixLabStage===0?prefixTimeIndex:prefixFreqIndex;
+  if(prefixLabStage>1)return;
+  prefixSelect(clamp(current+(act==='prefix-inc'?1:-1),0,3));return;
+ }
+ if(act.startsWith('prefix-set-')&&prefixLabStage<2){
+  const i=Number(act.slice('prefix-set-'.length));
+  if(Number.isInteger(i)&&i>=0&&i<=3)prefixSelect(i);
+  return;
+ }
+ if(act.startsWith('prefix-pair-')&&prefixLabStage===2){
+  const i=Number(act.slice('prefix-pair-'.length));
+  if(!Number.isInteger(i)||i<0||i>2)return;
+  prefixPairIndex=i;prefixPairSeen.add(i);savePrefixLab();
+  if(prefixLabComplete()&&!memory.completed.includes(5)){
+   success('✓ Частота та час пов’язані: T = 1/f. Натисни «До вимірювань →».');
+  }
+  render();
+ }
+}
+function prefixSelect(i){
+ if(!Number.isInteger(i)||i<0||i>3||prefixLabStage>1)return;
+ if(prefixLabStage===0){prefixTimeIndex=i;prefixTimeSeen.add(i)}
+ else {prefixFreqIndex=i;prefixFreqSeen.add(i)}
+ savePrefixLab();render();
+}
+function prefixWavePath(x,y,w,h,cycles){
+ let d='';
+ for(let i=0;i<=160;i++){
+  const xx=x+w*i/160,yy=y-Math.sin(i/160*Math.PI*2*cycles)*h;
+  d+=(i===0?'M':'L')+xx.toFixed(2)+' '+yy.toFixed(2)+' ';
+ }
+ return d;
+}
+function prefixScopeBase(x=235,y=242,w=695,h=270){
+ let out='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="12" fill="#061e30" fill-opacity=".82" stroke="#729fae" stroke-width="2"/>';
+ for(let i=1;i<8;i++)out+='<line x1="'+(x+w*i/8)+'" y1="'+y+'" x2="'+(x+w*i/8)+'" y2="'+(y+h)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
+ for(let j=1;j<5;j++)out+='<line x1="'+x+'" y1="'+(y+h*j/5)+'" x2="'+(x+w)+'" y2="'+(y+h*j/5)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
+ return out;
+}
 function prefixScene(){
  let s=schematic();
- const blocks=prefixIndex===0?3:prefixIndex===1?6:9;
- const label=['КІЛО · 10³','МЕГА · 10⁶','ГІГА · 10⁹'][prefixIndex];
- s+='<text x="600" y="222" fill="#e6f5f8" font-size="32" font-weight="700" text-anchor="middle">'+label+'</text>';
- for(let i=0;i<blocks;i++){
-  const x=445+(i%3)*110,y=267+Math.floor(i/3)*79;
-  s+='<rect x="'+x+'" y="'+y+'" width="95" height="59" rx="5" fill="#6d93a5" fill-opacity=".45" stroke="#c4e8e8" stroke-width="1.5"/>'+
-   '<rect x="'+(x+9)+'" y="'+(y+10)+'" width="77" height="39" fill="#9fcf96" fill-opacity=".40"/>';
+ if(mode==='quest'){
+  s+=prefixScopeBase();
+  s+='<path d="'+prefixWavePath(252,382,652,64,4)+'" fill="none" stroke="#b6f78b" stroke-width="4"/>'+
+   '<text x="585" y="212" text-anchor="middle" font-size="28" fill="#e5f7f8">Мегагерци → кілогерци</text>';
+  return s;
  }
- s+='<text x="600" y="545" fill="#c7e2e9" font-size="15" text-anchor="middle">Один блок символізує групу одиниць, а не їхню кількість на екрані.</text>';
+ const stage=prefixLabStage;
+ if(stage===0){
+  const t=TIME_ZOOM[prefixTimeIndex],x=255,w=640;
+  s+='<text x="575" y="218" font-size="25" font-weight="750" text-anchor="middle" fill="#ebf9f6">Часове вікно: '+t.label+'</text>'+
+    prefixScopeBase(225,253,700,258);
+  s+='<line x1="'+x+'" y1="420" x2="'+(x+w)+'" y2="420" stroke="#b6f88c" stroke-width="4"/>';
+  for(let i=0;i<=10;i++){
+   const px=x+w*i/10;
+   s+='<line x1="'+px+'" y1="406" x2="'+px+'" y2="'+(i%5===0?445:436)+'" stroke="#dceff0" stroke-width="'+(i%5===0?3:1.5)+'"/>';
+  }
+  for(const [n,pos] of [[0,0],[0.25,0.25],[0.5,0.5],[0.75,0.75],[1,1]]){
+   s+='<text x="'+(x+w*pos)+'" y="473" font-size="16" fill="#e3f2f6" text-anchor="middle">'+
+   (n===0?'0':String(n).replace('.',','))+'</text>';
+  }
+  s+='<rect class="m01-prefix-focus" x="'+(x+w*.45)+'" y="285" width="'+(w*.10)+'" height="110" rx="6" fill="#b4f68b" fill-opacity=".10" stroke="#b4f68b" stroke-dasharray="7 6" stroke-width="2"/>';
+  s+='<text x="575" y="550" text-anchor="middle" font-size="18" fill="#c1e7e7">'+t.note+'</text>';
+ }else{
+  const freq=stage===1?SIGNAL_FREQ[prefixFreqIndex]:PERIOD_PAIRS[prefixPairIndex];
+  const cycles=stage===1?4:1;
+  const x=260,w=635,y=380;
+  s+='<text x="575" y="218" text-anchor="middle" font-size="28" font-weight="750" fill="#e9faf2">'+freq.label+'</text>';
+  s+=prefixScopeBase(225,253,700,258);
+  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+w)+'" y2="'+y+'" stroke="#a1cbd3" stroke-opacity=".42" stroke-width="2"/>';
+  s+='<path class="m01-prefix-wave" d="'+prefixWavePath(x,y,w,82,cycles)+'" fill="none" stroke="#baf990" stroke-width="3.7" stroke-linejoin="round"/>';
+  if(stage===1){
+   for(let i=0;i<=4;i++){
+    const xx=x+w*i/4;
+    s+='<line x1="'+xx+'" y1="270" x2="'+xx+'" y2="483" stroke="#bde4e8" stroke-opacity=".24" stroke-dasharray="6 7"/>';
+   }
+   s+='<text x="575" y="549" text-anchor="middle" fill="#d5ebf1" font-size="18">Розгортка: '+freq.span+' · 4 коливання</text>';
+  }else{
+   s+='<line x1="'+x+'" y1="481" x2="'+(x+w)+'" y2="481" stroke="#baf990" stroke-width="2.4"/>'+
+    '<path d="M'+x+' 470v22 m0-11l12-7m-12 7l12 7 M'+(x+w)+' 470v22m0-11l-12-7m12 7l-12 7" stroke="#baf990" stroke-width="2" fill="none"/>';
+   s+='<text x="575" y="547" text-anchor="middle" fill="#d4ffb5" font-size="25" font-weight="750">T = '+freq.period+'</text>'+
+    '<text x="575" y="581" text-anchor="middle" fill="#aaceda" font-size="16">T = 1 / f</text>';
+  }
+ }
  return s;
 }
+
 function summaryScene(){
  let s=schematic(),done=mode==='quest'?memory.passed||memory.assessment>=4:memory.completed.length===7;
  if(done){
@@ -438,14 +616,7 @@ function controlView(){
    (seenScale.size===4?promptInput('1 000 м = скільки км?','Введи значення','км')+
     '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
  }
- if(!quest&&step===5){
-  const labels=['Кіло ×1 000','Мега ×1 000 000','Гіга ×1 000 000 000'];
-  return '<div class="m01-control-title">Переглянь три десяткові масштаби</div><div class="m01-buttons">'+
-   labels.map((l,i)=>selectButton('prefix-'+i,l,prefixIndex===i)).join('')+'</div>'+
-   '<span class="m01-dots" aria-label="Переглянуті множники">'+seenPrefix.size+'/3 ✓</span>'+
-   (seenPrefix.size===3?promptInput(prefixIndex>-1&&unitsIndex===0?'3 М = скільки к?':'2 Г = скільки М?','Введи число',unitsIndex===0?'к':'М')+
-    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
- }
+ if(!quest&&step===5)return prefixLabControls();
  if(quest&&step===1){
   return '<div class="m01-control-title">Нова величина</div>'+promptInput('86 мм = скільки см?','Введи результат','см')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
  }
@@ -453,7 +624,7 @@ function controlView(){
   return '<div class="m01-control-title">Нова величина</div>'+promptInput('2,5 км = скільки метрів?','Введи результат','м')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
  }
  if(quest&&step===3){
-  return '<div class="m01-control-title">Нова величина</div>'+promptInput('3 М = скільки к?','Введи результат','к')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
+  return '<div class="m01-control-title">Нова величина</div>'+promptInput('3 МГц = скільки кГц?','Введи результат','кГц')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
  }
  return '';
 }
@@ -465,7 +636,7 @@ function guidance(){
   'Число треба зчитати зі шкали самостійно. Контакт губок підтверджує, що вимірювання можливе.',
   'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
   'Масштаб зображення і одиниця вимірювання — різні речі.',
-  'Переходи k → M → G щоразу означають множення на тисячу.',
+  'Керуй масштабом часу та частотою сигналу: кожен сусідній префікс відрізняється у 1 000 разів.',
   'Натисни на брусок або поверни його свайпом. Виміряй кожну грань штангенциркулем.',
   'Готово! Тепер закріпи навички в режимі «Тести».'
  ];
@@ -524,7 +695,7 @@ function render(){
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
  el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current===3&&sceneComplete()?'Готово. Натисни «Далі →».':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current===5?prefixLabPrompt():current===3&&sceneComplete()?'Готово. Натисни «Далі →».':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  renderScaleLoupe();
@@ -533,11 +704,11 @@ function render(){
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
  const replay=root.querySelector('[data-act="repeat"]');
- const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
+ const allowed=quest?current>=4:current===5?sceneComplete():sceneComplete()||memory.completed.includes(current);
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
- next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current===3&&allowed?'До масштабу →':'Далі →';
- next.classList.toggle('m01-unit-next-ready',mode==='demo'&&(current===3||current===6)&&allowed);
+ next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current===5&&allowed?'До вимірювань →':current===3&&allowed?'До масштабу →':'Далі →';
+ next.classList.toggle('m01-unit-next-ready',mode==='demo'&&(current===3||current===5||current===6)&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
@@ -551,7 +722,7 @@ function hintMessage(){
   ['Встанови вимірювальний інструмент.','Зсунь рухому губку до торця деталі.','Подивись на основну шкалу — потрібне число відповідає нулю рухомої каретки.'],
   ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
   ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
-  ['Переглянь k, M і G.','Кожен перехід між ними — множник 1 000.','3 М = 3 000 к; 2 Г = 2 000 М.'],
+  ['Натисни «×1 000» або перемісти повзунок праворуч.','Переглянь 1 с, 1 мс, 1 мкс, 1 нс. Потім зміни частоту генератора.','Частота — коливання за секунду, період — час одного коливання: T = 1/f.'],
   ['Виміряй довжину: потягни рухому губку до дерев’яного бруска.','Натисни «↻ Повернути брусок» або проведи пальцем по ньому.','Потрібно виміряти 3 грані: довжину, ширину і товщину.']
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
@@ -589,7 +760,7 @@ function check(){
   expected=target();
  }else if(memory.scene===3)expected=[5,12,0.05][unitsIndex];
  else if(memory.scene===4)expected=1;
- else if(memory.scene===5)expected=[3000,2000][Math.min(unitsIndex,1)];
+ // Prefix lab is instrument-led; the separate assessment keeps the conversion test.
  else if(memory.scene===6){
   if(!canMeasure()){announce('Підведи губки до контакту з обраною гранню.');return}
   expected=target();
@@ -613,7 +784,7 @@ function check(){
  }
  // Scene 3 is an instrument-led experiment; its assessment remains a separate task.
  if(memory.scene===4){answers.km=1;success('✓ 1 000 м = 1 км. Зміна одиниці не змінює відстань.')}
- if(memory.scene===5){unitsIndex+=1;if(unitsIndex>=2)success('✓ Мега = 1 000 кіло, гіга = 1 000 мега.');else announce('✓ Правильно. Залишився ще один масштаб.',true)}
+ // Prefix experiments are completed through manipulation, not a text answer.
  if(memory.scene===6){
   const d=DIMENSIONS[dimensionIndex];
   dimensionReadings[d.id]=d.mm;
@@ -675,9 +846,10 @@ function respond(act){
  }
  if(act==='repeat'){
   cancelAdvanceTimer();
-  if(mode==='demo'&&(memory.scene===3||memory.scene===6)){
+  if(mode==='demo'&&(memory.scene===3||memory.scene===5||memory.scene===6)){
    memory.completed=memory.completed.filter(x=>x!==memory.scene);
    if(memory.scene===6)memory.dimensionProgress={};
+   if(memory.scene===5)memory.prefixLabProgress={};
    persist();
   }
   resetStep();render();return
@@ -704,11 +876,15 @@ function respond(act){
  if(act==='rotate-block'){rotateSpecimen();return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
- if(act.startsWith('prefix-')){prefixIndex=Number(act.slice(7));seenPrefix.add(prefixIndex);render();return}
+ if(act.startsWith('prefix-')){prefixLabAction(act);return}
  if(act==='check'){check();return}
 }
 root.addEventListener('click',e=>{
  const button=e.target.closest('button[data-act]');if(button)respond(button.dataset.act);
+});
+root.addEventListener('change',e=>{
+ if(!visible||mode!=='demo'||memory.scene!==5||e.target?.id!=='m01PrefixRange')return;
+ prefixSelect(Number(e.target.value));
 });
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
@@ -822,7 +998,7 @@ function show(nextMode){
  cancelChoiceTimer();cancelAdvanceTimer();visible=true;mode=nextMode;root.hidden=false;
  // On reload, don't leave a student on an already-completed calibration or a skipped ending.
  if(nextMode==='demo'&&(firstUnfinished()<memory.scene||
-   memory.scene<7&&memory.completed.includes(memory.scene))){
+   memory.scene<7&&memory.scene!==5&&memory.completed.includes(memory.scene))){
   memory.scene=firstUnfinished();persist();
  }
  document.body.classList.add('gnss-mission-active');
@@ -848,7 +1024,7 @@ window.GNSSLab01MissionV1={
  get assessment(){return memory.assessment},get passed(){return memory.passed},
  restart(){
   if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};persist()}
+  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};memory.prefixLabProgress={};persist()}
   resetStep();if(visible)render();
  }
 };
