@@ -364,3 +364,34 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-feedback{bottom:250px}
  #gnssMissionV1 .m01-canvas .m01-contact-indicator,
  #gnssMissionV1 .m01-canvas .m01-drag-cue{transition:none!important}
 }
+
+
+/* Onboarding: the specimens themselves ARE the first two choices.
+   No text cards or additional panels are necessary. */
+#gnssMissionV1 .m01-canvas .m01-choice{
+ pointer-events:all!important;cursor:pointer;outline:none;
+}
+#gnssMissionV1 .m01-canvas .m01-choice .m01-workpiece{
+ pointer-events:none!important;
+ transition:filter .18s ease,transform .18s ease;
+ transform-origin:center;
+}
+#gnssMissionV1 .m01-canvas .m01-choice .m01-choice-hit{
+ pointer-events:all!important;cursor:pointer;
+}
+#gnssMissionV1 .m01-canvas .m01-choice:hover .m01-workpiece,
+#gnssMissionV1 .m01-canvas .m01-choice:focus-visible .m01-workpiece{
+ filter:drop-shadow(0 0 13px rgba(173,255,137,.7)) drop-shadow(0 5px 5px rgba(0,14,21,.6));
+ transform:translateY(-5px);
+}
+#gnssMissionV1 .m01-canvas .m01-choice.m01-chosen .m01-workpiece{
+ filter:drop-shadow(0 0 15px rgba(189,255,137,.8));
+}
+#gnssMissionV1 .m01-canvas .m01-choice:focus-visible .m01-choice-hit{
+ stroke:#b8f58b;stroke-width:2;stroke-dasharray:7 5;
+}
+@media(prefers-reduced-motion:reduce){
+ #gnssMissionV1 .m01-canvas .m01-choice .m01-workpiece{
+  transition:none!important;transform:none!important;
+ }
+}
