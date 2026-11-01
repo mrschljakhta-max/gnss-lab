@@ -54,6 +54,7 @@ root.innerHTML=
  '<header class="m01-header"><div class="m01-kicker" id="m01Kicker"></div><h2 id="m01Title"></h2><p id="m01Prompt"></p></header>'+
  '<div class="m01-guidance" id="m01Guidance" role="status" aria-live="polite"></div>'+
  '<svg id="m01Canvas" class="m01-canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Інтерактивна навчальна сцена"></svg>'+
+ '<section class="m01-scale-loupe" id="m01ScaleLoupe" aria-label="Збільшена механічна шкала" hidden></section>'+
  '<div class="m01-controls" id="m01Controls"></div>'+
  '<div class="m01-feedback" id="m01Feedback" role="status" aria-live="polite"></div>'+
  '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint" title="Підказка" aria-label="Підказка">?</button><button type="button" data-act="repeat" title="Повторити крок" aria-label="Повторити крок">↻</button></div>'+
@@ -168,6 +169,9 @@ function caliperScene(calTarget,calGap,showBlock=true){
  s+='<rect class="m01-thumb-wheel" x="'+(jawX+9)+'" y="481" width="40" height="31" rx="9" fill="#becbd1" stroke="#567887" stroke-width="2"/>'+
   '<circle cx="'+(jawX+29)+'" cy="496" r="7" fill="#648192" stroke="#dfedef" stroke-width="1.5"/>'+
   '<path d="M'+(jawX+23)+' 496h12" stroke="#d8e8e5" stroke-width="1.5"/>'+
+  '<path d="M'+jawX+' 407v79" stroke="#b9fa89" stroke-width="2.8" stroke-linecap="round"/>'+
+  '<path d="M'+(jawX-7)+' 395l7 10 7-10z" fill="#b9fa89"/>'+
+  '<text x="'+jawX+'" y="504" text-anchor="middle" fill="#b9fa89" font-size="11" font-weight="800">0</text>'+
   '<rect class="m01-jaw-hit" x="'+(jawX-35)+'" y="259" width="112" height="258" rx="8" fill="transparent" data-jaw="true" tabindex="0" role="slider" aria-label="Пересунути рухому каретку штангенциркуля" aria-valuemin="'+limit+'" aria-valuemax="160" aria-valuenow="'+calGap.toFixed(1)+'" aria-valuetext="'+(contact?'Контакт':'Губки розкриті')+'"/>'+
   '</g></g>';
  if(showBlock){
@@ -182,6 +186,49 @@ function caliperScene(calTarget,calGap,showBlock=true){
   '</g>';
  return s;
 }
+
+// Optical loupe: a physical magnification of the main scale and 0.1 mm vernier.
+// The zero mark follows the jaw, while vernier divisions are 0.9 mm apart.
+// There is no independent digital measurement and no revealed answer in the test mode.
+function scaleLoupeMarkup(){
+ const reading=Math.round(gap*10)/10,whole=Math.floor(reading+1e-7),tenths=Math.round((reading-whole)*10);
+ const base=Math.max(0,whole-1),unit=32,origin=40,zero=origin+(reading-base)*unit;
+ let main='',vernier='';
+ for(let n=base;n<=Math.min(170,base+11);n++){
+  const x=origin+(n-base)*unit;
+  main+='<line x1="'+x+'" y1="55" x2="'+x+'" y2="'+(n%5===0?84:76)+'" stroke="#18394b" stroke-width="'+(n%5===0?2.2:1.45)+'"/>'+
+   '<text x="'+x+'" y="44" text-anchor="middle" fill="#163c4f" font-size="13" font-weight="700">'+n+'</text>';
+ }
+ for(let n=0;n<=10;n++){
+  const x=zero+n*unit*.9,matched=n===tenths;
+  vernier+='<line x1="'+x.toFixed(2)+'" y1="97" x2="'+x.toFixed(2)+'" y2="'+(n%5===0?128:matched?125:119)+'" stroke="'+(matched?'#b7f886':'#dff7ff')+'" stroke-width="'+(matched?3:1.4)+'"/>';
+  if(n%2===0)vernier+='<text x="'+x.toFixed(2)+'" y="143" text-anchor="middle" font-size="11" font-weight="'+(matched?'800':'600')+'" fill="'+(matched?'#b7f886':'#dff7ff')+'">'+n+'</text>';
+ }
+ const scaled=reading.toLocaleString('uk-UA',{minimumFractionDigits:1,maximumFractionDigits:1});
+ const fractional=(tenths/10).toLocaleString('uk-UA',{minimumFractionDigits:1,maximumFractionDigits:1});
+ const training=mode==='demo';
+ return '<div class="m01-loupe-heading"><span>⌕ ЛУПА ×4 · МЕХАНІЧНА ШКАЛА</span><span>мм</span></div>'+
+  '<svg class="m01-loupe-drawing" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 154" role="img" aria-label="Основна шкала в міліметрах; зелена риска — нуль ноніуса">'+
+  '<rect x="4" y="13" width="412" height="79" rx="5" fill="#dbe8e9" stroke="#96adb5" stroke-width="2"/>'+
+  '<rect x="4" y="93" width="412" height="57" rx="5" fill="#173a50" stroke="#74939f" stroke-width="2"/>'+
+  main+vernier+
+  '<line x1="'+zero.toFixed(2)+'" y1="50" x2="'+zero.toFixed(2)+'" y2="135" stroke="#b7f886" stroke-width="2.3" stroke-dasharray="5 3"/>'+
+  '<path d="M'+(zero-8).toFixed(2)+' 15h16l-8 13z" fill="#88bf44" stroke="#345b33" stroke-width="1"/>'+
+  '<text x="12" y="10" font-size="10" fill="#bad7e0">ОСНОВНА</text>'+
+  '<text x="12" y="109" font-size="10" fill="#c1e0e8">НОНІУС</text>'+
+  '</svg>'+
+  (training?
+   '<div class="m01-loupe-reading"><span>Шкала: <b>'+whole+' мм</b></span><span>Ноніус: <b>'+fractional+' мм</b></span><strong>Разом: '+scaled+' мм</strong></div>':
+   '<p class="m01-loupe-guide">Цілі мм — перед зеленою рискою. Десяті — за збігом рисок ноніуса.</p>');
+}
+function renderScaleLoupe(){
+ const loupe=el('m01ScaleLoupe');
+ const show=caliperStep()&&!calibration()&&settledContact&&atContact();
+ loupe.hidden=!show;
+ if(show)loupe.innerHTML=scaleLoupeMarkup();
+ else loupe.replaceChildren();
+}
+
 function conversionScene(){
  let s=schematic();
  s+=blockSvg(450,245,50*MM,'',false,false);
@@ -324,7 +371,7 @@ function calibration(){return mode==='demo'&&memory.scene===1}
 function atContact(){return Math.abs(gap-(calibration()?0:target()))<.001}
 function caliperInstruction(){
  if(caliperPhase==='success')return '✓ Вимірювання підтверджено';
- if(caliperPhase==='answer')return 'Контакт. Зчитай шкалу та введи результат.';
+ if(caliperPhase==='answer')return 'Контакт. Прочитай показ у лупі та введи його.';
  if(caliperPhase==='contact')return 'Контакт. Відпусти каретку.';
  if(caliperPhase==='approach')return 'Ще трохи…';
  if(caliperPhase==='drag')return 'Рухай губку до деталі.';
@@ -347,6 +394,8 @@ function syncCaliperVisual(){
  if(cue)cue.style.opacity=atContact()?'0':'1';
  const prompt=el('m01Prompt');
  if(prompt)prompt.textContent=caliperInstruction();
+ const loupe=el('m01ScaleLoupe');
+ if(loupe&&(!settledContact||!atContact()))loupe.hidden=true;
 }
 function render(){
  if(!visible)return;
@@ -360,6 +409,7 @@ function render(){
  el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
+ renderScaleLoupe();
  controls.innerHTML=controlView();
  controls.hidden=!controls.innerHTML.trim();
  renderFeedback();
