@@ -705,6 +705,7 @@ function render(){
  const answerDock=el('m01MeasureAnswer');
  answerDock.innerHTML=measurementAnswerView();
  answerDock.hidden=!answerDock.innerHTML.trim();
+ root.classList.toggle('m01-answer-visible',!answerDock.hidden);
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
 
