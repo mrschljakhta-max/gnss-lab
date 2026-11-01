@@ -677,7 +677,7 @@ function render(){
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
  next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current>=3&&current<=5&&allowed?'Наступна побудова →':'Далі →';
- next.classList.toggle('m01-unit-next-ready',mode==='demo'&&current>=3&&current<=6&&allowed);
+ next.classList.toggle('m01-next-ready',mode==='demo'&&current>=3&&current<=6&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
