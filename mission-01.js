@@ -14,20 +14,20 @@ const parse=s=>Number(String(s).trim().replace(/\s/g,'').replace(',','.'));
 const fmt=(v,d=2)=>Number(v).toLocaleString('uk-UA',{maximumFractionDigits:d});
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const specs=[
- {name:'Спостереження',title:'Який брусок довший?',prompt:'Розглянь деталі A і B. Обери ту, яка здається довшою. Правильність припущення перевіримо вимірюванням.'},
- {name:'Інструмент',title:'Знайомство зі штангенциркулем',prompt:'Знайди штангенциркуль на нижній панелі. Відкрий губки, закрий їх до нуля та знайди нульову поділку.'},
- {name:'Вимірювання',title:'Виміряй обидві деталі',prompt:'Обери деталь, зведи губки до контакту й самостійно введи відлік із механічної шкали. Повтори для другої деталі.'},
- {name:'Одиниці',title:'Одна довжина — три записи',prompt:'Запиши ті самі довжини в інших одиницях. Брусок від цього не зміниться.'},
- {name:'Масштаб',title:'Від метра до кілометра',prompt:'Досліди чотири масштаби відстані, потім визнач, скільки кілометрів становлять 1 000 метрів.'},
- {name:'Префікси',title:'Кіло, мега та гіга',prompt:'Подивись, як одиниці збираються в групи по тисячі. Перевір перетворення між масштабами.'},
- {name:'Закріплення',title:'Застосуй знання самостійно',prompt:'Нова деталь і нові числа. Підказки доступні, але спробуй без них.'},
- {name:'Підсумок',title:'Ти навчився вимірювати!',prompt:'Від вимірювання бруска до великих десяткових масштабів — усе це знадобиться в наступних лабораторіях.'}
+ {name:'Спостереження',title:'Порівняй деталі',prompt:'Яка довша — A чи B?'},
+ {name:'Інструмент',title:'Підготуй штангенциркуль',prompt:'Розкрий губки. Зведи їх до нуля.'},
+ {name:'Вимірювання',title:'Виміряй обидві деталі',prompt:'Зведи губки до торців і зчитай показ.'},
+ {name:'Одиниці',title:'Зміни одиниці',prompt:'Чи зміниться довжина?'},
+ {name:'Масштаб',title:'Зміни масштаб',prompt:'Від метра до кілометра.'},
+ {name:'Префікси',title:'Кіло · Мега · Гіга',prompt:'Згрупуй величини по тисячі.'},
+ {name:'Закріплення',title:'Перевір себе',prompt:'Три короткі задачі.'},
+ {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
 const tasks=[
- {name:'Вимірювання',prompt:'Виміряй деталь штангенциркулем і введи відлік у міліметрах.'},
- {name:'Перетворення одиниць',prompt:'Переведи задану довжину з міліметрів у сантиметри.'},
- {name:'Метр і кілометр',prompt:'Переведи довжину з кілометрів у метри.'},
- {name:'Мега та кіло',prompt:'Переведи кількість мегаодиниць у кілоодиниці.'}
+ {name:'Виміряй деталь',prompt:'Зведи губки й зчитай шкалу.'},
+ {name:'Одиниці',prompt:'Перетвори мм у см.'},
+ {name:'Відстань',prompt:'Перетвори км у м.'},
+ {name:'Масштаби',prompt:'Перетвори мега в кіло.'}
 ];
 const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0};
 let memory={...initial};
@@ -54,7 +54,7 @@ root.innerHTML=
  '<svg id="m01Canvas" class="m01-canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 660" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Інтерактивна навчальна сцена"></svg>'+
  '<div class="m01-controls" id="m01Controls"></div>'+
  '<div class="m01-feedback" id="m01Feedback" role="status" aria-live="polite"></div>'+
- '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint">◌ Підказка</button><button type="button" data-act="show">▶ Покажи</button><button type="button" data-act="repeat">↻ Почати крок знову</button></div>'+
+ '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint" title="Підказка" aria-label="Підказка">?</button><button type="button" data-act="repeat" title="Повторити крок" aria-label="Повторити крок">↻</button></div>'+
  '<div class="m01-footer-right"><span id="m01Progress"></span><button type="button" data-act="skip" id="m01Skip">Пропустити</button><button type="button" data-act="next" id="m01Next" class="m01-primary">Далі →</button></div></footer>';
 board.append(root);
 const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01Controls'),feedbackEl=el('m01Feedback');
@@ -195,10 +195,14 @@ function prefixScene(){
  return s;
 }
 function summaryScene(){
- let s=schematic();
- s+='<circle cx="600" cy="335" r="100" fill="#245b45" fill-opacity=".45" stroke="#b4f68f" stroke-width="4"/>'+
- '<path d="M540 340l38 37 84-91" fill="none" stroke="#c1ff9a" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>'+
- '<text x="600" y="485" fill="#dff7ee" text-anchor="middle" font-size="22">Вимірювання · одиниці · масштаби</text>';
+ let s=schematic(),done=mode==='quest'?memory.passed||memory.assessment>=4:memory.completed.length===7;
+ if(done){
+  s+='<circle class="m01-final-ring" cx="600" cy="335" r="75" fill="#245b45" fill-opacity=".32" stroke="#b4f68f" stroke-width="3"/>'+
+   '<path class="m01-final-check" d="M553 340l34 32 65-73" fill="none" stroke="#c1ff9a" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>';
+ }else{
+  s+='<circle cx="600" cy="335" r="72" fill="#20435b" fill-opacity=".28" stroke="#8bbaca" stroke-width="2"/>'+
+   '<path d="M601 304v66M569 338h64" fill="none" stroke="#cee9eb" stroke-width="5" stroke-linecap="round"/>';
+ }
  return s;
 }
 function mainScene(){
@@ -223,26 +227,23 @@ function mainScene(){
 }
 function controlView(){
  const quest=mode==='quest',step=quest?memory.assessment:memory.scene;
- if(quest&&step>=4)return '<div class="m01-complete">Практичний залік підтверджено. Результат збережено у браузері.</div>';
- if(!quest&&step===7)return '<div class="m01-complete">Тепер можна вільно експериментувати в пісочниці або пройти практичний залік.</div>';
- if(!quest&&step===0)return '<div class="m01-control-title">Яка деталь здається довшою?</div>'+
+ if(quest&&step>=4)return '';
+ if(!quest&&step===7)return '';
+ if(!quest&&step===0)return ''+
   '<div class="m01-buttons">'+selectButton('choose-a','Деталь A',choice==='a')+selectButton('choose-b','Деталь B',choice==='b')+'</div>';
  if((!quest&&(step===1||step===2||step===6&&practiceIndex===0))||(quest&&step===0)){
   const isZero=!quest&&step===1,measurement=!isZero;
-  let content='<div class="m01-control-title">'+(isZero?'Підготуй інструмент':measurement?'Виміряй, не підглядаючи готове число':'')+'</div>';
-  if(!caliperChosen)content+='<p>Відкрий нижню панель інструментів і вибери <strong>«Штангенциркуль»</strong>.</p>'+
-    '<button type="button" data-act="caliper" class="m01-pill">Взяти штангенциркуль</button>';
-  else content+='<span class="m01-ok">✓ Штангенциркуль обрано</span>';
+  let content='';
+  if(!caliperChosen)content+='<button type="button" data-act="caliper" class="m01-pill">Взяти штангенциркуль</button>';
   if(!isZero&&!quest&&step===2){
    content+='<div class="m01-buttons">'+selectButton('part-a','Деталь A',part==='a')+selectButton('part-b','Деталь B',part==='b')+'</div>';
-   content+='<p>Виміряно: '+(answers.a===50?'A ✓':'A ○')+' · '+(answers.b===54?'B ✓':'B ○')+'</p>';
+   content+='<span class="m01-dots" aria-label="Виміряні деталі">'+(answers.a===50?'✓ A':'○ A')+' · '+(answers.b===54?'✓ B':'○ B')+'</span>';
   }
   const contact=isZero?gap===0:Math.abs(gap-target())<.001;
-  content+='<p>'+(!caliperChosen?'Обери інструмент, щоб почати.':contact?'✓ Губки зведено до '+(isZero?'нульового положення.':'контакту з деталлю.'):'Рухай каретку до '+(isZero?'нуля.':'контакту з поверхнею деталі.'))+'</p>';
-  content+='<label class="m01-control-title" for="m01JawRange">Положення каретки</label>'+
+  if(caliperChosen)content+='<label class="m01-sr-only" for="m01JawRange">Рухома каретка</label>'+
    '<input type="range" id="m01JawRange" min="'+(isZero?0:target())+'" max="160" step="0.1" value="'+gap+'" aria-label="Положення рухомої губки"/>';
   if(measurement&&contact&&caliperChosen)content+=promptInput('Що показує шкала?','Введи відлік','мм')+'<button type="button" class="m01-submit" data-act="check">Перевірити вимірювання</button>';
-  if(isZero&&contact&&caliperChosen&&moved)content+='<p class="m01-ok">✓ Нульову позначку знайдено.</p>';
+
   return content;
  }
  if(!quest&&step===3){
@@ -254,7 +255,7 @@ function controlView(){
   const labels=['1 метр','10 метрів','100 метрів','1 000 метрів'];
   return '<div class="m01-control-title">Вибери масштаб огляду</div><div class="m01-buttons">'+
    labels.map((l,i)=>selectButton('scale-'+i,l,zoomIndex===i)).join('')+'</div>'+
-   '<p>Відкрито масштабів: '+seenScale.size+'/4. Зміна огляду не змінює реальний розмір.</p>'+
+   '<span class="m01-dots" aria-label="Переглянуті масштаби">'+seenScale.size+'/4 ✓</span>'+
    (seenScale.size===4?promptInput('1 000 м = скільки км?','Введи значення','км')+
     '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
  }
@@ -262,7 +263,7 @@ function controlView(){
   const labels=['Кіло ×1 000','Мега ×1 000 000','Гіга ×1 000 000 000'];
   return '<div class="m01-control-title">Переглянь три десяткові масштаби</div><div class="m01-buttons">'+
    labels.map((l,i)=>selectButton('prefix-'+i,l,prefixIndex===i)).join('')+'</div>'+
-   '<p>Вивчено масштабів: '+seenPrefix.size+'/3.</p>'+
+   '<span class="m01-dots" aria-label="Переглянуті множники">'+seenPrefix.size+'/3 ✓</span>'+
    (seenPrefix.size===3?promptInput(prefixIndex>-1&&unitsIndex===0?'3 М = скільки к?':'2 Г = скільки М?','Введи число',unitsIndex===0?'к':'М')+
     '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
  }
@@ -301,24 +302,27 @@ function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
  const spec=quest?tasks[Math.min(current,3)]:specs[current];
+ const trainingFinished=memory.completed.length===7;
  el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,4)+'/4':
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
- el('m01Title').textContent=quest?(current===4?'Навичку підтверджено':spec.name):spec.title;
- el('m01Prompt').textContent=quest?(current===4?'Ти виконав усі чотири практичні задачі без готових відповідей.':spec.prompt):spec.prompt;
- el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():guidance();
+ el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
+  current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
+ el('m01Prompt').textContent=quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':spec.prompt;
+ el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  controls.innerHTML=controlView();
+ controls.hidden=!controls.innerHTML.trim();
  renderFeedback();
- const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]'),show=root.querySelector('[data-act="show"]');
+ const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
  const replay=root.querySelector('[data-act="repeat"]');
  const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
  next.hidden=quest&&current<4;
  next.disabled=!allowed;
- next.textContent=quest?'Перейти в пісочницю →':current===7?'Перейти до заліку →':'Далі →';
- skip.hidden=quest||current===7;hint.hidden=quest;show.hidden=quest;
- replay.hidden=quest;
- el('m01Progress').textContent=quest?'Підтверджено '+Math.min(current,4)+' / 4':
-  'Пройдено '+memory.completed.length+' / 7';
+ next.textContent=quest?'Пісочниця →':current===7?'До заліку →':'Далі →';
+ skip.hidden=quest||current===7;hint.hidden=quest||current===7;
+ replay.hidden=quest||current===7;
+ el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
+  '✓ '+memory.completed.length+'/7';
 }
 function hintMessage(){
  const stage=memory.scene;
