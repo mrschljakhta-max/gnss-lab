@@ -386,7 +386,23 @@ function controlView(){
  if(quest&&step>=4)return '';
  if(!quest&&step===7)return '';
  if(!quest&&step===0)return '';
- if((!quest&&(step===1||step===2||step===6&&practiceIndex===0))||(quest&&step===0)){
+ if(!quest&&step===6){
+  const dim=DIMENSIONS[dimensionIndex],done=Object.keys(dimensionReadings).length;
+  const chips=DIMENSIONS.map((d,i)=>'<span class="m01-dim-chip'+(dimensionIndex===i?' current':'')+
+   (dimensionReadings[d.id]===d.mm?' measured':'')+'">'+
+   (dimensionReadings[d.id]===d.mm?'✓ ':'○ ')+d.name+'</span>').join('');
+  const input=!sceneComplete()&&dimensionReadings[dim.id]!==dim.mm&&canMeasure()
+   ?promptInput('Розмір грані','Зчитай шкалу','мм')+
+    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'';
+  return '<div class="m01-dim-panel">'+
+   '<div class="m01-control-title">Грань '+(dimensionIndex+1)+' / 3 · '+dim.name+'</div>'+
+   '<div class="m01-dim-chips" aria-label="Виміряні грані">'+chips+'</div>'+
+   '<button type="button" class="m01-rotate-button" data-act="rotate-block"'+
+    ' aria-label="Повернути брусок до наступної грані">↻ Повернути брусок</button>'+
+   '<div class="m01-dim-progress">'+done+'/3 виміряно</div>'+
+   input+'</div>';
+ }
+ if((!quest&&(step===1||step===2))||(quest&&step===0)){
   const isZero=!quest&&step===1,measurement=!isZero;
   let content='';
   // No extra tool-selection button: the mechanical caliper is already on the bench.
@@ -425,12 +441,6 @@ function controlView(){
    (seenPrefix.size===3?promptInput(prefixIndex>-1&&unitsIndex===0?'3 М = скільки к?':'2 Г = скільки М?','Введи число',unitsIndex===0?'к':'М')+
     '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
  }
- if(!quest&&step===6){
-  return practiceIndex===1?'<div class="m01-control-title">Задача 2 / 3</div>'+
-   promptInput('75 мм = скільки см?','Введи значення','см')+'<button type="button" class="m01-submit" data-act="check">Перевірити</button>':
-   '<div class="m01-control-title">Задача 3 / 3</div>'+
-   promptInput('4 М = скільки к?','Введи значення','к')+'<button type="button" class="m01-submit" data-act="check">Перевірити</button>';
- }
  if(quest&&step===1){
   return '<div class="m01-control-title">Нова величина</div>'+promptInput('86 мм = скільки см?','Введи результат','см')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
  }
@@ -451,7 +461,7 @@ function guidance(){
   'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
   'Масштаб зображення і одиниця вимірювання — різні речі.',
   'Переходи k → M → G щоразу означають множення на тисячу.',
-  'Спробуй сам: це ще тренування, підказки доступні.',
+  'Натисни на брусок або поверни його свайпом. Виміряй кожну грань штангенциркулем.',
   'Готово! Тепер закріпи навички в режимі «Тести».'
  ];
  return msgs[memory.scene]||'';
@@ -459,11 +469,20 @@ function guidance(){
 function caliperStep(){
  return mode==='quest'&&memory.assessment===0||
   mode==='demo'&&(memory.scene===1||memory.scene===2||
-    memory.scene===6&&practiceIndex===0);
+    memory.scene===6);
 }
 function calibration(){return mode==='demo'&&memory.scene===1}
 function atContact(){return Math.abs(gap-(calibration()?0:target()))<.001}
 function caliperInstruction(){
+ if(mode==='demo'&&memory.scene===6){
+  const dim=DIMENSIONS[dimensionIndex];
+  if(sceneComplete())return '✓ Три грані виміряно. Натисни «Далі →».';
+  if(dimensionReadings[dim.id]===dim.mm)return '✓ '+dim.name+' виміряна. Поверни брусок.';
+  if(caliperPhase==='answer')return 'Контакт. Зчитай '+dim.name.toLowerCase()+' за шкалою.';
+  if(caliperPhase==='contact')return 'Контакт. Відпусти каретку.';
+  if(caliperPhase==='drag')return 'Підведи губку до деталі.';
+  return 'Виміряй '+dim.name.toLowerCase()+'. Зведи губки до торця.';
+ }
  if(caliperPhase==='success')return '✓ Вимірювання підтверджено';
  if(caliperPhase==='answer')return 'Контакт. Прочитай показ у лупі та введи його.';
  if(caliperPhase==='contact')return 'Контакт. Відпусти каретку.';
@@ -512,8 +531,8 @@ function render(){
  const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
- next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===3&&allowed?'До масштабу →':'Далі →';
- next.classList.toggle('m01-unit-next-ready',mode==='demo'&&current===3&&allowed);
+ next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current===3&&allowed?'До масштабу →':'Далі →';
+ next.classList.toggle('m01-unit-next-ready',mode==='demo'&&(current===3||current===6)&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
@@ -528,7 +547,7 @@ function hintMessage(){
   ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
   ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
   ['Переглянь k, M і G.','Кожен перехід між ними — множник 1 000.','3 М = 3 000 к; 2 Г = 2 000 М.'],
-  ['Почни з вимірювання невідомої деталі.','Після вимірювання перетвори сантиметри.','Перехід М → к множить число на 1 000.']
+  ['Виміряй довжину: потягни рухому губку до дерев’яного бруска.','Натисни «↻ Повернути брусок» або проведи пальцем по ньому.','Потрібно виміряти 3 грані: довжину, ширину і товщину.']
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
 }
@@ -551,11 +570,6 @@ function onSuccess(){
    document.dispatchEvent(new CustomEvent('gnss:mission-one-complete',{detail:{mission:1,completed:true,attempts:memory.assessmentAttempts}}));
    announce('✓ Практичний залік завершено. Усі чотири навички підтверджено.',true);
   }else announce('✓ Правильно! Наступна практична задача.',true);
- }else if(memory.scene===6){
-  practiceIndex+=1;gap=66;caliperChosen=practiceIndex===0;moved=false;settledContact=false;caliperPhase='idle';
-  if(practiceIndex===3){success('✓ Усі три тренувальні задачі виконано.');}
-  else{announce('✓ Виконано. Наступна вправа.',true)}
-  render();
  }else success();
 }
 function check(){
@@ -572,9 +586,8 @@ function check(){
  else if(memory.scene===4)expected=1;
  else if(memory.scene===5)expected=[3000,2000][Math.min(unitsIndex,1)];
  else if(memory.scene===6){
-  if(practiceIndex===0){if(!canMeasure()){announce('Спочатку зведи губки до контакту.');return}expected=42}
-  if(practiceIndex===1)expected=7.5;
-  if(practiceIndex===2)expected=4000;
+  if(!canMeasure()){announce('Підведи губки до контакту з обраною гранню.');return}
+  expected=target();
  }
  const tolerance=Math.abs(expected)>=30?(mode==='quest'&&memory.assessment===0?0.5:0.5):0.00001;
  if(expected===null||Math.abs(value-expected)>tolerance){
@@ -596,7 +609,13 @@ function check(){
  // Scene 3 is an instrument-led experiment; its assessment remains a separate task.
  if(memory.scene===4){answers.km=1;success('✓ 1 000 м = 1 км. Зміна одиниці не змінює відстань.')}
  if(memory.scene===5){unitsIndex+=1;if(unitsIndex>=2)success('✓ Мега = 1 000 кіло, гіга = 1 000 мега.');else announce('✓ Правильно. Залишився ще один масштаб.',true)}
- if(memory.scene===6){caliperPhase='success';onSuccess();return}
+ if(memory.scene===6){
+  const d=DIMENSIONS[dimensionIndex];
+  dimensionReadings[d.id]=d.mm;
+  if(sceneComplete())success('✓ Виміряно всі три грані! Натисни «До підсумку →».');
+  else announce('✓ '+d.name+' — '+d.mm+' мм. Поверни брусок для наступного вимірювання.',true);
+  caliperPhase='success';render();return;
+ }
  render();
 }
 function updateGap(v,passive=false){
@@ -625,6 +644,14 @@ function finishCaliperMotion(){
  }else caliperPhase='idle';
  render();
 }
+function rotateSpecimen(){
+ if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null)return;
+ dimensionIndex=(dimensionIndex+1)%DIMENSIONS.length;
+ gap=target()+24;
+ caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;
+ feedback='';feedbackSuccess=false;hintLevel=0;
+ render();
+}
 function respond(act){
  if(act==='hint'){hintLevel=Math.min(3,hintLevel+1);render();return}
  if(act==='show'){hintLevel=3;render();return}
@@ -642,7 +669,7 @@ function respond(act){
  }
  if(act==='repeat'){
   cancelAdvanceTimer();
-  if(mode==='demo'&&memory.scene===3){memory.completed=memory.completed.filter(x=>x!==3);persist()}
+  if(mode==='demo'&&(memory.scene===3||memory.scene===6)){memory.completed=memory.completed.filter(x=>x!==memory.scene);persist()}
   resetStep();render();return
  }
  if(act==='choose-a'||act==='choose-b'){
@@ -664,6 +691,7 @@ function respond(act){
   controls.querySelector('[data-act="unit-'+unit+'"]')?.focus({preventScroll:true});
   return;
  }
+ if(act==='rotate-block'){rotateSpecimen();return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
  if(act.startsWith('prefix-')){prefixIndex=Number(act.slice(7));seenPrefix.add(prefixIndex);render();return}
