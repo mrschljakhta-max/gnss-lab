@@ -395,13 +395,14 @@ function check(){
  if(memory.scene===6){onSuccess();return}
  render();
 }
-function updateGap(v){
+function updateGap(v,passive=false){
  if(!caliperChosen)return;
  const min=mode==='quest'?assessmentTarget:memory.scene===1?0:memory.scene===2?target():42;
  const newGap=Math.round(clamp(v,min,160)*10)/10;
  if(Math.abs(gap-newGap)>.001)moved=true;
  gap=newGap;
  if(mode==='demo'&&memory.scene===1&&gap===0&&moved)success('✓ Каретку зведено до нуля. Тепер можна вимірювати.');
+ if(passive){draw(mainScene());return}
  render();
 }
 function respond(act){
@@ -431,7 +432,10 @@ root.addEventListener('keydown',e=>{
  if(e.key==='Enter'&&e.target.id==='m01Value'){e.preventDefault();check()}
 });
 root.addEventListener('input',e=>{
- if(e.target.id==='m01JawRange')updateGap(Number(e.target.value));
+ if(e.target.id==='m01JawRange')updateGap(Number(e.target.value),true);
+});
+root.addEventListener('change',e=>{
+ if(e.target.id==='m01JawRange')render();
 });
 dock.addEventListener('click',e=>{
  if(!visible||((mode==='demo'&&![1,2,6].includes(memory.scene))||(mode==='quest'&&memory.assessment!==0)))return;
@@ -450,15 +454,16 @@ canvas.addEventListener('pointerdown',e=>{
  if(!caliperChosen)return;
  dragId=e.pointerId;e.preventDefault();
  try{canvas.setPointerCapture(dragId)}catch{}
- const p=clientToSvg(e);if(p)updateGap((p.x-X0)/MM);
+ const p=clientToSvg(e);if(p)updateGap((p.x-X0)/MM,true);
 });
 canvas.addEventListener('pointermove',e=>{
  if(dragId!==e.pointerId)return;
- const p=clientToSvg(e);if(p)updateGap((p.x-X0)/MM);
+ const p=clientToSvg(e);if(p)updateGap((p.x-X0)/MM,true);
 });
 function release(e){
  if(dragId!==e.pointerId)return;
  dragId=null;try{canvas.releasePointerCapture(e.pointerId)}catch{}
+ render();
 }
 canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
 canvas.addEventListener('keydown',e=>{
