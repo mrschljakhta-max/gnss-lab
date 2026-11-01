@@ -17,17 +17,17 @@ const specs=[
  {name:'Спостереження',title:'Який брусок довший?',prompt:'Натисни на той, що здається довшим.'},
  {name:'Інструмент',title:'Підготуй штангенциркуль',prompt:'Розкрий губки. Зведи їх до нуля.'},
  {name:'Вимірювання',title:'Виміряй обидві деталі',prompt:'Зведи губки до торців і зчитай показ.'},
- {name:'Одиниці',title:'Зміни одиниці',prompt:'Натисни «см», потім «м». Подивись, як змінюється шкала.'},
- {name:'Масштаб',title:'Зміни масштаб',prompt:'Від метра до кілометра.'},
- {name:'Префікси',title:'Від нано до гіга',prompt:'Натисни ×1 000, щоб побачити дедалі менші проміжки часу.'},
+ {name:'Відрізок',title:'Проведи відрізок',prompt:'Візьми початкову точку й побудуй відрізок завдовжки 50 мм.'},
+ {name:'Прямокутник',title:'Побудуй прямокутник',prompt:'Потягни від кута й побудуй прямокутник 40 × 25 мм.'},
+ {name:'Коло',title:'Побудуй коло',prompt:'Потягни від центра назовні й побудуй коло радіусом 20 мм.'},
  {name:'Закріплення',title:'Обертай і вимірюй',prompt:'Поверни брусок і виміряй довжину, ширину та товщину.'},
  {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
 const tasks=[
  {name:'Виміряй деталь',prompt:'Зведи губки й зчитай шкалу.'},
- {name:'Одиниці',prompt:'Перетвори мм у см.'},
- {name:'Відстань',prompt:'Перетвори км у м.'},
- {name:'Частота',prompt:'Перетвори мегагерци в кілогерци.'}
+ {name:'Відрізок',prompt:'Побудуй відрізок 35 мм.'},
+ {name:'Прямокутник',prompt:'Побудуй прямокутник 30 × 20 мм.'},
+ {name:'Коло',prompt:'Побудуй коло радіусом 12 мм.'}
 ];
 // One wooden specimen (millimetres); the caliper measures each horizontal face.
 const DIMENSIONS=[
@@ -35,7 +35,7 @@ const DIMENSIONS=[
  {id:'width',name:'Ширина',mm:28,face:'поворот на 90°'},
  {id:'thickness',name:'Товщина',mm:18,face:'бічна грань'}
 ];
-const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{}};
+const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{},curriculumVersion:3};
 const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
 let memory={...initial};
 try{
@@ -45,55 +45,30 @@ try{
    completed:Array.isArray(p.completed)?p.completed.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    skipped:Array.isArray(p.skipped)?p.skipped.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    passed:!!p.passed};
-  // Existing students saw cards rather than experiments in the old 6/8.
-  // Revisit it once, preserving all other completed and assessment states.
-  if(memory.completed.includes(5)&&p.prefixLabProgress?.version!==2){
-   memory.completed=memory.completed.filter(n=>n!==5);
-   memory.skipped=memory.skipped.filter(n=>n!==5);
-   memory.scene=5;
-   memory.prefixLabProgress={version:2,step:0,timeIndex:0,freqIndex:0,pairIndex:0,
-    timeSeen:[0],freqSeen:[0],pairSeen:[]};
+  // Old numeric conversions have been replaced with physical drafting.
+  // Keep verified caliper progress but offer all three new geometry lessons.
+  if(p.curriculumVersion!==3){
+   memory.completed=memory.completed.filter(n=>n<3||n===6);
+   memory.skipped=memory.skipped.filter(n=>n<3||n===6);
+   memory.scene=Math.min(memory.scene,3);
+   memory.assessment=0;memory.passed=false;memory.curriculumVersion=3;
    try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}
   }
  }
 }catch{}
-// Seven powers-of-a-thousand prefixes; all measurements share the same SI logic.
-const TIME_ZOOM=[
- {label:'1 с',unit:'с',note:'1 с = 1 000 мс'},
- {label:'1 мс',unit:'мс',note:'1 мс = 1 000 мкс'},
- {label:'1 мкс',unit:'мкс',note:'1 мкс = 1 000 нс'},
- {label:'1 нс',unit:'нс',note:'1 нс = 10⁻⁹ с'}
-];
-const SIGNAL_FREQ=[
- {label:'1 Гц',span:'4 с',period:'1 с'},
- {label:'1 кГц',span:'4 мс',period:'1 мс'},
- {label:'1 МГц',span:'4 мкс',period:'1 мкс'},
- {label:'1 ГГц',span:'4 нс',period:'1 нс'}
-];
-const PERIOD_PAIRS=SIGNAL_FREQ.slice(1);
-let prefixLabStage=0,prefixTimeIndex=0,prefixFreqIndex=0,prefixPairIndex=0,
- prefixTimeSeen=new Set([0]),prefixFreqSeen=new Set([0]),prefixPairSeen=new Set(),prefixReferenceOpen=false;
-function restorePrefixLab(){
- const p=memory.prefixLabProgress&&typeof memory.prefixLabProgress==='object'?memory.prefixLabProgress:{};
- const idx=(v,max)=>Number.isInteger(v)?clamp(v,0,max):0;
- const sanitized=(xs,max)=>new Set(Array.isArray(xs)?xs.filter(x=>Number.isInteger(x)&&x>=0&&x<=max):[]);
- prefixLabStage=idx(p.step,2);
- prefixTimeIndex=idx(p.timeIndex,3);prefixFreqIndex=idx(p.freqIndex,3);prefixPairIndex=idx(p.pairIndex,2);
- prefixTimeSeen=sanitized(p.timeSeen,3);prefixTimeSeen.add(0);
- prefixFreqSeen=sanitized(p.freqSeen,3);prefixFreqSeen.add(0);
- prefixPairSeen=sanitized(p.pairSeen,2);
- prefixTimeSeen.add(prefixTimeIndex);prefixFreqSeen.add(prefixFreqIndex);
+// All dimensions are mm, physically laid out on the existing drafting board.
+const DRAW_ORIGIN={x:425,y:325};
+function geometryTask(){
+ if(mode==='quest')return {
+  1:{kind:'line',width:35},2:{kind:'rect',width:30,height:20},3:{kind:'circle',radius:12}
+ }[memory.assessment]||null;
+ return {
+  3:{kind:'line',width:50},4:{kind:'rect',width:40,height:25},5:{kind:'circle',radius:20}
+ }[memory.scene]||null;
 }
-function savePrefixLab(){
- memory.prefixLabProgress={version:2,step:prefixLabStage,timeIndex:prefixTimeIndex,freqIndex:prefixFreqIndex,
-  pairIndex:prefixPairIndex,timeSeen:[...prefixTimeSeen],freqSeen:[...prefixFreqSeen],pairSeen:[...prefixPairSeen]};
- persist();
-}
-const prefixSubstepComplete=()=>prefixLabStage===0?prefixTimeSeen.size===4:
- prefixLabStage===1?prefixFreqSeen.size===4:prefixPairSeen.size===3;
-const prefixLabComplete=()=>prefixLabStage===2&&prefixPairSeen.size===3;
+let geomPointer=null,geomDraft=null,geomDone=false,geomLast=null,geomKeyboard=0;
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
- answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
+ answers={},
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
  practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,solidPose={roll:0,yaw:0,pitch:0},turnAnimation=null,turning=false,assessmentTarget=42,assessmentSeed=0,
  caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
@@ -116,10 +91,10 @@ const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
  stopTurnAnimation();
- part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
- seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
-  prefixReferenceOpen=false;
-  if(mode==='demo'&&memory.scene===5)restorePrefixLab();
+ part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
+ hintLevel=0;feedback='';feedbackSuccess=false;
+ geomPointer=null;geomDraft=null;geomLast=null;geomKeyboard=0;
+ geomDone=mode==='demo'&&memory.completed.includes(memory.scene)&&memory.scene>=3&&memory.scene<=5;
  dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
   dimensionReadings=mode==='demo'&&memory.scene===6?
    Object.fromEntries(DIMENSIONS.filter(d=>memory.dimensionProgress?.[d.id]===d.mm).map(d=>[d.id,d.mm])):{};
@@ -148,9 +123,7 @@ function sceneComplete(){
   case 0:return !!choice;
   case 1:return caliperChosen&&moved&&gap===0;
   case 2:return answers.a===50&&answers.b===54;
-  case 3:return seenUnits.size===3;
-  case 4:return seenScale.size>=4&&answers.km===1;
-  case 5:return prefixLabComplete();
+  case 3:case 4:case 5:return geomDone;
   case 6:return DIMENSIONS.every(d=>dimensionReadings[d.id]===d.mm);
   case 7:return true;
  }
@@ -401,211 +374,153 @@ function renderScaleLoupe(){
 }
 
 
-// Physical length is constant at 50 mm. Only the ruler labels and units change.
-function unitRulerScene(){
- const x=360,pxPerMm=8,bodyWidth=50*pxPerMm,right=x+bodyWidth;
- const names={mm:'мм',cm:'см',m:'м'},readings={mm:'50',cm:'5',m:'0,05'};
- const mark=i=>unitSelected==='mm'?String(i):unitSelected==='cm'?String(i/10):
-   i===0?'0':(i/1000).toLocaleString('uk-UA',{minimumFractionDigits:2,maximumFractionDigits:2});
- let s=schematic(),marks='';
- for(let mm=0;mm<=60;mm++){
-  const xx=x+mm*pxPerMm,major=mm%10===0,half=mm%5===0;
-  marks+='<line x1="'+xx+'" x2="'+xx+'" y1="421" y2="'+(major?458:half?444:436)+'"'+
-   ' stroke="#173e52" stroke-width="'+(major?2.5:1.3)+'"/>';
-  if(major)marks+='<text x="'+xx+'" y="484" text-anchor="middle" font-family="ui-monospace,Consolas,monospace"'+
-   ' font-size="'+(unitSelected==='m'?15:18)+'" font-weight="700" fill="#20485a">'+mark(mm)+'</text>';
- }
- s+='<g class="m01-unit-physical" aria-label="Брусок постійної довжини 50 мм">'+
-   blockSvg(x,255,bodyWidth,'',false,false)+
-   '<path d="M'+x+' 373V399 M'+right+' 373V399 M'+x+' 391H'+right+'"'+
-   ' fill="none" stroke="#dceff1" stroke-width="2.5"/>'+
-   '<rect x="340" y="405" width="536" height="99" rx="8" fill="url(#m01Steel)" stroke="#e5f2f3" stroke-width="2"/>'+
-   '<rect x="340" y="405" width="536" height="9" rx="4" fill="#edf7f5" opacity=".65"/>'+
-   '<g class="m01-unit-ticks">'+marks+'</g>'+
-   '<path d="M'+right+' 416V501" stroke="#a7ee79" stroke-width="3.7"/>'+
-   '<path d="M'+(right-9)+' 403L'+right+' 415l9-12Z" fill="#b6f989"/>'+
-   '</g>';
- s+='<text x="610" y="220" text-anchor="middle" font-size="34" font-weight="780" fill="#d6ffc2"'+
-    ' class="m01-unit-reading">'+readings[unitSelected]+' '+names[unitSelected]+'</text>';
- s+='<text x="610" y="554" text-anchor="middle" font-size="'+(seenUnits.size===3?19:16)+'"'+
-   ' font-weight="650" fill="'+(seenUnits.size===3?'#c7faab':'#bbdce2')+'">'+
-   (seenUnits.size===3?'Довжина залишилась тією самою ✓':'Брусок не змінюється — змінюються поділки')+'</text>';
- s+='<rect x="340" y="405" width="536" height="100" rx="8" fill="transparent"'+
-  ' class="m01-unit-hit" data-unit-cycle="true" role="button" tabindex="0"'+
-  ' aria-label="Перемкнути одиницю лінійки" />';
- return s;
+// Drafting with a ruler and pencil: drag an endpoint from a physical anchor.
+// Everything is in millimetres via the same MM factor as the caliper.
+function shapeParameters(task,draft){
+ const p=draft||{dx:0,dy:0};
+ if(task.kind==='line')return {dx:clamp(p.dx,0,510),dy:clamp(p.dy,-220,220)};
+ if(task.kind==='rect')return {dx:clamp(p.dx,0,510),dy:clamp(p.dy,0,250)};
+ return {dx:clamp(p.dx,-260,260),dy:clamp(p.dy,-230,230)};
 }
-
-function conversionScene(){
- let s=schematic();
- s+=blockSvg(450,245,50*MM,'',false,false);
- s+='<path d="M450 355V392M'+(450+50*MM)+' 355V392M450 376H'+(450+50*MM)+'" stroke="#c5e9e9" stroke-width="2"/>';
- s+='<text x="530" y="426" font-size="24" fill="#e1f6fa" text-anchor="middle">Та сама довжина</text>';
- return s;
+function shapeGoal(task){
+ return task.kind==='line'?{dx:task.width*MM,dy:0}:
+ task.kind==='rect'?{dx:task.width*MM,dy:task.height*MM}:
+ {dx:task.radius*MM,dy:0};
 }
-function scaleScene(){
- let s=schematic();
- s+='<text x="600" y="235" font-size="20" fill="#e1f4f7" text-anchor="middle">Один і той самий екран — різний масштаб огляду</text>';
- const labels=['1 м','10 м','100 м','1 000 м'];
- const barX=285,barW=630;
- s+='<line x1="'+barX+'" y1="355" x2="'+(barX+barW)+'" y2="355" stroke="#b6f98a" stroke-width="5"/>';
- for(let i=0;i<=10;i++){const x=barX+barW*i/10;
-  s+='<line x1="'+x+'" y1="342" x2="'+x+'" y2="'+(i%5===0?380:370)+'" stroke="#d6eff0" stroke-width="2"/>';}
- s+='<text x="285" y="402" fill="#d2eef2" font-size="18">0</text><text x="916" y="402" text-anchor="end" fill="#d2eef2" font-size="18">'+labels[zoomIndex]+'</text>';
- return s;
+function geometryDimensions(task,draft){
+ const p=shapeParameters(task,draft);
+ if(task.kind==='line')return {length:Math.hypot(p.dx,p.dy)/MM};
+ if(task.kind==='rect')return {width:p.dx/MM,height:p.dy/MM};
+ return {radius:Math.hypot(p.dx,p.dy)/MM};
 }
-
-function prefixLabPrompt(){
- if(prefixLabComplete())return 'Готово! Ти пов’язав масштаб часу з частотою. Натисни «До вимірювань →».';
- if(prefixLabStage===0)return prefixSubstepComplete()?'Ти дійшов до наносекунди. Відкрий генератор сигналу.':'Збільшуй часову шкалу в 1 000 разів. Дійди до наносекунди.';
- if(prefixLabStage===1)return prefixSubstepComplete()?'Ти побачив чотири частоти. Тепер досліди їхні періоди.':'Підвищуй частоту. Осцилограф автоматично змінює часову розгортку.';
- return 'Обери 1 кГц, 1 МГц і 1 ГГц та знайди тривалість одного коливання.';
+function shapeMatches(task,draft){
+ const v=geometryDimensions(task,draft);
+ if(task.kind==='line')return Math.abs(v.length-task.width)<=1.2&&Math.abs(draft.dy/MM)<=2;
+ if(task.kind==='rect')return Math.abs(v.width-task.width)<=1.2&&Math.abs(v.height-task.height)<=1.2;
+ return Math.abs(v.radius-task.radius)<=1.2;
 }
-function prefixLabControls(){
- const stageNames=['ЗБІЛЬШЕННЯ ЧАСУ','ГЕНЕРАТОР СИГНАЛУ','ЧАСТОТА ↔ ПЕРІОД'];
- const selected=prefixLabStage===0?prefixTimeIndex:prefixLabStage===1?prefixFreqIndex:prefixPairIndex;
- const current=prefixLabStage===0?TIME_ZOOM[prefixTimeIndex].label:
-  prefixLabStage===1?SIGNAL_FREQ[prefixFreqIndex].label:PERIOD_PAIRS[prefixPairIndex].label;
- const seen=prefixLabStage===0?prefixTimeSeen.size:prefixLabStage===1?prefixFreqSeen.size:prefixPairSeen.size;
- const total=prefixLabStage===2?3:4;
- let controlsHtml='';
- if(prefixLabStage!==2){
-  const names=prefixLabStage===0?TIME_ZOOM:SIGNAL_FREQ;
-  controlsHtml='<div class="m01-prefix-current" aria-live="polite">'+current+'</div>'+
-   '<div class="m01-prefix-slider-wrap"><label for="m01PrefixRange" class="m01-prefix-sr">Рівень '+(prefixLabStage===0?'збільшення':'частоти')+'</label>'+
-   '<input id="m01PrefixRange" data-prefix-range="true" type="range" min="0" max="3" step="1" value="'+selected+'" aria-valuetext="'+current+'" /></div>'+
-   '<div class="m01-prefix-row">'+
-   '<button type="button" data-act="prefix-dec"'+(selected===0?' disabled':'')+' aria-label="Попередній масштаб">−</button>'+
-   '<button type="button" class="m01-prefix-grow" data-act="prefix-inc"'+(selected===3?' disabled':'')+'>'+
-    (prefixLabStage===0?'Збільшити ×1 000':'Частота ×1 000')+' →</button></div>'+
-   '<div class="m01-prefix-steps">'+names.map((d,i)=>
-    '<button type="button" data-act="prefix-set-'+i+'"'+(i===selected?' class="active"':'')+
-    ' aria-pressed="'+(i===selected)+'">'+d.label+'</button>').join('')+'</div>';
+function shapeDescription(task){
+ return task.kind==='line'?task.width+' мм':task.kind==='rect'?
+  task.width+' × '+task.height+' мм':'R '+task.radius+' мм';
+}
+function drawnShape(task,draft){
+ if(!task||!draft)return '';
+ const p=shapeParameters(task,draft),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y,ex=x+p.dx,ey=y+p.dy;
+ let shape='';
+ if(task.kind==='line'){
+  shape='<line x1="'+x+'" y1="'+y+'" x2="'+ex+'" y2="'+ey+'" stroke="#bff68e" stroke-width="5" stroke-linecap="round"/>'+
+   '<circle cx="'+ex+'" cy="'+ey+'" r="6" fill="#d8fdbd"/>';
+ }else if(task.kind==='rect'){
+  shape='<rect x="'+x+'" y="'+y+'" width="'+p.dx+'" height="'+p.dy+'" fill="#c1f998" fill-opacity=".09"'+
+   ' stroke="#c3fb91" stroke-width="3" stroke-linejoin="round"/>'+
+   '<circle cx="'+ex+'" cy="'+ey+'" r="6" fill="#d8fdbd"/>';
  }else{
-  controlsHtml='<div class="m01-prefix-steps m01-prefix-pair-buttons">'+PERIOD_PAIRS.map((d,i)=>
-    '<button type="button" data-act="prefix-pair-'+i+'" class="'+(i===selected?'active ':'')+
-    (prefixPairSeen.has(i)?'seen':'')+'" aria-pressed="'+(i===selected)+'">'+
-    (prefixPairSeen.has(i)?'✓ ':'')+d.label+'</button>').join('')+'</div>'+
-   '<div class="m01-prefix-relationship">f ↑ · T ↓</div>';
+  const radius=Math.hypot(p.dx,p.dy);
+  shape='<circle cx="'+x+'" cy="'+y+'" r="'+radius+'" fill="#c1f998" fill-opacity=".08" stroke="#baff8b" stroke-width="3"/>'+
+   '<line x1="'+x+'" y1="'+y+'" x2="'+ex+'" y2="'+ey+'" stroke="#baff8b" stroke-width="2" stroke-dasharray="5 4"/>'+
+   '<circle cx="'+ex+'" cy="'+ey+'" r="5" fill="#dbffc2"/>';
  }
- const references=[
-  ['Гіга','G','10⁹'],['Мега','M','10⁶'],['Кіло','k','10³'],
-  ['Без префікса','—','10⁰'],['Мілі','m','10⁻³'],['Мікро','µ','10⁻⁶'],['Нано','n','10⁻⁹']
- ];
- return '<div class="m01-prefix-panel">'+
-  '<div class="m01-prefix-heading"><span>ЕКСПЕРИМЕНТ '+(prefixLabStage+1)+' / 3</span><span>'+seen+'/'+total+' ✓</span></div>'+
-  '<div class="m01-control-title">'+stageNames[prefixLabStage]+'</div>'+
-  controlsHtml+
-  (prefixSubstepComplete()&&prefixLabStage<2?
-   '<button type="button" class="m01-prefix-proceed" data-act="prefix-phase-next">'+
-   (prefixLabStage===0?'До генератора →':'До періоду →')+'</button>':'')+
-  (prefixLabComplete()?'<div class="m01-prefix-ok">✓ Відкрито всі три взаємозв’язки</div>':'')+
-  '<button type="button" class="m01-prefix-reference-toggle" data-act="prefix-reference" aria-expanded="'+prefixReferenceOpen+'">'+
-   (prefixReferenceOpen?'▾ Сховати префікси':'▸ Таблиця префіксів')+'</button>'+
-  (prefixReferenceOpen?'<div class="m01-prefix-reference" aria-label="Сім масштабів SI">'+
-   references.map(([name,symbol,power])=>'<span>'+name+'</span><b>'+symbol+'</b><span>'+power+'</span>').join('')+
-   '<small>m = мілі · M = мега · µ = мікро</small></div>':'')+
-  '</div>';
+ const v=geometryDimensions(task,draft);
+ const label=task.kind==='line'?fmt(v.length,1)+' мм':task.kind==='rect'?
+  fmt(v.width,1)+' × '+fmt(v.height,1)+' мм':'R '+fmt(v.radius,1)+' мм';
+ return shape+'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>';
 }
-function prefixLabAction(act){
- if(!visible||mode!=='demo'||memory.scene!==5)return;
- if(act==='prefix-reference'){
-  prefixReferenceOpen=!prefixReferenceOpen;render();return;
+function geometryScene(){
+ const task=geometryTask();
+ if(!task)return schematic();
+ const goal=shapeGoal(task),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+ let s=schematic();
+ // A pale target makes the first action discoverable without pre-drawing the answer.
+ s+='<text x="600" y="216" text-anchor="middle" font-size="24" font-weight="750" fill="#d9f4e6">'+
+ (task.kind==='line'?'ВІДРІЗОК':task.kind==='rect'?'ПРЯМОКУТНИК':'КОЛО')+' · '+shapeDescription(task)+'</text>';
+ for(let i=0;i<=10;i++){
+  const xx=x+i*MM*5;
+  s+='<line x1="'+xx+'" y1="477" x2="'+xx+'" y2="'+(i%2===0?499:490)+'" stroke="#b8dbe2" stroke-width="1.8"/>'+
+    (i%2===0?'<text x="'+xx+'" y="518" font-size="13" text-anchor="middle" fill="#b8dbe2">'+i*5+'</text>':'');
  }
- if(act==='prefix-phase-next'){
-  if(prefixLabStage<2&&prefixSubstepComplete()){
-   prefixLabStage+=1;prefixReferenceOpen=false;savePrefixLab();
-   announce(prefixLabStage===1?'✓ Масштаби часу відкрито. Тепер керуй частотою.':'✓ Частоти відкрито. Досліди період.',true);
-   render();
-  }
+ s+='<path d="M'+x+' 476H'+(x+50*MM)+'" stroke="#bdd2dc" stroke-width="3"/>'+
+  '<text x="403" y="522" fill="#b8dbe2" font-size="13">мм</text>';
+ if(task.kind==='line'){
+  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+goal.dx)+'" y2="'+y+'" stroke="#9cd3c2" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 8"/>';
+ }else if(task.kind==='rect'){
+  s+='<rect x="'+x+'" y="'+y+'" width="'+goal.dx+'" height="'+goal.dy+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ }else{
+  s+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ }
+ const current=geomDraft||(geomDone?shapeGoal(task):null);
+ s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
+ s+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
+  '<circle cx="'+x+'" cy="'+y+'" r="29" class="m01-geom-handle" data-geom-start="true"'+
+  ' fill="transparent" stroke="#c7ffa7" stroke-width="2" stroke-dasharray="5 6" tabindex="0"'+
+  ' role="button" aria-label="Початок побудови. Утримуй та переміщуй курсор, або використай стрілки й Enter"/>';
+ s+='<text x="'+x+'" y="'+(y-43)+'" text-anchor="middle" fill="#d6f6da" font-size="15">ПОЧАТОК</text>';
+ if(geomDone)s+='<text x="600" y="578" text-anchor="middle" fill="#b5fa8f" font-size="17">✓ Побудову виконано · Далі →</text>';
+ return s;
+}
+function updateGeometryPreview(){
+ const task=geometryTask();if(!task)return;
+ const group=canvas.querySelector('[data-geom-preview]');
+ if(group)group.innerHTML=drawnShape(task,geomDraft);
+}
+function finishGeometry(draft){
+ const task=geometryTask();if(!task||geomDone)return;
+ geomLast=draft;
+ if(!shapeMatches(task,draft)){
+  const values=geometryDimensions(task,draft);
+  const value=task.kind==='line'?fmt(values.length,1)+' мм':
+   task.kind==='rect'?fmt(values.width,1)+' × '+fmt(values.height,1)+' мм':
+   'R '+fmt(values.radius,1)+' мм';
+  announce('Поки '+value+'. Потрібно '+shapeDescription(task)+'. Спробуй ще раз.');
+  geomDraft=null;updateGeometryPreview();
   return;
  }
- if(act==='prefix-dec'||act==='prefix-inc'){
-  const current=prefixLabStage===0?prefixTimeIndex:prefixFreqIndex;
-  if(prefixLabStage>1)return;
-  prefixSelect(clamp(current+(act==='prefix-inc'?1:-1),0,3));return;
- }
- if(act.startsWith('prefix-set-')&&prefixLabStage<2){
-  const i=Number(act.slice('prefix-set-'.length));
-  if(Number.isInteger(i)&&i>=0&&i<=3)prefixSelect(i);
-  return;
- }
- if(act.startsWith('prefix-pair-')&&prefixLabStage===2){
-  const i=Number(act.slice('prefix-pair-'.length));
-  if(!Number.isInteger(i)||i<0||i>2)return;
-  prefixPairIndex=i;prefixPairSeen.add(i);savePrefixLab();
-  if(prefixLabComplete()&&!memory.completed.includes(5)){
-   success('✓ Частота та час пов’язані: T = 1/f. Натисни «До вимірювань →».');
-  }
-  render();
- }
+ geomDone=true;geomDraft=shapeGoal(task);
+ if(mode==='quest'){onSuccess();return}
+ success('✓ Побудовано: '+shapeDescription(task)+'. Натисни «Далі →».');
+ render();
 }
-function prefixSelect(i){
- if(!Number.isInteger(i)||i<0||i>3||prefixLabStage>1)return;
- if(prefixLabStage===0){prefixTimeIndex=i;prefixTimeSeen.add(i)}
- else {prefixFreqIndex=i;prefixFreqSeen.add(i)}
- savePrefixLab();render();
+function geometryBegin(e){
+ if(!visible||!geometryTask()||geomDone||e.button!==0||!e.target.closest('[data-geom-start]'))return false;
+ const p=clientToSvg(e);if(!p)return false;
+ geomPointer=e.pointerId;geomDraft={dx:0,dy:0};geomLast=null;
+ e.preventDefault();
+ try{canvas.setPointerCapture(e.pointerId)}catch{}
+ updateGeometryPreview();return true;
 }
-function prefixWavePath(x,y,w,h,cycles){
- let d='';
- for(let i=0;i<=160;i++){
-  const xx=x+w*i/160,yy=y-Math.sin(i/160*Math.PI*2*cycles)*h;
-  d+=(i===0?'M':'L')+xx.toFixed(2)+' '+yy.toFixed(2)+' ';
+function geometryMove(e){
+ if(geomPointer!==e.pointerId)return false;
+ const p=clientToSvg(e),task=geometryTask();
+ if(p&&task){
+  geomDraft=shapeParameters(task,{dx:p.x-DRAW_ORIGIN.x,dy:p.y-DRAW_ORIGIN.y});
+  updateGeometryPreview();
  }
- return d;
+ return true;
 }
-function prefixScopeBase(x=235,y=242,w=695,h=270){
- let out='<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" rx="12" fill="#061e30" fill-opacity=".82" stroke="#729fae" stroke-width="2"/>';
- for(let i=1;i<8;i++)out+='<line x1="'+(x+w*i/8)+'" y1="'+y+'" x2="'+(x+w*i/8)+'" y2="'+(y+h)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
- for(let j=1;j<5;j++)out+='<line x1="'+x+'" y1="'+(y+h*j/5)+'" x2="'+(x+w)+'" y2="'+(y+h*j/5)+'" stroke="#a3cedb" stroke-opacity=".13"/>';
- return out;
+function geometryEnd(e,cancelled=false){
+ if(geomPointer!==e.pointerId)return false;
+ const draft=geomDraft;geomPointer=null;
+ try{canvas.releasePointerCapture(e.pointerId)}catch{}
+ if(cancelled){geomDraft=null;updateGeometryPreview();return true}
+ if(draft)finishGeometry(draft);
+ return true;
 }
-function prefixScene(){
- let s=schematic();
- if(mode==='quest'){
-  s+=prefixScopeBase();
-  s+='<path d="'+prefixWavePath(252,382,652,64,4)+'" fill="none" stroke="#b6f78b" stroke-width="4"/>'+
-   '<text x="585" y="212" text-anchor="middle" font-size="28" fill="#e5f7f8">Мегагерци → кілогерци</text>';
-  return s;
+function geometryKeyboard(e){
+ const task=geometryTask();
+ if(!visible||!task||geomDone||!e.target.closest('[data-geom-start]'))return false;
+ const keys=['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Enter',' '];
+ if(!keys.includes(e.key))return false;
+ e.preventDefault();
+ if(e.key==='Enter'||e.key===' '){
+  finishGeometry(geomDraft||{dx:0,dy:0});return true;
  }
- const stage=prefixLabStage;
- if(stage===0){
-  const t=TIME_ZOOM[prefixTimeIndex],x=255,w=640;
-  s+='<text x="575" y="218" font-size="25" font-weight="750" text-anchor="middle" fill="#ebf9f6">Часове вікно: '+t.label+'</text>'+
-    prefixScopeBase(225,253,700,258);
-  s+='<line x1="'+x+'" y1="420" x2="'+(x+w)+'" y2="420" stroke="#b6f88c" stroke-width="4"/>';
-  for(let i=0;i<=10;i++){
-   const px=x+w*i/10;
-   s+='<line x1="'+px+'" y1="406" x2="'+px+'" y2="'+(i%5===0?445:436)+'" stroke="#dceff0" stroke-width="'+(i%5===0?3:1.5)+'"/>';
-  }
-  for(const [n,pos] of [[0,0],[0.25,0.25],[0.5,0.5],[0.75,0.75],[1,1]]){
-   s+='<text x="'+(x+w*pos)+'" y="473" font-size="16" fill="#e3f2f6" text-anchor="middle">'+
-   (n===0?'0':String(n).replace('.',','))+'</text>';
-  }
-  s+='<rect class="m01-prefix-focus" x="'+(x+w*.45)+'" y="285" width="'+(w*.10)+'" height="110" rx="6" fill="#b4f68b" fill-opacity=".10" stroke="#b4f68b" stroke-dasharray="7 6" stroke-width="2"/>';
-  s+='<text x="575" y="550" text-anchor="middle" font-size="18" fill="#c1e7e7">'+t.note+'</text>';
- }else{
-  const freq=stage===1?SIGNAL_FREQ[prefixFreqIndex]:PERIOD_PAIRS[prefixPairIndex];
-  const cycles=stage===1?4:1;
-  const x=260,w=635,y=380;
-  s+='<text x="575" y="218" text-anchor="middle" font-size="28" font-weight="750" fill="#e9faf2">'+freq.label+'</text>';
-  s+=prefixScopeBase(225,253,700,258);
-  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+w)+'" y2="'+y+'" stroke="#a1cbd3" stroke-opacity=".42" stroke-width="2"/>';
-  s+='<path class="m01-prefix-wave" d="'+prefixWavePath(x,y,w,82,cycles)+'" fill="none" stroke="#baf990" stroke-width="3.7" stroke-linejoin="round"/>';
-  if(stage===1){
-   for(let i=0;i<=4;i++){
-    const xx=x+w*i/4;
-    s+='<line x1="'+xx+'" y1="270" x2="'+xx+'" y2="483" stroke="#bde4e8" stroke-opacity=".24" stroke-dasharray="6 7"/>';
-   }
-   s+='<text x="575" y="549" text-anchor="middle" fill="#d5ebf1" font-size="18">Розгортка: '+freq.span+' · 4 коливання</text>';
-  }else{
-   s+='<line x1="'+x+'" y1="481" x2="'+(x+w)+'" y2="481" stroke="#baf990" stroke-width="2.4"/>'+
-    '<path d="M'+x+' 470v22 m0-11l12-7m-12 7l12 7 M'+(x+w)+' 470v22m0-11l-12-7m12 7l-12 7" stroke="#baf990" stroke-width="2" fill="none"/>';
-   s+='<text x="575" y="547" text-anchor="middle" fill="#d4ffb5" font-size="25" font-weight="750">T = '+freq.period+'</text>'+
-    '<text x="575" y="581" text-anchor="middle" fill="#aaceda" font-size="16">T = 1 / f</text>';
-  }
- }
- return s;
+ if(!geomDraft)geomDraft={dx:0,dy:0};
+ const mm=e.shiftKey?5:1;
+ if(e.key==='ArrowRight')geomDraft.dx+=MM*mm;
+ if(e.key==='ArrowLeft')geomDraft.dx-=MM*mm;
+ if(e.key==='ArrowDown')geomDraft.dy+=MM*mm;
+ if(e.key==='ArrowUp')geomDraft.dy-=MM*mm;
+ geomDraft=shapeParameters(task,geomDraft);
+ updateGeometryPreview();return true;
 }
 
 function summaryScene(){
@@ -622,18 +537,14 @@ function summaryScene(){
 function mainScene(){
  if(mode==='quest'){
   if(memory.assessment===0)return caliperScene(assessmentTarget,gap);
-  if(memory.assessment===1)return conversionScene();
-  if(memory.assessment===2)return scaleScene();
-  if(memory.assessment===3)return prefixScene();
+  if(memory.assessment>=1&&memory.assessment<=3)return geometryScene();
   return summaryScene();
  }
  const scene=memory.scene;
  if(scene===0)return overviewScene();
  if(scene===1)return caliperScene(0,gap,false);
  if(scene===2)return caliperScene(target(),gap);
- if(scene===3)return unitRulerScene();
- if(scene===4)return scaleScene();
- if(scene===5)return prefixScene();
+ if(scene>=3&&scene<=5)return geometryScene();
  if(scene===6)return caliperScene(target(),gap);
  return summaryScene();
 }
@@ -673,32 +584,16 @@ function controlView(){
   }
     return content;
  }
- if(!quest&&step===3){
-  const choices=[['mm','мм'],['cm','см'],['m','м']];
-  return '<div class="m01-unit-switch" role="group" aria-label="Одиниці шкали лінійки">'+
-   '<div class="m01-unit-heading"><span>ШКАЛА ЛІНІЙКИ</span><span>'+seenUnits.size+' / 3</span></div>'+
-   '<div class="m01-unit-buttons">'+choices.map(([key,label])=>
-    '<button type="button" data-act="unit-'+key+'" class="'+(unitSelected===key?'active ':'')+
-    (seenUnits.has(key)?'m01-unit-seen':'')+'" aria-pressed="'+(unitSelected===key)+'">'+
-    (seenUnits.has(key)?'✓ ':'')+label+'</button>').join('')+'</div></div>';
- }
- if(!quest&&step===4){
-  const labels=['1 метр','10 метрів','100 метрів','1 000 метрів'];
-  return '<div class="m01-control-title">Вибери масштаб огляду</div><div class="m01-buttons">'+
-   labels.map((l,i)=>selectButton('scale-'+i,l,zoomIndex===i)).join('')+'</div>'+
-   '<span class="m01-dots" aria-label="Переглянуті масштаби">'+seenScale.size+'/4 ✓</span>'+
-   (seenScale.size===4?promptInput('1 000 м = скільки км?','Введи значення','км')+
-    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
- }
- if(!quest&&step===5)return prefixLabControls();
- if(quest&&step===1){
-  return '<div class="m01-control-title">Нова величина</div>'+promptInput('86 мм = скільки см?','Введи результат','см')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
- }
- if(quest&&step===2){
-  return '<div class="m01-control-title">Нова величина</div>'+promptInput('2,5 км = скільки метрів?','Введи результат','м')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
- }
- if(quest&&step===3){
-  return '<div class="m01-control-title">Нова величина</div>'+promptInput('3 МГц = скільки кГц?','Введи результат','кГц')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
+ if(geometryTask()){
+  const task=geometryTask();
+  const kind=task.kind==='line'?'ЛІНІЙКА + ОЛІВЕЦЬ':task.kind==='rect'?'КУТНИК + ОЛІВЕЦЬ':'ЦИРКУЛЬ';
+  return '<div class="m01-geometry-panel">'+
+   '<div class="m01-control-title">'+kind+'</div>'+
+   '<div class="m01-geometry-target">'+shapeDescription(task)+'</div>'+
+   '<div class="m01-geometry-instruction">Натисни на зелену точку й тягни до потрібного розміру. Відпусти для перевірки.</div>'+
+   (geomDone?'<div class="m01-geometry-done">✓ Побудова зарахована</div>':
+    '<div class="m01-geometry-keyhint">Клавіатура: стрілки — 1 мм, Shift+стрілки — 5 мм, Enter — зафіксувати</div>')+
+   '</div>';
  }
  return '';
 }
@@ -708,9 +603,9 @@ function guidance(){
   'Спочатку припущення, потім вимірювання. Помилятися дозволено.',
   caliperChosen?'Тягни каретку вправо, а потім до нуля — або скористайся клавіатурою.':'У нижній панелі є реальний інструмент. Можна вибрати його там або натиснути «Взяти».',
   'Число треба зчитати зі шкали самостійно. Контакт губок підтверджує, що вимірювання можливе.',
-  'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
-  'Масштаб зображення і одиниця вимірювання — різні речі.',
-  'Керуй масштабом часу та частотою сигналу: кожен сусідній префікс відрізняється у 1 000 разів.',
+  'Візьми початкову точку та проведи відрізок точної довжини за лінійкою.',
+  'Побудуй прямокутник перетягуванням його протилежного кута. Контролюй ширину й висоту.',
+  'Циркулем побудуй коло заданого радіуса. Відстань від центра до краю — це радіус.',
   'Схопи брусок і тягни курсор: праворуч — до ширини, вгору — до товщини. Відпусти й виміряй.',
   'Готово! Тепер закріпи навички в режимі «Тести».'
  ];
@@ -769,7 +664,7 @@ function render(){
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
  el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current===5?prefixLabPrompt():current===3&&sceneComplete()?'Готово. Натисни «Далі →».':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  renderScaleLoupe();
@@ -778,11 +673,11 @@ function render(){
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
  const replay=root.querySelector('[data-act="repeat"]');
- const allowed=quest?current>=4:current===5?sceneComplete():sceneComplete()||memory.completed.includes(current);
+ const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
- next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current===5&&allowed?'До вимірювань →':current===3&&allowed?'До масштабу →':'Далі →';
- next.classList.toggle('m01-unit-next-ready',mode==='demo'&&(current===3||current===5||current===6)&&allowed);
+ next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current>=3&&current<=5&&allowed?'Наступна побудова →':'Далі →';
+ next.classList.toggle('m01-next-ready',mode==='demo'&&current>=3&&current<=6&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
@@ -794,9 +689,9 @@ function hintMessage(){
   ['Обери A або B. Це лише припущення.','Спробуй порівняти торці брусків.','Натисни на одну з кнопок вибору деталі.'],
   ['Знайди штангенциркуль серед інструментів.','Його можна взяти кнопкою в цій сцені.','Потягни каретку вправо, потім вліво до позначки 0.'],
   ['Встанови вимірювальний інструмент.','Зсунь рухому губку до торця деталі.','Подивись на основну шкалу — потрібне число відповідає нулю рухомої каретки.'],
-  ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
-  ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
-  ['Натисни «×1 000» або перемісти повзунок праворуч.','Переглянь 1 с, 1 мс, 1 мкс, 1 нс. Потім зміни частоту генератора.','Частота — коливання за секунду, період — час одного коливання: T = 1/f.'],
+  ['Утримуй зелену точку та веди вправо.','Читай довжину в мм на кресленні.','Відпусти, коли відрізок досягне заданої довжини.'],
+  ['Почни з лівого верхнього кута.','Рухай курсор праворуч і вниз — змінюються два розміри.','Відпусти, коли ширина та висота збігатимуться із завданням.'],
+  ['Почни в центрі майбутнього кола.','Відстань від центра до краю називається радіусом.','Потягни в будь-який бік на потрібну відстань і відпусти.'],
   ['Утримуй брусок лівою кнопкою та веди мишу. Для ширини потягни вправо.','Для товщини потягни вгору. Після відпускання грань зафіксується.','Виміряй кожну грань штангенциркулем. Кнопки граней також доступні з клавіатури.']
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
@@ -824,17 +719,15 @@ function onSuccess(){
 }
 function check(){
  const text=controls.querySelector('#m01Value'),value=text?parse(text.value):NaN;
- if(!Number.isFinite(value)){announce('Введи числовий результат вимірювання або перетворення.');return}
+ if(!Number.isFinite(value)){announce('Введи відлік штангенциркуля в міліметрах.');return}
  let expected=null;
  if(mode==='quest'){
-  expected=[assessmentTarget,8.6,2500,3000][memory.assessment];
+  expected=memory.assessment===0?assessmentTarget:null;
   if(memory.assessment===0&&!canMeasure()){announce('Спочатку правильно встанови та зведи губки до контакту.');return}
  }else if(memory.scene===2){
   if(!canMeasure()){announce('Вимірювання зараховується лише після контакту губок.');return}
   expected=target();
- }else if(memory.scene===3)expected=[5,12,0.05][unitsIndex];
- else if(memory.scene===4)expected=1;
- // Prefix lab is instrument-led; the separate assessment keeps the conversion test.
+ }
  else if(memory.scene===6){
   if(!canMeasure()){announce('Підведи губки до контакту з обраною гранню.');return}
   expected=target();
@@ -842,7 +735,7 @@ function check(){
  const tolerance=Math.abs(expected)>=30?(mode==='quest'&&memory.assessment===0?0.5:0.5):0.00001;
  if(expected===null||Math.abs(value-expected)>tolerance){
   roundAttempts++;if(mode==='quest'){memory.assessmentAttempts++;persist()}
-  announce('Поки не збігається. Перевір шкалу, одиницю або десятковий множник.');
+  announce('Поки не збігається. Перевір шкалу й зчитай довжину в мм.');
   return;
  }
  if(mode==='quest'){onSuccess();return}
@@ -856,9 +749,6 @@ function check(){
    announce('✓ Деталь виміряно. Наступна.',true)}
   render();return;
  }
- // Scene 3 is an instrument-led experiment; its assessment remains a separate task.
- if(memory.scene===4){answers.km=1;success('✓ 1 000 м = 1 км. Зміна одиниці не змінює відстань.')}
- // Prefix experiments are completed through manipulation, not a text answer.
  if(memory.scene===6){
   const d=DIMENSIONS[dimensionIndex];
   dimensionReadings[d.id]=d.mm;
@@ -989,10 +879,10 @@ function respond(act){
  }
  if(act==='repeat'){
   cancelAdvanceTimer();
-  if(mode==='demo'&&(memory.scene===3||memory.scene===5||memory.scene===6)){
+  if(mode==='demo'&&(memory.scene>=3&&memory.scene<=6)){
    memory.completed=memory.completed.filter(x=>x!==memory.scene);
    if(memory.scene===6)memory.dimensionProgress={};
-   if(memory.scene===5)memory.prefixLabProgress={};
+   if(memory.scene>=3&&memory.scene<=5)memory.geometryProgress={};
    persist();
   }
   resetStep();render();return
@@ -1006,35 +896,16 @@ function respond(act){
   },520);
   return;
  }
- if(act.startsWith('unit-')){
-  const unit=act.slice(5);
-  if(mode!=='demo'||memory.scene!==3||!['mm','cm','m'].includes(unit))return;
-  unitSelected=unit;seenUnits.add(unit);
-  if(sceneComplete()&&!memory.completed.includes(3))
-   success('✓ 50 мм = 5 см = 0,05 м. Брусок не змінився. Натисни «Далі →».');
-  render();
-  controls.querySelector('[data-act="unit-'+unit+'"]')?.focus({preventScroll:true});
-  return;
- }
  if(act.startsWith('orient-')){rotateToFace(Number(act.slice('orient-'.length)));return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
- if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
- if(act.startsWith('prefix-')){prefixLabAction(act);return}
  if(act==='check'){check();return}
 }
 root.addEventListener('click',e=>{
  const button=e.target.closest('button[data-act]');if(button)respond(button.dataset.act);
 });
-root.addEventListener('change',e=>{
- if(!visible||mode!=='demo'||memory.scene!==5||e.target?.id!=='m01PrefixRange')return;
- prefixSelect(Number(e.target.value));
-});
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
  if(memory.scene===6&&e.target.closest('[data-rotate-block]'))return; // Clicking alone does not rotate.
- if(memory.scene===3&&e.target.closest('[data-unit-cycle]')){
-  const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
- }
  if(memory.scene!==0)return;
  const item=e.target.closest('[data-guess]');if(item)respond('choose-'+item.dataset.guess);
 });
@@ -1065,6 +936,7 @@ canvas.addEventListener('pointerout',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointerdown',e=>{
+ if(geometryBegin(e))return;
  if(beginManualTurn(e))return;
  if(!visible||!caliperStep()||e.button!==0||!e.target.closest('[data-jaw]'))return;
  const p=clientToSvg(e);if(!p)return;
@@ -1075,12 +947,14 @@ canvas.addEventListener('pointerdown',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointermove',e=>{
+ if(geometryMove(e))return;
  if(updateManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  const p=clientToSvg(e);
  if(p)updateGap((p.x-dragOffset-X0)/MM,true);
 });
 function release(e){
+ if(geometryEnd(e))return;
  if(endManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  dragId=null;
@@ -1089,19 +963,18 @@ function release(e){
 }
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',e=>{
+ if(geometryEnd(e,true))return;
  if(endManualTurn(e,true))return;
  if(dragId!==e.pointerId)return;
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
+ if(geometryKeyboard(e))return;
  if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&
   ['Enter',' ','ArrowRight','ArrowLeft','ArrowUp','ArrowDown'].includes(e.key)){
   e.preventDefault();
   const index=e.key==='ArrowLeft'||e.key==='ArrowDown'?(dimensionIndex+2)%3:(dimensionIndex+1)%3;
   rotateToFace(index);return;
- }
- if(visible&&mode==='demo'&&memory.scene===3&&e.target.closest('[data-unit-cycle]')&&['Enter',' '].includes(e.key)){
-  e.preventDefault();const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
  const item=e.target.closest('[data-guess]');
  if(visible&&mode==='demo'&&memory.scene===0&&item&&['Enter',' '].includes(e.key)){
@@ -1150,7 +1023,7 @@ window.GNSSLab01MissionV1={
  get assessment(){return memory.assessment},get passed(){return memory.passed},
  restart(){
   if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};memory.prefixLabProgress={};persist()}
+  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};memory.geometryProgress={};memory.curriculumVersion=3;persist()}
   resetStep();if(visible)render();
  }
 };
