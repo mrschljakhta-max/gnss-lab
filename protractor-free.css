@@ -1,0 +1,53 @@
+/* Interactive analogue 180° protractor on the drafting paper */
+#gnssProtractor{position:absolute;inset:0;z-index:8;overflow:hidden;pointer-events:none;color:#e4f8f5}
+#gnssProtractor[hidden]{display:none!important}
+#gnssProtractorSvg{width:100%;height:100%;position:absolute;inset:0;touch-action:none;pointer-events:all;cursor:crosshair}
+#gnssProtractorHint{position:absolute;top:23px;left:22px;z-index:2;max-width:min(490px,64%);
+ padding:10px 14px;background:#082c41ed;border-left:3px solid #b6f486;
+ color:#e5f7f2;font:650 12px/1.5 Inter,Arial,sans-serif;pointer-events:none;
+ box-shadow:0 4px 15px #00182770}
+#gnssProtractorReset{position:absolute;right:75px;top:21px;z-index:3;
+ padding:10px 13px;background:#0a2c40e8;color:#def5f4;
+ border:1px solid #8bb2be;border-radius:5px;font:650 12px Inter,Arial,sans-serif;
+ pointer-events:auto;cursor:pointer}
+#gnssProtractorReset[hidden]{display:none!important}
+#gnssProtractorReset:hover{border-color:#b3f58b;color:#b5f68b}
+#gnssProtractorSvg .gpr-body{fill:rgba(205,231,235,.27);
+ stroke:#daf8ef;stroke-width:1.2;pointer-events:none}
+#gnssProtractorSvg .gpr-outer-edge{fill:none;stroke:#ebf8f3;stroke-width:2;
+ filter:drop-shadow(0 0 2px #bfddeb88);pointer-events:none}
+#gnssProtractorSvg .gpr-inner-ring{fill:none;stroke:#c6e9e7;stroke-width:1.2;
+ opacity:.7;pointer-events:none}
+#gnssProtractorSvg .gpr-tick{stroke:#315a68;stroke-width:1;pointer-events:none}
+#gnssProtractorSvg .gpr-tick-major{stroke:#214250;stroke-width:2;pointer-events:none}
+#gnssProtractorSvg .gpr-graduation{
+ font:700 10px ui-monospace,Consolas,monospace;fill:#173c49;
+ text-anchor:middle;dominant-baseline:central;pointer-events:none}
+#gnssProtractorSvg .gpr-base-line{stroke:#eafaf0;stroke-width:2.2;pointer-events:none}
+#gnssProtractorSvg .gpr-center-halo{fill:#174253;
+ stroke:#b8f88a;stroke-width:2.3;pointer-events:none}
+#gnssProtractorSvg .gpr-center-dot{fill:#f4ffe0;pointer-events:none}
+#gnssProtractorSvg .gpr-existing-ray{stroke:#cae8eb;stroke-width:2;
+ stroke-dasharray:9 6;fill:none;opacity:.65;pointer-events:none}
+#gnssProtractorSvg .gpr-new-ray{stroke:#baff83;stroke-width:3;
+ stroke-dasharray:9 7;fill:none;
+ filter:drop-shadow(0 0 4px rgba(169,244,116,.7));pointer-events:none}
+#gnssProtractorSvg .gpr-live-arc{stroke:#bcff8c;stroke-width:4;fill:none;
+ filter:drop-shadow(0 0 5px rgba(175,247,143,.8));pointer-events:none}
+#gnssProtractorSvg .gpr-apex{fill:#efffdf;stroke:#3c846b;stroke-width:2;pointer-events:none}
+#gnssProtractorSvg .gpr-tip{fill:#b4f782;stroke:#256354;stroke-width:2;pointer-events:none}
+#gnssProtractorSvg .gpr-hover{fill:#baff891c;stroke:#c8ffab;stroke-width:2.4;
+ filter:drop-shadow(0 0 7px #aafa95);pointer-events:none;
+ animation:gnssProtractorHover 1s ease-in-out infinite alternate}
+#gnssProtractorSvg .gpr-hover-dot{fill:#f4ffe3;pointer-events:none}
+#gnssProtractorSvg .gpr-angle-card rect{fill:#07364e;stroke:#bdf58d;stroke-width:1.5}
+#gnssProtractorSvg .gpr-angle-card text{fill:#e9ffdb;font:750 21px ui-monospace,Consolas,monospace;
+ text-anchor:middle;dominant-baseline:central;pointer-events:none}
+.eng-geometry .eng-angle-arc{fill:none;stroke:#baf889;stroke-width:2.5;
+ filter:drop-shadow(0 0 3px #b5f58277);pointer-events:none}
+.eng-geometry .eng-angle-label{fill:#d7ffba;stroke:#103a51;stroke-width:3.5;
+ paint-order:stroke fill;font:700 14px ui-monospace,Consolas,monospace;pointer-events:none}
+@keyframes gnssProtractorHover{from{stroke-opacity:.65}to{stroke-opacity:1}}
+@media(max-width:750px){#gnssProtractorHint{top:12px;left:12px;max-width:62%;font-size:11px}
+ #gnssProtractorReset{top:12px;right:12px;font-size:11px;padding:8px}}
+@media(prefers-reduced-motion:reduce){#gnssProtractorSvg .gpr-hover{animation:none}}
