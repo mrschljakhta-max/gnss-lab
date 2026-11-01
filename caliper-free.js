@@ -282,7 +282,7 @@ function drawingSVG(){
  let highlight='';
  if((job.shape||job.contact?.witness)&&(near||contactNow)){
   const a=job.contact?.start,b=job.contact?.end;
-  const c=job.shape.type==='circle'?'circle':'path';
+  // A free-standing A-B segment has contact witnesses but no closed shape.
   const outline=job.shape?geometryPath(job.shape):'';
   highlight='<g class="gfc-contour '+(contactNow?'gfc-contact':'gfc-near')+'">'+outline+'</g>';
   if(a&&b){
