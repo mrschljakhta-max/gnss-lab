@@ -298,12 +298,12 @@ function drawingSVG(){
  const slider=job.open*SCALE;
  const defs='<defs>'+
   '<linearGradient id="gfcSilver" x1="0" y1="0" x2="0" y2="1">'+
-   '<stop offset="0%" stop-color="#f0f6f8"/><stop offset="26%" stop-color="#c5d2d9"/>'+
-   '<stop offset="55%" stop-color="#a6b9c3"/><stop offset="85%" stop-color="#c3d0d5"/>'+
-   '<stop offset="100%" stop-color="#7f949f"/></linearGradient>'+
+   '<stop offset="0%" stop-color="#f7fbfb"/><stop offset="26%" stop-color="#e5eff2"/>'+
+   '<stop offset="55%" stop-color="#d4e1e6"/><stop offset="85%" stop-color="#e1ecee"/>'+
+   '<stop offset="100%" stop-color="#b7cad3"/></linearGradient>'+
   '<linearGradient id="gfcDarkMetal" x1="0" y1="0" x2=".1" y2="1">'+
-   '<stop offset="0" stop-color="#51636f"/><stop offset=".6" stop-color="#314651"/>'+
-   '<stop offset="1" stop-color="#21343f"/></linearGradient>'+
+   '<stop offset="0" stop-color="#dde7eb"/><stop offset=".6" stop-color="#b6c7d0"/>'+
+   '<stop offset="1" stop-color="#849ba8"/></linearGradient>'+
   '</defs>';
  const carriage='<g transform="translate('+slider+' 0)" class="gfc-moving">'+
   '<g class="gfc-fallback-visual">'+
