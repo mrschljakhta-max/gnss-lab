@@ -890,14 +890,83 @@ function finishCaliperMotion(){
  }else caliperPhase='idle';
  render();
 }
-function rotateSpecimen(){
- if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null)return;
- dimensionIndex=(dimensionIndex+1)%DIMENSIONS.length;
+// The user grips the specimen and rotates a genuine three-dimensional mesh.
+// Measurement is locked while rotating or snapping to a known planar face.
+function stopTurnAnimation(){
+ if(turnAnimation!==null){window.cancelAnimationFrame?.(turnAnimation);turnAnimation=null}
+ turning=false;turnPointer=null;
+}
+function commitFace(index,pose){
+ dimensionIndex=index;solidPose=pose||facePose(index);
  gap=target()+24;
- caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;
- feedback='';feedbackSuccess=false;hintLevel=0;
+ caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';
+ dragOffset=0;feedback='';feedbackSuccess=false;turning=false;
  render();
 }
+function animateFaceSnap(selected){
+ const finish={roll:selected.roll,yaw:selected.yaw,pitch:0},from={...solidPose},
+  centerStart=X0+DIMENSIONS[dimensionIndex].mm*MM/2,
+  centerEnd=X0+DIMENSIONS[selected.index].mm*MM/2;
+ turning=true;
+ let origin=null;
+ function frame(now){
+  if(!turning||!visible||mode!=='demo'||memory.scene!==6){turnAnimation=null;return}
+  if(origin===null)origin=now;
+  const t=clamp((now-origin)/330,0,1),smooth=1-Math.pow(1-t,3);
+  const at={roll:from.roll+angleGap(finish.roll,from.roll)*smooth,
+    yaw:from.yaw+angleGap(finish.yaw,from.yaw)*smooth,pitch:from.pitch*(1-smooth)};
+  solidPose=at;
+  updateManualMesh(at,centerStart+(centerEnd-centerStart)*smooth);
+  if(t<1){turnAnimation=window.requestAnimationFrame(frame)}
+  else{turnAnimation=null;turning=false;commitFace(selected.index,finish)}
+ }
+ turnAnimation=window.requestAnimationFrame(frame);
+}
+function rotateToFace(index){
+ if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null||turnPointer)return;
+ if(!Number.isInteger(index)||index<0||index>=DIMENSIONS.length)return;
+ stopTurnAnimation();
+ animateFaceSnap({index,...facePose(index)});
+}
+function beginManualTurn(event){
+ if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null||event.button!==0)return false;
+ if(!event.target.closest('[data-rotate-block]'))return false;
+ const p=clientToSvg(event);if(!p)return false;
+ stopTurnAnimation();
+ turnPointer={id:event.pointerId,x:p.x,y:p.y,pose:{...solidPose},distance:0};
+ turning=true;settledContact=false;caliperPhase='idle';
+ event.preventDefault();
+ try{canvas.setPointerCapture(event.pointerId)}catch{}
+ return true;
+}
+function updateManualTurn(event){
+ if(!turnPointer||turnPointer.id!==event.pointerId)return false;
+ const p=clientToSvg(event);if(!p)return true;
+ const dx=p.x-turnPointer.x,dy=p.y-turnPointer.y;
+ turnPointer.distance=Math.hypot(dx,dy);
+ const start=turnPointer.pose;
+ solidPose={
+  roll:clamp(start.roll-dx*Math.PI/(2*125),-Math.PI,Math.PI),
+  yaw:clamp(start.yaw-dy*Math.PI/(2*125),-Math.PI,Math.PI),
+  pitch:clamp(dy/230,-.27,.27)
+ };
+ updateManualMesh(solidPose,X0+target()*MM/2);
+ return true;
+}
+function endManualTurn(event,cancelled=false){
+ if(!turnPointer||turnPointer.id!==event.pointerId)return false;
+ const drag=turnPointer;turnPointer=null;
+ try{canvas.releasePointerCapture(event.pointerId)}catch{}
+ if(cancelled||drag.distance<12){
+  commitFace(dimensionIndex,facePose(dimensionIndex));
+  if(!cancelled)announce('Утримуй брусок та перемісти курсор. Один клік його не перевертає.');
+  return true;
+ }
+ const selected=nearestFace(solidPose);
+ animateFaceSnap(selected);
+ return true;
+}
+
 function respond(act){
  if(act==='hint'){hintLevel=Math.min(3,hintLevel+1);render();return}
  if(act==='show'){hintLevel=3;render();return}
@@ -942,7 +1011,7 @@ function respond(act){
   controls.querySelector('[data-act="unit-'+unit+'"]')?.focus({preventScroll:true});
   return;
  }
- if(act==='rotate-block'){rotateSpecimen();return}
+ if(act.startsWith('orient-')){rotateToFace(Number(act.slice('orient-'.length)));return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
  if(act.startsWith('prefix-')){prefixLabAction(act);return}
@@ -957,10 +1026,7 @@ root.addEventListener('change',e=>{
 });
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
- if(memory.scene===6&&e.target.closest('[data-rotate-block]')){
-  if(suppressTurnClick){suppressTurnClick=false;return}
-  rotateSpecimen();return;
- }
+ if(memory.scene===6&&e.target.closest('[data-rotate-block]'))return; // Clicking alone does not rotate.
  if(memory.scene===3&&e.target.closest('[data-unit-cycle]')){
   const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
@@ -994,15 +1060,7 @@ canvas.addEventListener('pointerout',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointerdown',e=>{
- if(visible&&mode==='demo'&&memory.scene===6&&e.button===0&&e.target.closest('[data-rotate-block]')){
-  const p=clientToSvg(e);
-  if(!p)return;
-  suppressTurnClick=false;
-  turnPointer={id:e.pointerId,x:p.x,y:p.y};
-  e.preventDefault();
-  try{canvas.setPointerCapture(e.pointerId)}catch{}
-  return;
- }
+ if(beginManualTurn(e))return;
  if(!visible||!caliperStep()||e.button!==0||!e.target.closest('[data-jaw]'))return;
  const p=clientToSvg(e);if(!p)return;
  dragOffset=p.x-(X0+gap*MM);
@@ -1012,20 +1070,13 @@ canvas.addEventListener('pointerdown',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointermove',e=>{
- if(turnPointer&&turnPointer.id===e.pointerId)return;
+ if(updateManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  const p=clientToSvg(e);
  if(p)updateGap((p.x-dragOffset-X0)/MM,true);
 });
 function release(e){
- if(turnPointer&&turnPointer.id===e.pointerId){
-  turnPointer=null;
-  try{canvas.releasePointerCapture(e.pointerId)}catch{}
-  // A tap or swipe turns the wooden solid; suppress any synthetic click.
-  suppressTurnClick=true;
-  rotateSpecimen();
-  return;
- }
+ if(endManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  dragId=null;
  try{canvas.releasePointerCapture(e.pointerId)}catch{}
@@ -1033,16 +1084,16 @@ function release(e){
 }
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',e=>{
- if(turnPointer&&turnPointer.id===e.pointerId){
-  turnPointer=null;suppressTurnClick=false;return;
- }
+ if(endManualTurn(e,true))return;
  if(dragId!==e.pointerId)return;
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
- if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&['Enter',' ','ArrowRight','ArrowLeft'].includes(e.key)){
-  e.preventDefault();rotateSpecimen();
-  canvas.querySelector('[data-rotate-block]')?.focus({preventScroll:true});return;
+ if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&
+  ['Enter',' ','ArrowRight','ArrowLeft','ArrowUp','ArrowDown'].includes(e.key)){
+  e.preventDefault();
+  const index=e.key==='ArrowLeft'||e.key==='ArrowDown'?(dimensionIndex+2)%3:(dimensionIndex+1)%3;
+  rotateToFace(index);return;
  }
  if(visible&&mode==='demo'&&memory.scene===3&&e.target.closest('[data-unit-cycle]')&&['Enter',' '].includes(e.key)){
   e.preventDefault();const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
@@ -1076,6 +1127,7 @@ function show(nextMode){
  resetStep();render();
 }
 function hide(){
+ stopTurnAnimation();
  if(!visible)return;
  cancelChoiceTimer();cancelAdvanceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
  const legacy=document.getElementById('jRestoreRoute');
