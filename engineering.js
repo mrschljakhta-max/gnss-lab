@@ -351,7 +351,7 @@ function animateInk(p){
   a.onfinish=()=>el.remove();
  }else el.remove();
 }
-function undo(){if(!state.history.length)return;state.future.push(snapshot());restoreSnapshot(state.history.pop());state.pending=null;draw()}
+function undo(){if(window.GNSSDrafting3D?.animating){window.GNSSDrafting3D.cancel();return}if(!state.history.length)return;state.future.push(snapshot());restoreSnapshot(state.history.pop());state.pending=null;draw()}
 function redo(){if(!state.future.length)return;state.history.push(snapshot());restoreSnapshot(state.future.pop());state.pending=null;draw()}
 function clear(){saveHistory();state.records=[];state.pending=null;state.measure=null;if(state.mode==='quest'){state.stage=0;state.segment=0;state.saved=0;state.tool='line';save()}draw()}
 function demo(now){
@@ -371,7 +371,7 @@ function demo(now){
  draw();
 }
 function handleDown(e){
- if(window.GNSSDrafting3D?.intercepts)return;
+ if(window.GNSSDrafting3D?.animating||window.GNSSDrafting3D?.intercepts)return;
  if(state.mode==='demo'||state.stage>=3)return;
  const p=pt(e),target=e.target.closest('[data-drag]');
  if(target){state.pointer={kind:'ruler',start:p,x:state.ruler.x,y:state.ruler.y};}
@@ -426,8 +426,12 @@ function handleUp(e){if(!state.pointer)return;
    ?rectPoint(pt(e)):q.last;
   const constrained=typeof e?.ctrlKey==='boolean'?e.ctrlKey:q.ctrl;
   const shape=q.kind==='triangle'?triangleFromDiagonal(q.start,end,constrained):rectFromDiagonal(q.start,end,constrained);
+  let animated=false;
   if(!released&&shape.w>=state.scale*2&&shape.h>=state.scale*2){
-   saveHistory();state.records.push(shape);
+   const detail={shape,accepted:false};
+   document.dispatchEvent(new CustomEvent('gnss:shape-draw-start',{detail}));
+   animated=detail.accepted;
+   if(!animated){saveHistory();state.records.push(shape)}
   }
   state.pending=null;state.pointer=null;
   svg.classList.remove('eng-grab');
@@ -504,6 +508,15 @@ document.addEventListener('gnss:draw-check',e=>{
   (p.type!=='line'||validLine({x:p.x1,y:p.y1},{x:p.x2,y:p.y2}))&&
   (p.type!=='circle'||p.r>=15)&&checkTarget(p);
  if(!d.accepted&&state.mode==='quest')toast('↔ Перевір геометрію');
+});
+// One transaction for every compound figure: the 3D engine animates all
+// sides before adding the saved rectangle/triangle with a single Undo step.
+document.addEventListener('gnss:shape-draw-commit',e=>{
+ const p=e.detail?.shape;
+ if(!p||!['rect','triangle'].includes(p.type)||state.mode!=='explore'||
+    state.complete||lesson()!==0)return;
+ if(![p.x,p.y,p.w,p.h].every(Number.isFinite)||p.w<state.scale*2||p.h<state.scale*2)return;
+ saveHistory();state.records.push({...p});state.pending=null;draw();
 });
 document.addEventListener('gnss:draw-commit',e=>{
  const p=e.detail?.shape;if(!p||lesson()!==0||state.mode==='demo'||state.complete)return;
