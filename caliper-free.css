@@ -172,3 +172,51 @@ body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb-hub{
 @media(prefers-reduced-motion:reduce){
  #gnssFreeCaliper .gfc-jaw-hover{transition:none}
 }
+
+
+/* V3 reference-inspired model: precise steel texture in the SVG fallback.
+   These fallback-only elements disappear when Three.js model is ready;
+   the hit targets always remain active on top of the real 3D hardware. */
+#gnssFreeCaliper .gfc-fallback-visual{pointer-events:none}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-rail{
+ fill:url(#gfcSilver);stroke:#607581;stroke-width:1.7;
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-dark-shell{
+ fill:url(#gfcDarkMetal);stroke:#1d343f;stroke-width:1.5;
+ filter:drop-shadow(1px 2px 2px #001c2bbb)
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-bright{
+ fill:#d8e6ec;stroke:#849aa5;stroke-width:1
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-carriage{
+ fill:#536977;stroke:#2c4552;stroke-width:1.7
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-vernier-plate{
+ fill:url(#gfcSilver);stroke:#4d6776;stroke-width:1.6
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-vernier-label{
+ font:700 10px ui-monospace,Consolas,monospace;
+ text-anchor:middle;fill:#243a48
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-reference-ring{
+ stroke:#a8f56e;stroke-width:2.8;fill:#243d49;
+ filter:drop-shadow(0 0 3px #a8f56e)
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-screw{
+ fill:#b9cdd6;stroke:#324b59;stroke-width:1.6
+}
+#gnssFreeCaliper .gfc-fallback-visual .gfc-thumb-face{
+ fill:#9facb3;stroke:#334d5c;stroke-width:2
+}
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-fallback-visual{
+ display:none
+}
+#gnssFreeCaliper .gfc-jaw-hit,
+#gnssFreeCaliper .gfc-moving .gfc-grab{
+ touch-action:none;cursor:ew-resize
+}
+#gnssFreeCaliper .gfc-jaw-hover{
+ stroke-width:15;opacity:0;
+}
+#gnssFreeCaliper .gfc-jaw-hit:hover+.gfc-jaw-hover,
+#gnssFreeCaliper .gfc-jaw-hit:active+.gfc-jaw-hover{opacity:.48}
