@@ -145,7 +145,7 @@ function blockSvg(x,y,w,title,selected=false,dim=true){
  return '<g class="m01-workpiece m01-wood-workpiece" data-wood="true">'+
   '<rect x="'+(x+8)+'" y="'+(y+11)+'" width="'+w+'" height="'+height+'" rx="6" fill="#001b2b" opacity=".34"/>'+
   // Keep a neutral fallback until the external WebP loads.
-  '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+height+'" rx="6" fill="url(#m01Ceramic)" stroke="none"/>'+
+  '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+height+'" rx="18" fill="url(#m01Ceramic)" stroke="none"/>'+
   woodSurface(x,y,w,height)+
   (selected?'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+height+'" rx="6" fill="none" stroke="#b6fb91" stroke-width="2.5"/>':'')+
   (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
