@@ -17,7 +17,7 @@ const specs=[
  {name:'Спостереження',title:'Який брусок довший?',prompt:'Натисни на той, що здається довшим.'},
  {name:'Інструмент',title:'Підготуй штангенциркуль',prompt:'Розкрий губки. Зведи їх до нуля.'},
  {name:'Вимірювання',title:'Виміряй обидві деталі',prompt:'Зведи губки до торців і зчитай показ.'},
- {name:'Одиниці',title:'Зміни одиниці',prompt:'Чи зміниться довжина?'},
+ {name:'Одиниці',title:'Зміни одиниці',prompt:'Натисни «см», потім «м». Подивись, як змінюється шкала.'},
  {name:'Масштаб',title:'Зміни масштаб',prompt:'Від метра до кілометра.'},
  {name:'Префікси',title:'Кіло · Мега · Гіга',prompt:'Згрупуй величини по тисячі.'},
  {name:'Закріплення',title:'Перевір себе',prompt:'Три короткі задачі.'},
@@ -42,7 +42,7 @@ try{
  }
 }catch{}
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
- answers={},unitsIndex=0,zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
+ answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
  practiceIndex=0,practiced=new Set(),assessmentTarget=42,assessmentSeed=0,
  caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
@@ -64,7 +64,7 @@ const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01C
 const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
- part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;zoomIndex=0;prefixIndex=0;
+ part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
  dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
  if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
@@ -89,7 +89,7 @@ function sceneComplete(){
   case 0:return !!choice;
   case 1:return caliperChosen&&moved&&gap===0;
   case 2:return answers.a===50&&answers.b===54;
-  case 3:return unitsIndex>=3;
+  case 3:return seenUnits.size===3;
   case 4:return seenScale.size>=4&&answers.km===1;
   case 5:return seenPrefix.size>=3&&prefixIndex>=2;
   case 6:return practiceIndex>=3;
@@ -229,6 +229,42 @@ function renderScaleLoupe(){
  else loupe.replaceChildren();
 }
 
+
+// Physical length is constant at 50 mm. Only the ruler labels and units change.
+function unitRulerScene(){
+ const x=360,pxPerMm=8,bodyWidth=50*pxPerMm,right=x+bodyWidth;
+ const names={mm:'мм',cm:'см',m:'м'},readings={mm:'50',cm:'5',m:'0,05'};
+ const mark=i=>unitSelected==='mm'?String(i):unitSelected==='cm'?String(i/10):
+   i===0?'0':(i/1000).toLocaleString('uk-UA',{minimumFractionDigits:2,maximumFractionDigits:2});
+ let s=schematic(),marks='';
+ for(let mm=0;mm<=60;mm++){
+  const xx=x+mm*pxPerMm,major=mm%10===0,half=mm%5===0;
+  marks+='<line x1="'+xx+'" x2="'+xx+'" y1="421" y2="'+(major?458:half?444:436)+'"'+
+   ' stroke="#173e52" stroke-width="'+(major?2.5:1.3)+'"/>';
+  if(major)marks+='<text x="'+xx+'" y="484" text-anchor="middle" font-family="ui-monospace,Consolas,monospace"'+
+   ' font-size="'+(unitSelected==='m'?15:18)+'" font-weight="700" fill="#20485a">'+mark(mm)+'</text>';
+ }
+ s+='<g class="m01-unit-physical" aria-label="Брусок постійної довжини 50 мм">'+
+   blockSvg(x,255,bodyWidth,'',false,false)+
+   '<path d="M'+x+' 373V399 M'+right+' 373V399 M'+x+' 391H'+right+'"'+
+   ' fill="none" stroke="#dceff1" stroke-width="2.5"/>'+
+   '<rect x="340" y="405" width="536" height="99" rx="8" fill="url(#m01Steel)" stroke="#e5f2f3" stroke-width="2"/>'+
+   '<rect x="340" y="405" width="536" height="9" rx="4" fill="#edf7f5" opacity=".65"/>'+
+   '<g class="m01-unit-ticks">'+marks+'</g>'+
+   '<path d="M'+right+' 416V501" stroke="#a7ee79" stroke-width="3.7"/>'+
+   '<path d="M'+(right-9)+' 403L'+right+' 415l9-12Z" fill="#b6f989"/>'+
+   '</g>';
+ s+='<text x="610" y="220" text-anchor="middle" font-size="34" font-weight="780" fill="#d6ffc2"'+
+    ' class="m01-unit-reading">'+readings[unitSelected]+' '+names[unitSelected]+'</text>';
+ s+='<text x="610" y="554" text-anchor="middle" font-size="'+(seenUnits.size===3?19:16)+'"'+
+   ' font-weight="650" fill="'+(seenUnits.size===3?'#c7faab':'#bbdce2')+'">'+
+   (seenUnits.size===3?'Довжина залишилась тією самою ✓':'Брусок не змінюється — змінюються поділки')+'</text>';
+ s+='<rect x="340" y="405" width="536" height="100" rx="8" fill="transparent"'+
+  ' class="m01-unit-hit" data-unit-cycle="true" role="button" tabindex="0"'+
+  ' aria-label="Перемкнути одиницю лінійки" />';
+ return s;
+}
+
 function conversionScene(){
  let s=schematic();
  s+=blockSvg(450,245,50*MM,'',false,false);
@@ -283,7 +319,7 @@ function mainScene(){
  if(scene===0)return overviewScene();
  if(scene===1)return caliperScene(0,gap,false);
  if(scene===2)return caliperScene(target(),gap);
- if(scene===3)return conversionScene();
+ if(scene===3)return unitRulerScene();
  if(scene===4)return scaleScene();
  if(scene===5)return prefixScene();
  if(scene===6&&practiceIndex===0)return caliperScene(42,gap);
@@ -311,9 +347,13 @@ function controlView(){
     return content;
  }
  if(!quest&&step===3){
-  const q=[['50 мм = ? см','см'],['120 мм = ? см','см'],['50 мм = ? м','м']][Math.min(unitsIndex,2)];
-  return '<div class="m01-control-title">Перетворення '+(unitsIndex+1)+'/3</div>'+
-   promptInput(q[0],'Твоє значення',q[1])+'<button type="button" class="m01-submit" data-act="check">Перевірити</button>';
+  const choices=[['mm','мм'],['cm','см'],['m','м']];
+  return '<div class="m01-unit-switch" role="group" aria-label="Одиниці шкали лінійки">'+
+   '<div class="m01-unit-heading"><span>ШКАЛА ЛІНІЙКИ</span><span>'+seenUnits.size+' / 3</span></div>'+
+   '<div class="m01-unit-buttons">'+choices.map(([key,label])=>
+    '<button type="button" data-act="unit-'+key+'" class="'+(unitSelected===key?'active ':'')+
+    (seenUnits.has(key)?'m01-unit-seen':'')+'" aria-pressed="'+(unitSelected===key)+'">'+
+    (seenUnits.has(key)?'✓ ':'')+label+'</button>').join('')+'</div></div>';
  }
  if(!quest&&step===4){
   const labels=['1 метр','10 метрів','100 метрів','1 000 метрів'];
@@ -354,7 +394,7 @@ function guidance(){
   'Спочатку припущення, потім вимірювання. Помилятися дозволено.',
   caliperChosen?'Тягни каретку вправо, а потім до нуля — або скористайся клавіатурою.':'У нижній панелі є реальний інструмент. Можна вибрати його там або натиснути «Взяти».',
   'Число треба зчитати зі шкали самостійно. Контакт губок підтверджує, що вимірювання можливе.',
-  '50 мм і 5 см — та сама довжина. Змінюється її числовий запис.',
+  'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
   'Масштаб зображення і одиниця вимірювання — різні речі.',
   'Переходи k → M → G щоразу означають множення на тисячу.',
   'Спробуй сам: це ще тренування, підказки доступні.',
@@ -406,7 +446,7 @@ function render(){
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
  el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current===3&&sceneComplete()?'Готово. Натисни «Далі →».':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  renderScaleLoupe();
@@ -418,7 +458,8 @@ function render(){
  const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
- next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):'Далі →';
+ next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===3&&allowed?'До масштабу →':'Далі →';
+ next.classList.toggle('m01-unit-next-ready',mode==='demo'&&current===3&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
@@ -430,7 +471,7 @@ function hintMessage(){
   ['Обери A або B. Це лише припущення.','Спробуй порівняти торці брусків.','Натисни на одну з кнопок вибору деталі.'],
   ['Знайди штангенциркуль серед інструментів.','Його можна взяти кнопкою в цій сцені.','Потягни каретку вправо, потім вліво до позначки 0.'],
   ['Встанови вимірювальний інструмент.','Зсунь рухому губку до торця деталі.','Подивись на основну шкалу — потрібне число відповідає нулю рухомої каретки.'],
-  ['У сантиметрі 10 міліметрів.','Щоб перейти з мм у см, число поділи на 10.','Для метрів поділи міліметри на 1 000.'],
+  ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
   ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
   ['Переглянь k, M і G.','Кожен перехід між ними — множник 1 000.','3 М = 3 000 к; 2 Г = 2 000 М.'],
   ['Почни з вимірювання невідомої деталі.','Після вимірювання перетвори сантиметри.','Перехід М → к множить число на 1 000.']
@@ -498,7 +539,7 @@ function check(){
    announce('✓ Деталь виміряно. Наступна.',true)}
   render();return;
  }
- if(memory.scene===3){unitsIndex+=1;if(unitsIndex>=3)success('✓ 50 мм = 5 см = 0,05 м. Розмір не змінився.');else announce('✓ Правильно. Спробуй ще одну одиницю.',true);}
+ // Scene 3 is an instrument-led experiment; its assessment remains a separate task.
  if(memory.scene===4){answers.km=1;success('✓ 1 000 м = 1 км. Зміна одиниці не змінює відстань.')}
  if(memory.scene===5){unitsIndex+=1;if(unitsIndex>=2)success('✓ Мега = 1 000 кіло, гіга = 1 000 мега.');else announce('✓ Правильно. Залишився ще один масштаб.',true)}
  if(memory.scene===6){caliperPhase='success';onSuccess();return}
@@ -555,6 +596,16 @@ function respond(act){
   },520);
   return;
  }
+ if(act.startsWith('unit-')){
+  const unit=act.slice(5);
+  if(mode!=='demo'||memory.scene!==3||!['mm','cm','m'].includes(unit))return;
+  unitSelected=unit;seenUnits.add(unit);
+  if(sceneComplete()&&!memory.completed.includes(3))
+   success('✓ 50 мм = 5 см = 0,05 м. Брусок не змінився. Натисни «Далі →».');
+  render();
+  controls.querySelector('[data-act="unit-'+unit+'"]')?.focus({preventScroll:true});
+  return;
+ }
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
  if(act.startsWith('prefix-')){prefixIndex=Number(act.slice(7));seenPrefix.add(prefixIndex);render();return}
@@ -564,7 +615,11 @@ root.addEventListener('click',e=>{
  const button=e.target.closest('button[data-act]');if(button)respond(button.dataset.act);
 });
 canvas.addEventListener('click',e=>{
- if(!visible||mode!=='demo'||memory.scene!==0)return;
+ if(!visible||mode!=='demo')return;
+ if(memory.scene===3&&e.target.closest('[data-unit-cycle]')){
+  const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
+ }
+ if(memory.scene!==0)return;
  const item=e.target.closest('[data-guess]');if(item)respond('choose-'+item.dataset.guess);
 });
 root.addEventListener('keydown',e=>{
@@ -619,6 +674,9 @@ canvas.addEventListener('pointercancel',e=>{
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
+ if(visible&&mode==='demo'&&memory.scene===3&&e.target.closest('[data-unit-cycle]')&&['Enter',' '].includes(e.key)){
+  e.preventDefault();const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
+ }
  const item=e.target.closest('[data-guess]');
  if(visible&&mode==='demo'&&memory.scene===0&&item&&['Enter',' '].includes(e.key)){
   e.preventDefault();respond('choose-'+item.dataset.guess);return;
