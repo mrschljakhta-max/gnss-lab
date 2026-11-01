@@ -1,0 +1,126 @@
+/* Mission 00 — tactile trilateration onboarding, scoped to engineering lesson 01. */
+#gnssIntro0{
+  position:absolute;inset:0;z-index:90;overflow:hidden;isolation:isolate;
+  color:#edf9fa;font-family:Inter,system-ui,Arial,sans-serif;
+  background:radial-gradient(ellipse at 50% 58%,#0a3b5d35 0%,#07283c33 60%,#061b2f66 100%);
+}
+#gnssIntro0[hidden],#gnssIntroReplay[hidden]{display:none!important}
+body.gnss-intro-active #gnssMissionV1,
+body.gnss-intro-active #lab01Journey,
+body.gnss-intro-active #jRestoreRoute,
+body.gnss-intro-active #engCommand,
+body.gnss-intro-active #engStatus,
+body.gnss-intro-active #engReadout,
+body.gnss-intro-active #engSvg,
+body.gnss-intro-active .gnss-draft-preview,
+body.gnss-intro-active .gnss-3d-stage,
+body.gnss-intro-active #gnssFreeCaliper,
+body.gnss-intro-active #gfcThreeStage,
+body.gnss-intro-active #gnssFreeProtractor,
+body.gnss-intro-active .eng-stamp,
+body.gnss-intro-active .eng-demo-label {display:none!important}
+body.gnss-intro-active #engWorkspace{grid-template-columns:minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr)!important}
+body.gnss-intro-active .eng-right,
+body.gnss-intro-active .eng-dock{display:none!important}
+#gnssIntro0 #intro0Map{
+  display:block;position:absolute;inset:0;height:100%;width:100%;
+  touch-action:none;user-select:none;cursor:crosshair;
+}
+#gnssIntro0 .intro0-head{
+  position:absolute;top:21px;left:25px;z-index:2;
+  max-width:min(520px,52%);pointer-events:none;
+  text-shadow:0 2px 7px #041b2ed9;
+}
+#gnssIntro0 .intro0-kicker{
+  color:#b2d6e6;letter-spacing:1.2px;font:700 10px/1.4 ui-monospace,Consolas,monospace;
+}
+#gnssIntro0 .intro0-head h2{
+  font-size:clamp(23px,2.4vw,34px);line-height:1.15;letter-spacing:-.03em;
+  margin:7px 0 6px;color:#f2fcfb;font-weight:750;
+}
+#gnssIntro0 .intro0-head p{margin:0;color:#d3eff1;font-size:clamp(12px,1vw,15px);line-height:1.48}
+#gnssIntro0 .intro0-feedback{
+  position:absolute;bottom:80px;left:25px;z-index:3;
+  background:#05293ddb;border-left:2px solid #baf88b;padding:9px 12px;
+  color:#e3f9ec;font-size:12px;line-height:1.5;
+  max-width:min(455px,65%);pointer-events:none;
+}
+#gnssIntro0 .intro0-feedback:not(.intro0-has-feedback){display:none}
+#gnssIntro0 .intro0-footer{
+  position:absolute;bottom:15px;left:20px;right:20px;z-index:4;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  pointer-events:none;
+}
+#gnssIntro0 .intro0-tools,#gnssIntro0 .intro0-actions{display:flex;align-items:center;gap:9px;pointer-events:auto}
+#gnssIntro0 button{
+  border:1px solid #5b8695;background:#08283add;color:#e0f2f5;
+  padding:10px 14px;border-radius:9px;min-height:40px;
+  font:650 12px/1.2 system-ui,sans-serif;cursor:pointer;
+}
+#gnssIntro0 button:hover{background:#17495a;border-color:#a8e782}
+#gnssIntro0 button:focus-visible,#gnssIntroReplay:focus-visible,
+#gnssIntro0 .intro0-touch:focus-visible,#gnssIntro0 .intro0-choice-hit:focus-visible{
+  outline:3px solid #d0ff9a;outline-offset:3px;
+}
+#gnssIntro0 .intro0-tools button{font-size:17px;min-width:39px;padding:8px}
+#gnssIntro0 #intro0Progress{
+  padding-left:10px;font:700 11px ui-monospace,Consolas,monospace;color:#b8d6df;
+}
+#gnssIntro0 button.intro0-primary{
+  color:#153327;background:#b6f78b;border-color:#b6f78b;font-weight:800;
+}
+#gnssIntro0 button.intro0-primary:hover{background:#d7ffbd;border-color:#d7ffbd}
+#gnssIntro0 button.intro0-quiet{background:transparent;border-color:transparent;color:#c9e3e7}
+#gnssIntro0 button[hidden]{display:none!important}
+#gnssIntro0 .intro0-touch{
+  fill:transparent;stroke:#b9f98a;stroke-opacity:.75;stroke-width:2;
+  stroke-dasharray:4 7;cursor:grab;touch-action:none;pointer-events:all;
+  transform-box:fill-box;transform-origin:center;animation:intro0Glow 1.7s ease-in-out infinite;
+}
+#gnssIntro0 .intro0-touch:active{cursor:grabbing}
+#gnssIntro0 .intro0-choice-hit{fill:transparent;cursor:pointer;pointer-events:all}
+#gnssIntro0 .intro0-choice-hit:hover{stroke:#bdfb96;stroke-width:3;fill:#bdfa8d20}
+#gnssIntro0 .intro0-ring-drawn{
+  stroke-dasharray:4 6;filter:drop-shadow(0 0 5px #92d8eb6b);
+  animation:intro0Appear .43s ease both;
+}
+#gnssIntro0 .intro0-beacon-active>circle:first-child{animation:intro0Glow 1.8s ease-in-out infinite}
+#gnssIntro0 .intro0-pulse{animation:intro0Glow 1.8s ease-in-out infinite}
+#gnssIntro0 .intro0-handcue{animation:intro0Cue 1.7s ease-in-out infinite}
+#gnssIntro0 .intro0-space{animation:intro0Appear .7s ease-out both}
+#gnssIntro0 .intro0-satellite{animation:intro0Float 3.4s ease-in-out infinite alternate}
+#gnssIntroReplay{
+  position:absolute;top:16px;right:15px;z-index:53;
+  border:1px solid #a6de91;border-radius:8px;background:#09293de6;
+  color:#c7f6a6;padding:8px 11px;font:700 11px/1.25 ui-monospace,Consolas,monospace;
+  cursor:pointer;
+}
+#gnssIntroReplay:hover{background:#164c48}
+@keyframes intro0Glow{50%{opacity:.45;transform:scale(1.12)}}
+@keyframes intro0Appear{from{opacity:0;stroke-dashoffset:24}to{opacity:1;stroke-dashoffset:0}}
+@keyframes intro0Cue{50%{transform:translate(7px,-7px);opacity:.4}}
+@keyframes intro0Float{to{transform:translateY(-7px)}}
+@media(max-width:760px){
+  #gnssIntro0 .intro0-head{left:14px;top:74px;max-width:calc(100% - 28px)}
+  #gnssIntro0 .intro0-head h2{font-size:22px}
+  #gnssIntro0 .intro0-head p{font-size:12px}
+  #gnssIntro0 .intro0-feedback{left:12px;bottom:68px;max-width:calc(100% - 24px);font-size:11px}
+  #gnssIntro0 .intro0-footer{left:9px;right:9px;bottom:8px;gap:4px}
+  #gnssIntro0 .intro0-actions,#gnssIntro0 .intro0-tools{gap:4px}
+  #gnssIntro0 button{padding:8px 9px;min-height:35px;font-size:11px}
+  #gnssIntro0 .intro0-tools button{min-width:32px;font-size:14px}
+  #gnssIntro0 #intro0Progress{padding-left:4px;font-size:10px}
+  #gnssIntroReplay{right:8px;top:65px;font-size:10px}
+}
+@media(max-height:590px){
+  #gnssIntro0 .intro0-head{top:12px}
+  #gnssIntro0 .intro0-head h2{font-size:21px}
+  #gnssIntro0 .intro0-head p{font-size:11px}
+  #gnssIntro0 .intro0-feedback{bottom:67px}
+}
+@media(prefers-reduced-motion:reduce){
+  #gnssIntro0 .intro0-touch,#gnssIntro0 .intro0-beacon-active>circle:first-child,
+  #gnssIntro0 .intro0-pulse,#gnssIntro0 .intro0-handcue,
+  #gnssIntro0 .intro0-ring-drawn,#gnssIntro0 .intro0-space,
+  #gnssIntro0 .intro0-satellite{animation:none!important}
+}
