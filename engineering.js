@@ -15,7 +15,7 @@ const icons=['▤','╱','◉','⊣','▱'];
 const ids=['ruler','line','compass','caliper','eraser'];
 const key='gnss-lab-draft-v1';
 const state={mode:'demo',tool:'line',measureUnit:'mm',layerGrid:true,layerGuide:true,layerDrawing:true,pending:null,
- records:[],history:[],future:[],pointer:null,measure:null,ruler:{x:72,y:124,angle:0},stage:0,segment:0,
+ records:[],history:[],future:[],pointer:null,snapHover:null,measure:null,ruler:{x:72,y:124,angle:0},stage:0,segment:0,
  saved:0,demoStart:0,demoPlaying:true,lastMode:null,complete:false,hasTouch:false,status:'',scale:3};
 try{state.saved=clamp(Number(localStorage.getItem(key))||0,0,3)}catch{}
 const container=document.createElement('section');
@@ -98,7 +98,7 @@ function mode(){return document.body.dataset.expMode||'demo'}
 function lesson(){try{return typeof active==='number'?active:0}catch{return 0}}
 function setMode(next){
  if(next===state.lastMode)return;
- state.lastMode=next;state.mode=next;state.pointer=null;state.pending=null;state.measure=null;state.status='';state.history=[];state.future=[];state.complete=false;
+ state.lastMode=next;state.mode=next;state.pointer=null;state.snapHover=null;state.pending=null;state.measure=null;state.status='';state.history=[];state.future=[];state.complete=false;
  if(next==='demo'){state.demoStart=performance.now();state.demoPlaying=true;state.stage=0}
  if(next==='quest'){state.stage=state.saved;state.segment=state.stage===0?0:4;state.tool=state.stage===1?'compass':state.stage===2?'ruler':'line';state.records=[];
   if(state.stage>=1)state.records.push(...expectedLines());
@@ -119,6 +119,73 @@ function validLine(a,b){if(dist(a,b)<25)return false;return true}
 function rectPoint(p){
  return {x:clamp(Math.round(p.x/state.scale)*state.scale,18,1182),
   y:clamp(Math.round(p.y/state.scale)*state.scale,18,642)};
+}
+// Magnetic snap to already-drawn, real geometry vertices.
+// The hit radius is in on-screen pixels and remains consistent on resize.
+function snapVertices(){
+ const list=[];
+ const put=(x,y,source,kind)=>{
+  if(Number.isFinite(x)&&Number.isFinite(y))list.push({x,y,source,kind});
+ };
+ if(!state.layerDrawing)return list;
+ state.records.forEach((s,i)=>{
+  if(s.type==='line'){
+   put(s.x1,s.y1,i,'Кінець відрізка');put(s.x2,s.y2,i,'Кінець відрізка');
+  }else if(s.type==='rect'){
+   put(s.x,s.y,i,'Вершина');put(s.x+s.w,s.y,i,'Вершина');
+   put(s.x+s.w,s.y+s.h,i,'Вершина');put(s.x,s.y+s.h,i,'Вершина');
+  }else if(s.type==='triangle'){
+   put(s.x+s.w/2,s.y,i,'Вершина');put(s.x+s.w,s.y+s.h,i,'Вершина');
+   put(s.x,s.y+s.h,i,'Вершина');
+  }else if(s.type==='circle'){
+   put(s.x,s.y,i,'Центр кола');
+  }
+ });
+ return list;
+}
+function snapEnabled(){
+ return state.mode==='explore'&&state.layerDrawing&&
+  ['line','rectangle','triangle','compass'].includes(state.tool);
+}
+function nearestSnap(p){
+ if(!snapEnabled()||!Number.isFinite(p?.x)||!Number.isFinite(p?.y))return null;
+ const tr=svg.getScreenCTM?.();
+ const scale=tr?Math.hypot(tr.a,tr.b):1;
+ const limit=16/(Number.isFinite(scale)&&scale>0?scale:1);
+ let found=null,best=limit;
+ for(const v of snapVertices()){
+  const d=dist(p,v);
+  if(d<best){best=d;found=v}
+ }
+ return found;
+}
+function drawingPoint(p,grid='fine'){
+ const vertex=nearestSnap(p);
+ if(vertex)return {x:vertex.x,y:vertex.y};
+ if(grid==='line')return {x:snap(p.x),y:snap(p.y)};
+ if(grid==='circle')return {x:snap(p.x),y:snap(p.y)};
+ return rectPoint(p);
+}
+function paintSnap(){
+ const layer=svg.querySelector('.eng-snap-layer');
+ if(!layer)return;
+ layer.replaceChildren();
+ const a=state.snapHover;
+ if(!a||!snapEnabled())return;
+ const ring=svgEl('circle',{cx:a.x,cy:a.y,r:15,class:'eng-snap-ring'});
+ const dot=svgEl('circle',{cx:a.x,cy:a.y,r:4,class:'eng-snap-dot'});
+ layer.append(ring,dot);
+ // Keep the marker visible on the blueprint without obscuring the vertex.
+ const label=svgEl('text',{x:a.x+19,y:a.y-12,class:'eng-snap-label'});
+ label.textContent='● '+a.kind;
+ layer.append(label);
+}
+function hoverSnap(p){
+ const a=nearestSnap(p);
+ const old=state.snapHover;
+ if(!a&& !old)return;
+ if(a&&old&&a.x===old.x&&a.y===old.y&&a.kind===old.kind)return;
+ state.snapHover=a;paintSnap();
 }
 function rectFromDiagonal(a,b,lockSquare=false){
  let dx=b.x-a.x,dy=b.y-a.y;
@@ -307,6 +374,8 @@ function draw(){
   addShape(actual,state.pending,{preview:true});
   addDraftMeasure(actual,state.pending,measurePositions[measureShapes.length-1]);
  }
+ actual.append(svgEl('g',{class:'eng-snap-layer','pointer-events':'none'}));
+ paintSnap();
  if(state.mode==='demo')rulerShape(actual);
  else if(state.tool==='ruler'||(state.mode==='quest'&&state.stage===2))rulerShape(actual);
  if(state.mode==='quest'&&state.stage===2&&state.tool==='caliper'){
@@ -403,16 +472,23 @@ function handleDown(e){
  if(window.GNSSDrafting3D?.animating||window.GNSSDrafting3D?.intercepts)return;
  if(state.mode==='demo'||state.stage>=3)return;
  const p=pt(e),target=e.target.closest('[data-drag]');
+ if(snapEnabled())hoverSnap(p);
  if(target){state.pointer={kind:'ruler',start:p,x:state.ruler.x,y:state.ruler.y};}
- else if(state.tool==='line'){state.pointer={kind:'line',start:{x:snap(p.x),y:snap(p.y)}};
-  state.pending={type:'line',x1:snap(p.x),y1:snap(p.y),x2:snap(p.x),y2:snap(p.y)};}
+ else if(state.tool==='line'){
+  const start=drawingPoint(p,'line');
+  state.pointer={kind:'line',start};
+  state.pending={type:'line',x1:start.x,y1:start.y,x2:start.x,y2:start.y};
+ }
  else if((state.tool==='rectangle'||state.tool==='triangle')&&state.mode==='explore'){
-  const start=rectPoint(p),kind=state.tool;
+  const start=drawingPoint(p),kind=state.tool;
   state.pointer={kind,start,last:start,ctrl:!!e.ctrlKey};
   state.pending=kind==='triangle'?triangleFromDiagonal(start,start,false):rectFromDiagonal(start,start,false);
  }
- else if(state.tool==='compass'){state.pointer={kind:'circle',start:{x:snap(p.x),y:snap(p.y)}};
-  state.pending={type:'circle',x:snap(p.x),y:snap(p.y),r:0};}
+ else if(state.tool==='compass'){
+  const start=drawingPoint(p,'circle');
+  state.pointer={kind:'circle',start};
+  state.pending={type:'circle',x:start.x,y:start.y,r:0};
+ }
  else if(state.tool==='eraser'){
   if(eraserVisual)return;
   const hit=recordAtPoint(p);
@@ -437,14 +513,25 @@ function handleDown(e){
  svg.classList.add('eng-grab');
 }
 function handleMove(e){
- if(!state.pointer)return;const p=pt(e),q=state.pointer;
- if(q.kind==='line'){let x=snap(p.x),y=snap(p.y);if(e.shiftKey){if(Math.abs(x-q.start.x)>Math.abs(y-q.start.y))y=q.start.y;else x=q.start.x}
-  state.pending.x2=clamp(x,18,1182);state.pending.y2=clamp(y,18,642);}
+ const p=pt(e);
+ if(snapEnabled())hoverSnap(p);
+ if(!state.pointer)return;
+ const q=state.pointer;
+ if(q.kind==='line'){
+  const pos=drawingPoint(p,'line');
+  let x=pos.x,y=pos.y;
+  if(e.shiftKey){if(Math.abs(x-q.start.x)>Math.abs(y-q.start.y))y=q.start.y;else x=q.start.x}
+  state.pending.x2=clamp(x,18,1182);state.pending.y2=clamp(y,18,642);
+ }
  if(q.kind==='rectangle'||q.kind==='triangle'){
-  q.last=rectPoint(p);q.ctrl=!!e.ctrlKey;
+  q.last=drawingPoint(p);q.ctrl=!!e.ctrlKey;
   state.pending=q.kind==='triangle'?triangleFromDiagonal(q.start,q.last,q.ctrl):rectFromDiagonal(q.start,q.last,q.ctrl);
  }
- if(q.kind==='circle'){state.pending.r=clamp(snap(dist(p,q.start)),5,255)}
+ if(q.kind==='circle'){
+  const at=drawingPoint(p,'circle');
+  const r=dist(at,q.start);
+  state.pending.r=clamp(nearestSnap(p)?r:snap(r),5,255);
+ }
  if(q.kind==='ruler'){state.ruler.x=clamp(q.x+p.x-q.start.x,12,920);state.ruler.y=clamp(q.y+p.y-q.start.y,40,620)}
  draw();
 }
@@ -453,7 +540,7 @@ function handleUp(e){if(!state.pointer)return;
   const q=state.pointer;
   const released=e?.type==='pointercancel';
   const end=!released&&Number.isFinite(e?.clientX)&&Number.isFinite(e?.clientY)
-   ?rectPoint(pt(e)):q.last;
+   ?drawingPoint(pt(e)):q.last;
   const constrained=typeof e?.ctrlKey==='boolean'?e.ctrlKey:q.ctrl;
   const shape=q.kind==='triangle'?triangleFromDiagonal(q.start,end,constrained):rectFromDiagonal(q.start,end,constrained);
   let animated=false;
@@ -475,13 +562,16 @@ function handleUp(e){if(!state.pointer)return;
  state.pointer=null;svg.classList.remove('eng-grab');draw();
 }
 svg.addEventListener('pointerdown',handleDown);svg.addEventListener('pointermove',handleMove);svg.addEventListener('pointerup',handleUp);svg.addEventListener('pointercancel',handleUp);
+svg.addEventListener('pointerleave',()=>{
+ if(!state.pointer){state.snapHover=null;paintSnap()}
+});
 svg.addEventListener('dblclick',e=>{if(state.tool==='ruler'){state.ruler.angle=(state.ruler.angle+90)%360;draw()}});
 confirm.addEventListener('click',commit);
 tools.addEventListener('click',e=>{const btn=e.target.closest('button[data-tool]');if(!btn||state.mode==='demo')return;const t=btn.dataset.tool;
  if(t==='units'){state.measureUnit=state.measureUnit==='mm'?'cm':'mm';draw();return}
  // In free drafting, the caliper now measures the selected A–B cross-section
  // on this canvas. The practice station remains available via "Практика 01".
- state.tool=t;state.pending=null;draw();});
+ state.tool=t;state.pending=null;state.snapHover=null;draw();});
 cmd.addEventListener('click',e=>{const b=e.target.closest('[data-cmd]');if(!b)return;const a=b.dataset.cmd;
  if(a==='replay'){state.demoStart=performance.now();state.demoPlaying=true;state.records=[]}
  if(a==='play'){if(!state.demoPlaying){state.demoStart=performance.now();state.records=[]}state.demoPlaying=!state.demoPlaying}
