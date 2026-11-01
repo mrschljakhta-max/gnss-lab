@@ -38,6 +38,7 @@ root.innerHTML='<div class="journey-nav"><button type="button" class="journey-na
 '<div class="j-units" id="jUnits" hidden><button data-unit="mm">мм</button><button data-unit="cm">см</button><button data-unit="m">м</button></div>'+
 '<div class="j-caliper-entry" id="jCaliperEntry" hidden><label for="jCaliperValue">Зчитане значення з ноніуса</label><div class="j-caliper-input"><input id="jCaliperValue" inputmode="decimal" autocomplete="off" placeholder="Ваш відлік" aria-label="Виміряне значення у міліметрах"/><span>мм</span></div><small>Зведи губки до контакту, потім введи число зі шкали</small></div>'+ 
 '<button type="button" id="jLensZoom" class="j-lens-zoom" hidden>Лупа ×1</button>'+
+'<button type="button" id="jCaliperAB" class="j-caliper-ab" hidden>↗ Виміряти A—B на кресленні</button>'+
 '<div class="j-notice" id="jNotice" role="status"></div><div class="j-metrics" id="jMetrics" aria-live="polite"></div>'+
 '<div class="j-footer"><div><button type="button" class="j-action" id="jReplay">↻</button><button type="button" class="j-action" id="jFree">Вільне креслення</button></div>'+
 '<div class="j-progress" id="jProgress"></div><div><button type="button" class="j-action j-primary-action" id="jCheck">✓ Перевірити</button><button type="button" class="j-action" id="jNext">Далі →</button></div></div>';
@@ -174,6 +175,7 @@ function render(){
  root.classList.toggle('j-measuring',stage===6);
  $('#jCaliperEntry').hidden=stage!==6||mode==='demo'||!contact();
  $('#jLensZoom').hidden=stage!==6||!contact();
+ $('#jCaliperAB').hidden=stage!==6||mode!=='explore';
  if(stage===6)$('#jTask').textContent=contact()?(mode==='demo'?'Цілі міліметри — ліворуч від нуля ноніуса; збіг поділок додає десяті.':'Контакт встановлено · прочитай шкалу та введи відлік'):'Потягни каретку або ролик ліворуч до контакту';
  if(stage===6)document.dispatchEvent(new CustomEvent('gnss:caliper-pose',{detail:{active:true,...caliperFrame(),gap,contact:contact()}}));
  else document.dispatchEvent(new CustomEvent('gnss:caliper-pose',{detail:{active:false}}));
@@ -304,6 +306,10 @@ restore.textContent='◉ Практика 01';restore.setAttribute('aria-label',
 restore.style.cssText='position:fixed;z-index:85;bottom:28px;left:calc(var(--lab-rail,52px) + 15px);border:0;border-bottom:2px solid #b9f888;background:#082638e8;color:#e8fbf0;padding:10px 13px;cursor:pointer;font:650 12px sans-serif';
 document.body.append(restore);
 free.addEventListener('click',()=>{deactivate();restore.hidden=false});
+$('#jCaliperAB').addEventListener('click',()=>{
+ deactivate();restore.hidden=false;
+ document.querySelector('#engTools button[data-tool="caliper"]')?.click();
+});
 restore.addEventListener('click',()=>{restore.hidden=true;activate()});
 new MutationObserver(()=>{
  const m=document.body.dataset.expMode||'demo';
