@@ -32,7 +32,8 @@ function shapes(){return Array.isArray(window.GNSSPublishedShapes)?window.GNSSPu
 function polygon(shape){
  const {x,y,w,h}=shape;
  if(shape.type==='rect')return [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
- if(shape.type==='triangle')return [{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}];
+ if(shape.type==='triangle')return Array.isArray(shape.vertices)&&shape.vertices.length===3?
+  shape.vertices:[{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}];
  return null;
 }
 function closestOnSegment(p,a,b){
@@ -160,7 +161,12 @@ function recalc(){
 }
 function begin(){
  if(!A||!B||distance(A,B)<15)return;
- const len=distance(A,B),u=mul(sub(B,A),1/len),n={x:-u.y,y:u.x},center=mul(add(A,B),.5);
+ const len=distance(A,B);
+ if(len>SCALE*170){
+  B=null;phase='second';hint.textContent='Довжина перевищує 170 мм — обери ближчу точку B';
+  return;
+ }
+ const u=mul(sub(B,A),1/len),n={x:-u.y,y:u.x},center=mul(add(A,B),.5);
  const candidate=pickShape(center,u);
  job={center,u,n,length:len,shape:candidate?.shape||null,shapeIndex:candidate?.index??-1,
   normalOffset:0,fixed:A,open:clamp(len/SCALE+18,12,170),contact:null};
@@ -274,10 +280,10 @@ function drawingSVG(){
  const scale= .94+.06*progress;
  const activeTip=add(job.fixed,mul(u,job.open*SCALE));
  let highlight='';
- if(job.shape&&(near||contactNow)){
+ if((job.shape||job.contact?.witness)&&(near||contactNow)){
   const a=job.contact?.start,b=job.contact?.end;
   const c=job.shape.type==='circle'?'circle':'path';
-  const outline=geometryPath(job.shape);
+  const outline=job.shape?geometryPath(job.shape):'';
   highlight='<g class="gfc-contour '+(contactNow?'gfc-contact':'gfc-near')+'">'+outline+'</g>';
   if(a&&b){
    const r=contactNow?9:6;
