@@ -72,6 +72,7 @@ body.lab01-route .mode-peek{z-index:90}
 #lab01Journey .j-caliper-drag{cursor:ew-resize;touch-action:none;outline:none}
 #lab01Journey .j-caliper-drag:focus-visible{stroke:#bcf98e;stroke-width:2.4}
 #lab01Journey .j-cal-tick{stroke:#213d51;stroke-width:1.15;pointer-events:none}
+#lab01Journey .j-cal-lens-tick{stroke:#c4e5ee;stroke-width:1.2;pointer-events:none}
 #lab01Journey .j-cal-vernier-tick{stroke:#c9edf0;stroke-width:1.3;pointer-events:none}
 #lab01Journey .j-cal-number{
  fill:#daebec;font:600 10px ui-monospace,Consolas,monospace;
