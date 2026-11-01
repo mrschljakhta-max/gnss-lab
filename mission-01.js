@@ -537,18 +537,14 @@ function summaryScene(){
 function mainScene(){
  if(mode==='quest'){
   if(memory.assessment===0)return caliperScene(assessmentTarget,gap);
-  if(memory.assessment===1)return conversionScene();
-  if(memory.assessment===2)return scaleScene();
-  if(memory.assessment===3)return prefixScene();
+  if(memory.assessment>=1&&memory.assessment<=3)return geometryScene();
   return summaryScene();
  }
  const scene=memory.scene;
  if(scene===0)return overviewScene();
  if(scene===1)return caliperScene(0,gap,false);
  if(scene===2)return caliperScene(target(),gap);
- if(scene===3)return unitRulerScene();
- if(scene===4)return scaleScene();
- if(scene===5)return prefixScene();
+ if(scene>=3&&scene<=5)return geometryScene();
  if(scene===6)return caliperScene(target(),gap);
  return summaryScene();
 }
@@ -588,32 +584,16 @@ function controlView(){
   }
     return content;
  }
- if(!quest&&step===3){
-  const choices=[['mm','мм'],['cm','см'],['m','м']];
-  return '<div class="m01-unit-switch" role="group" aria-label="Одиниці шкали лінійки">'+
-   '<div class="m01-unit-heading"><span>ШКАЛА ЛІНІЙКИ</span><span>'+seenUnits.size+' / 3</span></div>'+
-   '<div class="m01-unit-buttons">'+choices.map(([key,label])=>
-    '<button type="button" data-act="unit-'+key+'" class="'+(unitSelected===key?'active ':'')+
-    (seenUnits.has(key)?'m01-unit-seen':'')+'" aria-pressed="'+(unitSelected===key)+'">'+
-    (seenUnits.has(key)?'✓ ':'')+label+'</button>').join('')+'</div></div>';
- }
- if(!quest&&step===4){
-  const labels=['1 метр','10 метрів','100 метрів','1 000 метрів'];
-  return '<div class="m01-control-title">Вибери масштаб огляду</div><div class="m01-buttons">'+
-   labels.map((l,i)=>selectButton('scale-'+i,l,zoomIndex===i)).join('')+'</div>'+
-   '<span class="m01-dots" aria-label="Переглянуті масштаби">'+seenScale.size+'/4 ✓</span>'+
-   (seenScale.size===4?promptInput('1 000 м = скільки км?','Введи значення','км')+
-    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'');
- }
- if(!quest&&step===5)return prefixLabControls();
- if(quest&&step===1){
-  return '<div class="m01-control-title">Нова величина</div>'+promptInput('86 мм = скільки см?','Введи результат','см')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
- }
- if(quest&&step===2){
-  return '<div class="m01-control-title">Нова величина</div>'+promptInput('2,5 км = скільки метрів?','Введи результат','м')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
- }
- if(quest&&step===3){
-  return '<div class="m01-control-title">Нова величина</div>'+promptInput('3 МГц = скільки кГц?','Введи результат','кГц')+'<button type="button" class="m01-submit" data-act="check">Зафіксувати відповідь</button>';
+ if(geometryTask()){
+  const task=geometryTask();
+  const kind=task.kind==='line'?'ЛІНІЙКА + ОЛІВЕЦЬ':task.kind==='rect'?'КУТНИК + ОЛІВЕЦЬ':'ЦИРКУЛЬ';
+  return '<div class="m01-geometry-panel">'+
+   '<div class="m01-control-title">'+kind+'</div>'+
+   '<div class="m01-geometry-target">'+shapeDescription(task)+'</div>'+
+   '<div class="m01-geometry-instruction">Натисни на зелену точку й тягни до потрібного розміру. Відпусти для перевірки.</div>'+
+   (geomDone?'<div class="m01-geometry-done">✓ Побудова зарахована</div>':
+    '<div class="m01-geometry-keyhint">Клавіатура: стрілки — 1 мм, Shift+стрілки — 5 мм, Enter — зафіксувати</div>')+
+   '</div>';
  }
  return '';
 }
@@ -623,9 +603,9 @@ function guidance(){
   'Спочатку припущення, потім вимірювання. Помилятися дозволено.',
   caliperChosen?'Тягни каретку вправо, а потім до нуля — або скористайся клавіатурою.':'У нижній панелі є реальний інструмент. Можна вибрати його там або натиснути «Взяти».',
   'Число треба зчитати зі шкали самостійно. Контакт губок підтверджує, що вимірювання можливе.',
-  'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
-  'Масштаб зображення і одиниця вимірювання — різні речі.',
-  'Керуй масштабом часу та частотою сигналу: кожен сусідній префікс відрізняється у 1 000 разів.',
+  'Візьми початкову точку та проведи відрізок точної довжини за лінійкою.',
+  'Побудуй прямокутник перетягуванням його протилежного кута. Контролюй ширину й висоту.',
+  'Циркулем побудуй коло заданого радіуса. Відстань від центра до краю — це радіус.',
   'Схопи брусок і тягни курсор: праворуч — до ширини, вгору — до товщини. Відпусти й виміряй.',
   'Готово! Тепер закріпи навички в режимі «Тести».'
  ];
@@ -684,7 +664,7 @@ function render(){
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
  el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current===5?prefixLabPrompt():current===3&&sceneComplete()?'Готово. Натисни «Далі →».':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  renderScaleLoupe();
@@ -693,11 +673,11 @@ function render(){
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
  const replay=root.querySelector('[data-act="repeat"]');
- const allowed=quest?current>=4:current===5?sceneComplete():sceneComplete()||memory.completed.includes(current);
+ const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
- next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current===5&&allowed?'До вимірювань →':current===3&&allowed?'До масштабу →':'Далі →';
- next.classList.toggle('m01-unit-next-ready',mode==='demo'&&(current===3||current===5||current===6)&&allowed);
+ next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current>=3&&current<=5&&allowed?'Наступна побудова →':'Далі →';
+ next.classList.toggle('m01-unit-next-ready',mode==='demo'&&current>=3&&current<=6&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
@@ -709,9 +689,9 @@ function hintMessage(){
   ['Обери A або B. Це лише припущення.','Спробуй порівняти торці брусків.','Натисни на одну з кнопок вибору деталі.'],
   ['Знайди штангенциркуль серед інструментів.','Його можна взяти кнопкою в цій сцені.','Потягни каретку вправо, потім вліво до позначки 0.'],
   ['Встанови вимірювальний інструмент.','Зсунь рухому губку до торця деталі.','Подивись на основну шкалу — потрібне число відповідає нулю рухомої каретки.'],
-  ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
-  ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
-  ['Натисни «×1 000» або перемісти повзунок праворуч.','Переглянь 1 с, 1 мс, 1 мкс, 1 нс. Потім зміни частоту генератора.','Частота — коливання за секунду, період — час одного коливання: T = 1/f.'],
+  ['Утримуй зелену точку та веди вправо.','Читай довжину в мм на кресленні.','Відпусти, коли відрізок досягне заданої довжини.'],
+  ['Почни з лівого верхнього кута.','Рухай курсор праворуч і вниз — змінюються два розміри.','Відпусти, коли ширина та висота збігатимуться із завданням.'],
+  ['Почни в центрі майбутнього кола.','Відстань від центра до краю називається радіусом.','Потягни в будь-який бік на потрібну відстань і відпусти.'],
   ['Утримуй брусок лівою кнопкою та веди мишу. Для ширини потягни вправо.','Для товщини потягни вгору. Після відпускання грань зафіксується.','Виміряй кожну грань штангенциркулем. Кнопки граней також доступні з клавіатури.']
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
@@ -921,28 +901,12 @@ function respond(act){
   },520);
   return;
  }
- if(act.startsWith('unit-')){
-  const unit=act.slice(5);
-  if(mode!=='demo'||memory.scene!==3||!['mm','cm','m'].includes(unit))return;
-  unitSelected=unit;seenUnits.add(unit);
-  if(sceneComplete()&&!memory.completed.includes(3))
-   success('✓ 50 мм = 5 см = 0,05 м. Брусок не змінився. Натисни «Далі →».');
-  render();
-  controls.querySelector('[data-act="unit-'+unit+'"]')?.focus({preventScroll:true});
-  return;
- }
  if(act.startsWith('orient-')){rotateToFace(Number(act.slice('orient-'.length)));return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
- if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
- if(act.startsWith('prefix-')){prefixLabAction(act);return}
  if(act==='check'){check();return}
 }
 root.addEventListener('click',e=>{
  const button=e.target.closest('button[data-act]');if(button)respond(button.dataset.act);
-});
-root.addEventListener('change',e=>{
- if(!visible||mode!=='demo'||memory.scene!==5||e.target?.id!=='m01PrefixRange')return;
- prefixSelect(Number(e.target.value));
 });
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
