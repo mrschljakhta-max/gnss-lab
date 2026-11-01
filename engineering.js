@@ -451,7 +451,7 @@ tools.addEventListener('click',e=>{const btn=e.target.closest('button[data-tool]
  if(t==='units'){state.measureUnit=state.measureUnit==='mm'?'cm':'mm';draw();return}
  // The normal drafting toolbar opens the actual measuring instrument
  // instead of selecting the old inactive caliper cursor in free mode.
- if(t==='caliper'&&state.mode==='explore'&&window.GNSSLab01Journey?.openStage){
+ if(t==='caliper'&&window.GNSSLab01Journey?.openStage){
   if(window.GNSSLab01Journey.openStage(6))return;
  }
  state.tool=t;state.pending=null;draw();});

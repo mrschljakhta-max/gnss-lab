@@ -118,3 +118,19 @@ body.gnss-caliper-3d-ready #jCaliperHardware{visibility:hidden}
  #lab01Journey .j-caliper-input input{font-size:16px;padding:7px}
  #lab01Journey .j-caliper-entry label{font-size:11px}
 }
+
+/* Mechanical Caliper V2: scale and entry share the lower work area. */
+#lab01Journey.j-measuring .j-caliper-entry{left:auto;right:3%;top:auto;bottom:12%;width:27%;max-width:290px;padding:10px;background:#08283de8;border:0}
+#lab01Journey.j-measuring .j-caliper-entry small{display:none}
+#lab01Journey .j-lens-zoom{position:absolute;left:14%;bottom:7%;z-index:35;border:1px solid #8caeba66;border-radius:4px;background:#08283d;color:#e6f7f8;padding:6px 12px;font-size:12px}
+#lab01Journey .j-lens-zoom[hidden]{display:none}
+#lab01Journey.j-measuring .j-notice{top:125px;right:28px}
+#lab01Journey.j-measuring .j-hud-task{max-width:640px}
+#lab01Journey.j-measuring .j-object-hit{opacity:.45}
+#lab01Journey.j-measuring .j-object-hit[aria-pressed="true"]{opacity:1}
+#lab01Journey .j-contact-face{animation:jContact .6s ease-out both}
+#lab01Journey.j-success #jCaliperLens{filter:drop-shadow(0 0 9px #bafa84)}
+#lab01Journey #jCaliperHardware .j-cal-number{fill:#203440;stroke:none}
+@keyframes jContact{0%{stroke-width:7;opacity:1}100%{stroke-width:2;opacity:.65}}
+@media(prefers-reduced-motion:reduce){#lab01Journey .j-contact-face{animation:none}}
+@media(max-width:780px){#lab01Journey.j-measuring .j-caliper-entry{right:3%;bottom:15%;width:24%;padding:6px}#lab01Journey.j-measuring .j-caliper-entry label{font-size:10px}#lab01Journey.j-measuring .j-hud-task{max-width:85vw}#lab01Journey .j-lens-zoom{bottom:10%}}
