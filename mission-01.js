@@ -497,9 +497,7 @@ function geometryScene(){
   s+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
  }
  const current=geomAnimating?null:(geomDraft||(geomDone?shapeGoal(task):null));
- s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>'+
-  '<g data-geom-ink="true" aria-hidden="true"></g>'+
-  '<g data-geom-tools="true" aria-hidden="true"></g>';
+ s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
  s+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
   '<circle cx="'+x+'" cy="'+y+'" r="29" class="m01-geom-handle" data-geom-start="true"'+
   ' fill="transparent" stroke="#c7ffa7" stroke-width="2" stroke-dasharray="5 6" tabindex="0"'+
