@@ -78,7 +78,7 @@ function caliperFrame(){
 }
 function caliperFallbackHardware(f){
  const {zeroX,y,target,max}=f,thumb=zeroX+gap*n,railStart=zeroX-58;
- const ticks=Array.from({length:max+1},(_,i)=>{
+ const ticks=Array.from({length:171},(_,i)=>{
   const xx=zeroX+i*n,major=i%10===0,half=i%5===0;
   return L(xx,y-4,xx,y+(major?11:half?7:3),'j-cal-tick')+
    (major?T(xx,y+25,String(i),'j-cal-number'):'');
@@ -107,7 +107,7 @@ function vernierMagnifier(){
  const base=Math.max(0,Math.floor(gap)-2);
  const main=Array.from({length:17},(_,i)=>{
   const x=899+i*13,mm=base+i;
-  return L(x,460,x,mm%5===0?478:470,'j-cal-tick')+
+  return L(x,460,x,mm%5===0?478:470,'j-cal-lens-tick')+
     (i%2===0?T(x,494,String(mm),'j-cal-number'):'');
  }).join('');
  const offset=(gap-base)*13;
