@@ -887,7 +887,9 @@ function validatedEraseHit(data){
  if(!Number.isFinite(at.x)||!Number.isFinite(at.y)){
   at=shape.type==='line'?{x:shape.x1,y:shape.y1}:
    shape.type==='circle'?{x:shape.x+shape.r,y:shape.y}:
-   shape.type==='triangle'?{x:shape.x+shape.w/2,y:shape.y}:{x:shape.x,y:shape.y};
+   shape.type==='triangle'
+    ?Array.isArray(shape.vertices)?{...shape.vertices[0]}:{x:shape.x+shape.w/2,y:shape.y}
+    :{x:shape.x,y:shape.y};
  }
  if(shape.type==='line'){
   const dx=shape.x2-shape.x1,dy=shape.y2-shape.y1;
@@ -897,7 +899,9 @@ function validatedEraseHit(data){
  }else if(shape.type==='rect'||shape.type==='triangle'){
   const x=shape.x,y=shape.y,w=shape.w,h=shape.h;
   const verts=shape.type==='triangle'
-   ?[{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}]
+   ?Array.isArray(shape.vertices)&&shape.vertices.length===3
+    ?shape.vertices
+    :[{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}]
    :[{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}];
   const projected=verts.map((v,i)=>{
    const to=verts[(i+1)%verts.length],dx=to.x-v.x,dy=to.y-v.y;
@@ -928,9 +932,10 @@ function eraserPathPosition(data,time){
  }
  if(shape.type==='triangle'){
   const {x,y,w,h}=shape;
-  const apex={x:x+w/2,y},right={x:x+w,y:y+h},left={x,y:y+h};
-  const segments=[[apex,right],[right,left],[left,apex]];
-  const perimeter=w+2*Math.hypot(w/2,h);
+  const pts=Array.isArray(shape.vertices)&&shape.vertices.length===3
+   ?shape.vertices:[{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}];
+  const segments=pts.map((p,i)=>[p,pts[(i+1)%3]]);
+  const perimeter=segments.reduce((sum,[p,q])=>sum+Math.hypot(q.x-p.x,q.y-p.y),0);
   let remaining=travel*perimeter,px=apex.x,py=apex.y,heading=0;
   for(const [a,b] of segments){
    const len=Math.hypot(b.x-a.x,b.y-a.y);
@@ -1074,7 +1079,8 @@ function shapeEdgesForPlayback(shape){
  const vertices=shape.type==='rect'?
   [{x,y},{x:x+w,y},{x:x+w,y:y+h},{x,y:y+h}]:
   shape.type==='triangle'?
-  [{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}]:[];
+  Array.isArray(shape.vertices)&&shape.vertices.length===3
+   ?shape.vertices:[{x:x+w/2,y},{x:x+w,y:y+h},{x,y:y+h}]:[];
  return vertices.map((a,i)=>{
   const b=vertices[(i+1)%vertices.length];
   return {type:'line',x1:a.x,y1:a.y,x2:b.x,y2:b.y};
@@ -1086,8 +1092,10 @@ function addShapeInkOverlay(job){
  const vertices=shape.type==='rect'
   ?[[shape.x,shape.y],[shape.x+shape.w,shape.y],
     [shape.x+shape.w,shape.y+shape.h],[shape.x,shape.y+shape.h]]
-  :[[shape.x+shape.w/2,shape.y],[shape.x+shape.w,shape.y+shape.h],
-    [shape.x,shape.y+shape.h]];
+  :Array.isArray(shape.vertices)&&shape.vertices.length===3
+   ?shape.vertices.map(v=>[v.x,v.y])
+   :[[shape.x+shape.w/2,shape.y],[shape.x+shape.w,shape.y+shape.h],
+     [shape.x,shape.y+shape.h]];
  const outline='M'+vertices.map(v=>v.join(' ')).join(' L')+' Z';
  const guide=node('path',{d:outline,class:'gnss-guide'});
  guide.setAttribute('opacity','.28');
