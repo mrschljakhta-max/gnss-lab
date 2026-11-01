@@ -52,56 +52,162 @@ function label(parent,text,x,y,size=14,z=11){
  const obj=new T.Mesh(new T.PlaneGeometry(size*2.4,size),m);
  obj.position.set(x,y,z);parent.add(obj);
 }
+// Precision mechanical caliper V3: industrial satin-steel model inspired by
+// the agreed top-down reference. All structural parts are REAL 3D meshes;
+// scale, jaws, vernier and roller are separate physical components.
+function contour(parent,vertices,z,depth,material,bevel=.7){
+ const shape=new T.Shape();
+ vertices.forEach((p,i)=>i?shape.lineTo(p[0],p[1]):shape.moveTo(p[0],p[1]));
+ shape.closePath();
+ const geometry=new T.ExtrudeGeometry(shape,{
+  depth,steps:1,bevelEnabled:bevel>0,bevelSegments:2,
+  bevelThickness:bevel,bevelSize:bevel,bevelOffset:0,curveSegments:4
+ });
+ const mesh=new T.Mesh(geometry,material);
+ mesh.position.z=z;
+ parent.add(mesh);
+ return mesh;
+}
+function straight(parent,x1,y1,x2,y2,z,color,width=.9){
+ const dx=x2-x1,dy=y2-y1,len=Math.hypot(dx,dy);
+ if(len<.001)return;
+ const piece=new T.Mesh(new T.PlaneGeometry(len,width),
+  new T.MeshBasicMaterial({color,side:T.DoubleSide,transparent:true,opacity:.93,depthWrite:false}));
+ piece.position.set((x1+x2)/2,(y1+y2)/2,z);
+ piece.rotation.z=Math.atan2(dy,dx);
+ parent.add(piece);
+ return piece;
+}
+function ring(parent,x,y,r,z,color,thickness=1.2){
+ const g=new T.Mesh(new T.RingGeometry(r-thickness,r,40),
+  new T.MeshBasicMaterial({color,side:T.DoubleSide,transparent:true,opacity:.95}));
+ g.position.set(x,y,z);parent.add(g);return g;
+}
+function screw(parent,x,y,z){
+ const disk=disc(parent,x,y,z,5.2,2,mat(0x697985,.72,.26));
+ disc(parent,x,y,z+1.4,3.5,1,mat(0xc3d3dc,.78,.22));
+ ring(parent,x,y,4.2,z+2.2,0x233b48,.65);
+ straight(parent,x-2.2,y-2.2,x+2.2,y+2.2,z+2.55,0x223c4b,1);
+ straight(parent,x-2.2,y+2.2,x+2.2,y-2.2,z+2.55,0x223c4b,1);
+ return disk;
+}
+function brushedSteel(){
+ const sheet=document.createElement('canvas');sheet.width=512;sheet.height=96;
+ const ctx=sheet.getContext('2d');
+ if(!ctx)return mat(0xb9c7cd,.75,.29);
+ const g=ctx.createLinearGradient(0,0,0,96);
+ g.addColorStop(0,'#e7eef0');g.addColorStop(.18,'#cbd5d9');
+ g.addColorStop(.55,'#a9b8c2');g.addColorStop(.82,'#b8c3ca');
+ g.addColorStop(1,'#8796a1');
+ ctx.fillStyle=g;ctx.fillRect(0,0,512,96);
+ for(let i=0;i<340;i++){
+  const y=(i*29)%96;
+  const opacity=.012+(i%7)*.003;
+  ctx.fillStyle='rgba(42,61,75,'+opacity+')';
+  ctx.fillRect((i*37)%512,y,170+(i%8)*25,(i%4===0?1:.42));
+ }
+ const texture=new T.CanvasTexture(sheet);
+ texture.colorSpace=T.SRGBColorSpace;
+ texture.anisotropy=Math.min(renderer?.capabilities?.getMaxAnisotropy?.()||4,8);
+ return new T.MeshStandardMaterial({map:texture,color:0xf3f8fa,
+  metalness:.76,roughness:.31,side:T.DoubleSide});
+}
+function engraving(parent,y,z){
+ // Real metric geometry: fixed main scale is never moved with the carriage.
+ const strokes=[];
+ for(let mm=0;mm<=170;mm++){
+  const x=mm*3,major=mm%10===0,five=mm%5===0;
+  strokes.push([x,y,x,y+(major?19:five?14:9),z]);
+ }
+ segments(parent,strokes,0x283f4c);
+ for(let i=0;i<=160;i+=10)label(parent,String(i),i*3,y+30,12,z+.5);
+}
 function geometry(){
  instrument=new T.Group();scene.add(instrument);
- const alloy=mat(0xc9d8dc,.73,.23),light=mat(0xf3faf8,.65,.22),
-  dark=mat(0x546f7e,.56,.3),shadow=mat(0x274859,.44,.36),
-  grip=mat(0xb7cbd1,.72,.23);
- // A precision straightedge: 170 mm, scale fixed at 3 model units / mm.
- box(instrument,560,51,7,243,17,1,dark);
- box(instrument,559,45,5,243,17,6,alloy);
- box(instrument,558,4,2,243,-4,9,light);
- box(instrument,558,2,1,243,38,10,shadow);
- const marks=[];
- for(let mm=0;mm<=170;mm++){
-  const xx=3*mm;
-  marks.push([xx,4,xx,mm%10===0?18:mm%5===0?14:10,10.5]);
-  if(mm%10===0)label(instrument,mm,xx,31,9,11);
+ const frame=mat(0x43545e,.68,.31),steel=brushedSteel();
+ const bright=mat(0xeaf2f5,.69,.22),cut=mat(0x9caeb9,.65,.27);
+ const dark=mat(0x34444e,.48,.49),graphite=mat(0x273943,.4,.52);
+ const silver=mat(0xbfcbd1,.73,.29),glow=new T.MeshBasicMaterial({color:0xa6f26c});
+ // 1. Full-length rail: extruded machined block with a separate brushed face.
+ contour(instrument,[[-45,-2],[533,-2],[539,3],[539,60],[531,66],[-44,66]],0,8,frame,1.2);
+ contour(instrument,[[-37,3],[529,3],[531,57],[-39,57]],8,3,steel,.4);
+ box(instrument,569,3,1,245,-2,11,bright);
+ box(instrument,569,2,1,245,62,11,dark);
+ straight(instrument,-38,8,531,8,12.4,0xeef7f7,1.3);
+ straight(instrument,-38,57,531,57,12.4,0x506470,1);
+ engraving(instrument,11,13.3);
+ // Laser-engraved mm unit, visible without an electronic readout.
+ label(instrument,'mm',518,44,11,13.4);
+ // Fine brushed machining bands on the rail.
+ for(let i=0;i<13;i++){
+  const y=8+i*3.8;
+  straight(instrument,-36,y,530,y,12.02,i%3===0?0xd0e3e6:0x94a5ae,.23);
  }
- segments(instrument,marks,0x234556);
- // Fixed exterior jaw: the reference plane lies at X=0.
- box(instrument,20,66,9,-3,-30,10,shadow);
- box(instrument,14,62,9,-6,-28,16,alloy);
- box(instrument,22,13,10,-1,-53,14,light);
- box(instrument,32,12,9,15,-10,13,alloy);
- // Movable vernier assembly and jaw.
+ // Accent line, mimicking engraved paint in the approved reference.
+ straight(instrument,0,61,490,61,14,0xa6f76a,2.2);
+ // 2. Fixed upper measuring jaw. Inner measuring face is at X = 0.
+ contour(instrument,[
+  [-44,61],[-44,3],[-27,-8],[-27,-108],[-3,-108],[-3,-58],
+  [0,-40],[28,-40],[28,-11],[0,-11],[0,64]
+ ],13,9,graphite,.75);
+ contour(instrument,[[-23,-108],[-4,-108],[-4,-91],[-23,-91]],22,2,bright,.35);
+ contour(instrument,[[-37,-10],[-26,-10],[-26,-42],[-37,-42]],20,3,silver,.4);
+ straight(instrument,-26,-99,-26,-13,25,0xb2c2ca,1.2);
+ straight(instrument,-3,-91,-3,-58,25,0xf2f8f7,1.3);
+ // Left fixed foot, screw heads, reference zero ring.
+ contour(instrument,[[-45,-3],[-13,-3],[-13,68],[-45,68]],14,5,dark,.7);
+ screw(instrument,-35,11,19);screw(instrument,-35,53,19);
+ ring(instrument,0,2.5,8,26,0x9df06e,2.6);
+ ring(instrument,0,2.5,3.3,26.2,0x203943,1.5);
+ straight(instrument,-1.3,12,-1.3,55,25,0xa8f56d,1.6);
+ // 3. Moving group: every attached assembly translates by exactly opening*3.
  slider=new T.Group();instrument.add(slider);
- box(slider,64,57,10,18,51,12,shadow);
- box(slider,61,53,9,18,48,18,alloy);
- box(slider,61,4,2,18,24,23,light);
- box(slider,19,65,9,-8,-28,15,shadow);
- box(slider,14,62,9,-7,-28,21,alloy);
- box(slider,22,13,9,-12,-53,20,light);
- box(slider,31,11,9,-19,-10,19,alloy);
- // Exact vernier spacing: ten divisions across 9 mm = 27 model units.
- const vernier=[];
+ // Main carriage is a dark bridge over the upper rail.
+ contour(slider,[[-36,-10],[-23,-25],[86,-25],[97,-11],[97,3],[-34,3]],15,7,dark,.9);
+ contour(slider,[[-29,-19],[80,-19],[89,-8],[-35,-8]],22,1,graphite,.4);
+ straight(slider,45,-15,92,-15,24.3,0xb1f56c,3);
+ straight(slider,-30,-3,95,-3,23.5,0xadbfc4,1);
+ screw(slider,-19,-12,24);screw(slider,87,-12,24);
+ // Measuring jaw is an industrial dark jaw like the stationary one, mirrored.
+ contour(slider,[
+  [40,62],[40,4],[25,-9],[25,-108],[3,-108],[3,-58],
+  [0,-40],[-28,-40],[-28,-11],[0,-11],[0,65]
+ ],13,11,graphite,.65);
+ contour(slider,[[4,-108],[23,-108],[23,-91],[4,-91]],23,2,bright,.35);
+ contour(slider,[[26,-42],[38,-42],[38,-10],[26,-10]],21,3,silver,.35);
+ straight(slider,3,-91,3,-58,26,0xf0f8f9,1.2);
+ ring(slider,0,2.5,8,27,0xa9f66b,2.7);
+ ring(slider,0,2.5,3.4,27.2,0x263d4a,1.4);
+ // Nonius module hangs below the beam and moves as a single machined plate.
+ contour(slider,[[-20,59],[109,59],[111,112],[93,119],[-17,119]],18,8,frame,.8);
+ contour(slider,[[-17,65],[105,65],[105,108],[-17,108]],26,2,steel,.5);
+ straight(slider,-16,65,104,65,29,0xe7f3f4,1.2);
+ // 0.1mm vernier: 10 graduations occupy 9 main-scale millimetres.
+ const marks=[];
  for(let i=0;i<=10;i++){
   const x=i*2.7;
-  vernier.push([x,45,x,i%5===0?62:55,24]);
+  marks.push([x,69,x,i%5===0?88:81,30]);
  }
- segments(slider,vernier,0x294755);
- for(const val of [0,5,10])label(slider,val,val*2.7,69,9,24);
- // Rolling thumb wheel (actual 3D metal geometry).
- thumb=new T.Group();thumb.position.set(15,83,26);slider.add(thumb);
- disc(thumb,0,0,0,13,7,dark);
- disc(thumb,0,0,6,11,3,grip);
- disc(thumb,0,0,8,4,2,shadow);
- const ridges=[];
- for(let i=0;i<28;i++){
-  const a=i*Math.PI/14;
-  ridges.push([11*Math.cos(a),11*Math.sin(a),13*Math.cos(a),13*Math.sin(a),10]);
+ segments(slider,marks,0x244351);
+ for(let i of [0,5,10])label(slider,String(i),i*2.7,100,10,30.5);
+ label(slider,'0,1 mm',59,100,11,30.5);
+ screw(slider,-8,103,29);screw(slider,98,103,29);
+ // Knurled metal thumb wheel centered under the moving carriage.
+ thumb=new T.Group();thumb.position.set(44,145,26);slider.add(thumb);
+ disc(thumb,0,0,0,19,8,mat(0x3e525e,.74,.27));
+ disc(thumb,0,0,4,16,4,silver);
+ disc(thumb,0,0,7,13,3,mat(0x768b96,.78,.25));
+ disc(thumb,0,0,10,8,2,bright);
+ ring(thumb,0,0,13,13,0xa8f66b,1.5);
+ disc(thumb,0,0,11,3,1,graphite);
+ const knurls=[];
+ for(let i=0;i<56;i++){
+  const a=i*Math.PI*2/56,cs=Math.cos(a),sn=Math.sin(a);
+  knurls.push([cs*17,sn*17,cs*19.6,sn*19.6,13]);
  }
- segments(thumb,ridges,0x3f5f6d);
+ segments(thumb,knurls,0x213d50);
+ // High contrast reference index on vernier.
+ straight(slider,0,55,0,101,30.6,0x93e968,1.3);
 }
 function coordinates(){
  const rect=board.getBoundingClientRect();
