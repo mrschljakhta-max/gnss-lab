@@ -18,7 +18,7 @@ const distance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const fmt=x=>x.toLocaleString('uk-UA',{maximumFractionDigits:1});
 const freeze=(x)=>Number.isFinite(x)?x:0;
 let mode='demo',tool='line',phase='idle',A=null,B=null,pointer=null,job=null;
-let drag=null,introStart=0,introHandle=0,contactPulse=0;
+let drag=null,introStart=0,introHandle=0,contactPulse=0,hoverVertex=null;
 const root=document.createElement('div');
 root.id='gnssFreeCaliper';
 root.hidden=true;
@@ -54,7 +54,34 @@ function closestOnShape(p,shape){
  for(const q of candidates)if(distance(p,q)<distance(p,best))best=q;
  return {p:best,d:distance(best,p)};
 }
+// Magnetic endpoints on all saved shapes; caliper A/B uses the same snap
+// vocabulary as the pencil, triangle, rectangle and compass tools.
+function vertices(){
+ const list=[];
+ for(const sh of shapes()){
+  if(sh.type==='line'){
+   list.push({x:sh.x1,y:sh.y1},{x:sh.x2,y:sh.y2});
+  }else{
+   const vv=polygon(sh);
+   if(vv)list.push(...vv);
+   else if(sh.type==='circle')list.push({x:sh.x,y:sh.y});
+  }
+ }
+ return list.filter(p=>Number.isFinite(p.x)&&Number.isFinite(p.y));
+}
+function nearestVertex(p){
+ const m=svg.getScreenCTM?.(),scale=m?Math.hypot(m.a,m.b):1;
+ const max=16/(Number.isFinite(scale)&&scale>0?scale:1);
+ let best=null,d=max;
+ for(const v of vertices()){
+  const test=distance(p,v);
+  if(test<d){best=v;d=test}
+ }
+ return best;
+}
 function snapped(point){
+ const vertex=nearestVertex(point);
+ if(vertex)return {x:vertex.x,y:vertex.y};
  let best={p:point,d:18};
  for(const shape of shapes()){
   const hit=closestOnShape(point,shape);
@@ -118,13 +145,18 @@ function recalc(){
  if(!job)return;
  const found=job.shape?pickCenterAndSection(job.center,job.u,job.shape):null;
  if(found&&found.target<=170){
-  job.contact=found;job.fixed=found.start;
-  job.open=clamp(job.open,found.target,170);
+  job.contact=found;
+  job.fixed=found.start;
  }else{
-  job.contact=null;
-  job.fixed=add(add(job.center,mul(job.n,job.normalOffset)),mul(job.u,-job.length/2));
-  job.open=clamp(job.open,0,170);
+  // Open-ended strokes have no solid wall. The chosen endpoints A and B
+  // form a stable witness interval instead of allowing infinite jaw travel.
+  job.contact={
+   start:{...A},end:{...B},target:job.length/SCALE,axis:job.center,
+   witness:true
+  };
+  job.fixed={...A};
  }
+ job.open=clamp(job.open,job.contact.target,170);
 }
 function begin(){
  if(!A||!B||distance(A,B)<15)return;
@@ -146,7 +178,8 @@ function tick(){
  introHandle=requestAnimationFrame(tick);
 }
 function resetPlacement(){
- cancelAnimation();A=null;B=null;pointer=null;job=null;phase='first';drag=null;render();
+ cancelAnimation();A=null;B=null;pointer=null;job=null;phase='first';drag=null;
+ hoverVertex=null;render();
 }
 function sync(){
  const show=visible();
@@ -166,14 +199,16 @@ function pointerDown(e){
  if(hit&&job&&phase==='active'){
   e.preventDefault();e.stopPropagation();
   const kind=hit.dataset.gfcDrag,p=point(e);
-  drag={pointer:e.pointerId,kind,point:p,offset:job.normalOffset,open:job.open,
+  if(kind!=='jaw')return;
+  drag={pointer:e.pointerId,kind,point:p,open:job.open,
    relative:dot(sub(p,job.fixed),job.u)-job.open*SCALE};
   try{svg.setPointerCapture(e.pointerId)}catch{}
   return;
  }
  if(phase!=='first'&&phase!=='second')return;
  e.preventDefault();e.stopPropagation();
- const p=snapped(point(e));
+ const raw=point(e),p=snapped(raw);
+ hoverVertex=nearestVertex(raw);
  if(phase==='first'){A=p;pointer=p;phase='second';render()}
  else {B=p;if(distance(A,B)<15){hint.textContent='Задай довший відрізок';return}begin()}
 }
@@ -186,17 +221,16 @@ function pointerMove(e){
    const value=(dot(sub(p,job.fixed),job.u)-drag.relative)/SCALE;
    const prev=job.open;
    job.open=Math.round(clamp(value,job.contact?.target??0,170)*10)/10;
-   if(prev>(job.contact?.target??-1)+.15&&job.contact&&job.open<=job.contact.target+.15)contactPulse=performance.now();
-  }else if(drag.kind==='slide'){
-   const delta=dot(sub(p,drag.point),job.n);
-   job.normalOffset=clamp(drag.offset+delta,-130,130);
-   const was=job.open;
-   recalc();
-   if(job.contact&&was<job.contact.target)contactPulse=performance.now();
+   if(prev>(job.contact.target+.15)&&job.open<=job.contact.target+.15)
+    contactPulse=performance.now();
   }
   render();return;
  }
- if(phase==='second'){pointer=p;render()}
+ if(phase==='first'||phase==='second'){
+  hoverVertex=nearestVertex(p);
+  if(phase==='second')pointer=p;
+  render();
+ }
 }
 function pointerUp(e){
  if(!drag||drag.pointer!==e.pointerId)return;
@@ -218,12 +252,15 @@ function measureMarks(){
  return marks.join('');
 }
 function drawingSVG(){
- if(phase==='first')return '';
+ if(phase==='first')return hoverVertex?
+  '<g class="gfc-guides">'+circle(hoverVertex,14,'gfc-hover-ring')+
+  circle(hoverVertex,3,'gfc-dot')+'</g>':'';
  if(phase==='second'){
   const b=snapped(pointer||A);
   return '<g class="gfc-guides">'+circle(A,5,'gfc-dot')+
    '<path d="M'+P(A)+' L'+P(b)+'" class="gfc-guide"/>'+
    circle(b,4,'gfc-dot')+
+   (hoverVertex?circle(hoverVertex,14,'gfc-hover-ring'):'')+
    '<text x="'+(A.x+11)+'" y="'+(A.y-11)+'">A</text>'+
    '<text x="'+(b.x+11)+'" y="'+(b.y-11)+'">B</text></g>';
  }
@@ -261,16 +298,18 @@ function drawingSVG(){
   '<rect x="-12" y="26" width="54" height="6" rx="2" class="gfc-highlight"/>'+
   Array.from({length:11},(_,i)=>'<line x1="'+(i*2.7)+'" x2="'+(i*2.7)+'" y1="44" y2="'+(i%5===0?58:52)+'" class="gfc-vernier-tick"/>').join('')+
   '<circle cx="15" cy="82" r="12" class="gfc-thumb"/><circle cx="15" cy="82" r="4" class="gfc-thumb-hub"/>'+
-  '<circle cx="15" cy="82" r="28" class="gfc-grab" data-gfc-drag="jaw" aria-label="Пересунути рухому губку" role="slider" tabindex="0" aria-valuemin="'+fmt(job.contact?.target||0)+'" aria-valuemax="170" aria-valuenow="'+fmt(job.open)+'"/>'+
+  // The whole thumb/carriage is draggable, not only the tiny wheel.
+  '<rect x="-34" y="15" width="95" height="92" rx="10" class="gfc-grab" data-gfc-drag="jaw" aria-label="Пересувати ноніус і рухому губку вздовж штанги" role="slider" tabindex="0" aria-valuemin="'+fmt(job.contact?.target||0)+'" aria-valuemax="170" aria-valuenow="'+fmt(job.open)+'"/>'+
   '</g>';
  const rail='<rect x="-37" y="-7" width="560" height="49" rx="4" class="gfc-rail"/>'+
   '<rect x="-35" y="-5" width="555" height="4" class="gfc-highlight"/>'+
   '<path d="M0 0V-53H14V-15H33V5" class="gfc-jaw-shadow"/>'+
   '<path d="M0 0V-53H14V-15H33V5" class="gfc-jaw-metal"/>'+
   '<g class="gfc-scale">'+measureMarks()+'</g>';
- const drift='<rect x="-40" y="-9" width="558" height="18" rx="7" class="gfc-body-grab" data-gfc-drag="slide" aria-label="Зсунути штангенциркуль поперек осі"/>';
+ // Deliberately no full-body drag region: AB locks position and orientation.
+ const drift='';
  let guideLabel=phase==='enter'?'УСТАНОВЛЕННЯ':contactNow?'● КОНТАКТ':near?'◌ НАБЛИЖЕННЯ':'⇆ ЗВЕДИ ГУБКИ';
- if(!touch)guideLabel='ВІДРІЗОК · БЕЗ КОНТУРУ';
+ if(job.contact?.witness)guideLabel=contactNow?'● ВІДРІЗОК ВИМІРЯНО':'⇆ ВІДРІЗОК AB';
  const msg='<g class="gfc-status"><text x="'+Math.max(60,job.center.x)+'" y="'+Math.max(72,job.center.y-112)+'">'+guideLabel+'</text></g>';
  return selection+highlight+
   '<g class="gfc-instrument'+(contactNow?' gfc-locked':'')+'" transform="'+base+'" opacity="'+progress+'">'+
@@ -294,7 +333,7 @@ function render(){
  const message=phase==='first'?'Штангенциркуль · натисни точку A':
   phase==='second'?'Вкажи точку B — напрям і розмір':
   phase==='enter'?'Встановлюю штангенциркуль на AB…':
-  'Перетягни ролик — губки. Потягни штангу — зміщення поперек осі.';
+  'Перетягни каретку чи ролик уздовж шкали — до контакту та назад. Корпус закріплено на AB.';
  hint.textContent=message;
  reset.hidden=phase==='first'||phase==='idle';
  publishPose();
@@ -303,7 +342,13 @@ svg.addEventListener('pointerdown',pointerDown);
 svg.addEventListener('pointermove',pointerMove);
 svg.addEventListener('pointerup',pointerUp);
 svg.addEventListener('pointercancel',pointerUp);
-svg.addEventListener('pointerleave',()=>{if(phase==='second'){pointer=A;render()}});
+svg.addEventListener('pointerleave',()=>{
+ if(phase==='first'||phase==='second'){
+  hoverVertex=null;
+  if(phase==='second')pointer=A;
+  render();
+ }
+});
 svg.addEventListener('keydown',e=>{
  if(e.target?.dataset?.gfcDrag!=='jaw'||!job||!['ArrowLeft','ArrowRight'].includes(e.key))return;
  e.preventDefault();
@@ -330,7 +375,7 @@ sync();
 window.GNSSFreeCaliper={
  get phase(){return phase},get active(){return visible()},
  get measurement(){return job?{opening:job.open,contact:!!job.contact&&job.open<=job.contact.target+.16,
-  target:job.contact?.target??null,angle:Math.atan2(job.u.y,job.u.x),offset:job.normalOffset}:null},
+  target:job.contact?.target??null,angle:Math.atan2(job.u.y,job.u.x),offset:0,locked:true}:null},
  reset:resetPlacement,
  geometry:{section,polygon,closestOnShape,pickShape}
 };
