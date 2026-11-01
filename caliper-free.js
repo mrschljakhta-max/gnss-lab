@@ -304,6 +304,11 @@ function drawingSVG(){
   '<rect x="-12" y="26" width="54" height="6" rx="2" class="gfc-highlight"/>'+
   Array.from({length:11},(_,i)=>'<line x1="'+(i*2.7)+'" x2="'+(i*2.7)+'" y1="44" y2="'+(i%5===0?58:52)+'" class="gfc-vernier-tick"/>').join('')+
   '<circle cx="15" cy="82" r="12" class="gfc-thumb"/><circle cx="15" cy="82" r="4" class="gfc-thumb-hub"/>'+
+  // The metal jaw itself is now a real drag handle. Keep its interactive
+  // silhouette aligned with the actual 3D moving jaw and on top of the
+  // visual geometry: it works even when the 3D mesh is shown underneath.
+  '<path d="M0 0V-53H-14V-15H-33V5" class="gfc-jaw-hit" data-gfc-drag="jaw" aria-label="Посунути рухомий вусик штангенциркуля"/>'+
+  '<path d="M0 0V-53H-14V-15H-33V5" class="gfc-jaw-hover" pointer-events="none"/>'+
   // The whole thumb/carriage is draggable, not only the tiny wheel.
   '<rect x="-34" y="15" width="95" height="92" rx="10" class="gfc-grab" data-gfc-drag="jaw" aria-label="Пересувати ноніус і рухому губку вздовж штанги" role="slider" tabindex="0" aria-valuemin="'+fmt(job.contact?.target||0)+'" aria-valuemax="170" aria-valuenow="'+fmt(job.open)+'"/>'+
   '</g>';
@@ -339,7 +344,7 @@ function render(){
  const message=phase==='first'?'Штангенциркуль · натисни точку A':
   phase==='second'?'Вкажи точку B — напрям і розмір':
   phase==='enter'?'Встановлюю штангенциркуль на AB…':
-  'Перетягни каретку чи ролик уздовж шкали — до контакту та назад. Корпус закріплено на AB.';
+  'Потягни рухомий вусик, каретку чи ролик вздовж шкали. Назад — щоб розвести губки; корпус закріплено на AB.';
  hint.textContent=message;
  reset.hidden=phase==='first'||phase==='idle';
  publishPose();
