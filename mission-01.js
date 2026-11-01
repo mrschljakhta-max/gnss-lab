@@ -369,9 +369,11 @@ function scaleLoupeMarkup(){
 }
 function renderScaleLoupe(){
  const loupe=el('m01ScaleLoupe');
- // Calibrating to zero requires reading the moving scale throughout the motion.
- // On other measurements, reveal it only after physical jaw contact.
- const show=caliperStep()&&(calibration()||(settledContact&&atContact()));
+ // During 2/8 and 3/8 the optical scale is the teaching instrument, so
+ // display its reading from the first moment and throughout jaw movement.
+ // The assessment and later measurements still reveal it only at contact.
+ const liveLesson=mode==='demo'&&(memory.scene===1||memory.scene===2);
+ const show=caliperStep()&&(liveLesson||(settledContact&&atContact()));
  loupe.hidden=!show;
  if(show)loupe.innerHTML=scaleLoupeMarkup();
  else loupe.replaceChildren();
@@ -680,8 +682,8 @@ function syncCaliperVisual(){
  const prompt=el('m01Prompt');
  if(prompt)prompt.textContent=caliperInstruction();
  const loupe=el('m01ScaleLoupe');
- if(loupe&&calibration()){
-  // Live optical reading while the movable jaw slides towards zero.
+ if(loupe&&(calibration()||(mode==='demo'&&memory.scene===2))){
+  // The magnified markings track the moving jaw before and after contact.
   loupe.hidden=false;loupe.innerHTML=scaleLoupeMarkup();
  }else if(loupe&&(!settledContact||!atContact()))loupe.hidden=true;
 }
@@ -689,7 +691,7 @@ function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
  root.classList.toggle('m01-geometry-active',!!geometryTask());
-  root.classList.toggle('m01-centered-heading',!quest&&(current===0||current===1));
+ root.classList.toggle('m01-centered-heading',!quest&&current<=2);
  const spec=quest?tasks[Math.min(current,3)]:specs[current];
  const trainingFinished=memory.completed.length===7;
  el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,4)+'/4':
