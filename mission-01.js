@@ -882,6 +882,10 @@ function respond(act){
 root.addEventListener('click',e=>{
  const button=e.target.closest('button[data-act]');if(button)respond(button.dataset.act);
 });
+root.addEventListener('change',e=>{
+ if(!visible||mode!=='demo'||memory.scene!==5||e.target?.id!=='m01PrefixRange')return;
+ prefixSelect(Number(e.target.value));
+});
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
  if(memory.scene===6&&e.target.closest('[data-rotate-block]')){
