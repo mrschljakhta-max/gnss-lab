@@ -91,7 +91,7 @@ const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01C
 const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
- stopTurnAnimation();stopDraftingAnimation();
+ stopTurnAnimation();cancelDraftingAnimation();
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
  hintLevel=0;feedback='';feedbackSuccess=false;
  geomPointer=null;geomDraft=null;geomLast=null;geomKeyboard=0;
@@ -1132,7 +1132,7 @@ function show(nextMode){
  resetStep();render();
 }
 function hide(){
- stopTurnAnimation();stopDraftingAnimation();
+ stopTurnAnimation();cancelDraftingAnimation();
  if(!visible)return;
  cancelChoiceTimer();cancelAdvanceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
  const legacy=document.getElementById('jRestoreRoute');
