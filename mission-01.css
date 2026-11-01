@@ -544,9 +544,9 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
 }
 
 /* Lesson 01 · station 07: physically turn the 42 × 28 × 18 mm wooden specimen. */
-#gnssMissionV1 .m01-canvas .m01-rotating-face{
- pointer-events:none;
- transform-box:fill-box;
+#gnssMissionV1 .m01-canvas .m01-rotating-face{pointer-events:none}
+#gnssMissionV1 .m01-canvas .m01-face-animation{
+ pointer-events:none;transform-box:fill-box;transform-origin:center;
  animation:m01-face-turn .43s cubic-bezier(.2,.75,.23,1) both;
 }
 #gnssMissionV1 .m01-canvas .m01-rotatable-block{
@@ -608,5 +608,5 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
  #gnssMissionV1 .m01-rotate-button{min-height:42px;font-size:12px!important}
 }
 @media(prefers-reduced-motion:reduce){
- #gnssMissionV1 .m01-canvas .m01-rotating-face{animation:none!important}
+ #gnssMissionV1 .m01-canvas .m01-face-animation{animation:none!important}
 }
