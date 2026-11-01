@@ -702,6 +702,10 @@ root.addEventListener('click',e=>{
 });
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
+ if(memory.scene===6&&e.target.closest('[data-rotate-block]')){
+  if(suppressTurnClick){suppressTurnClick=false;return}
+  rotateSpecimen();return;
+ }
  if(memory.scene===3&&e.target.closest('[data-unit-cycle]')){
   const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
@@ -735,6 +739,15 @@ canvas.addEventListener('pointerout',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointerdown',e=>{
+ if(visible&&mode==='demo'&&memory.scene===6&&e.button===0&&e.target.closest('[data-rotate-block]')){
+  const p=clientToSvg(e);
+  if(!p)return;
+  suppressTurnClick=false;
+  turnPointer={id:e.pointerId,x:p.x,y:p.y};
+  e.preventDefault();
+  try{canvas.setPointerCapture(e.pointerId)}catch{}
+  return;
+ }
  if(!visible||!caliperStep()||e.button!==0||!e.target.closest('[data-jaw]'))return;
  const p=clientToSvg(e);if(!p)return;
  dragOffset=p.x-(X0+gap*MM);
@@ -744,11 +757,20 @@ canvas.addEventListener('pointerdown',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointermove',e=>{
+ if(turnPointer&&turnPointer.id===e.pointerId)return;
  if(dragId!==e.pointerId)return;
  const p=clientToSvg(e);
  if(p)updateGap((p.x-dragOffset-X0)/MM,true);
 });
 function release(e){
+ if(turnPointer&&turnPointer.id===e.pointerId){
+  turnPointer=null;
+  try{canvas.releasePointerCapture(e.pointerId)}catch{}
+  // A tap or swipe turns the wooden solid; suppress any synthetic click.
+  suppressTurnClick=true;
+  rotateSpecimen();
+  return;
+ }
  if(dragId!==e.pointerId)return;
  dragId=null;
  try{canvas.releasePointerCapture(e.pointerId)}catch{}
@@ -756,10 +778,17 @@ function release(e){
 }
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',e=>{
+ if(turnPointer&&turnPointer.id===e.pointerId){
+  turnPointer=null;suppressTurnClick=false;return;
+ }
  if(dragId!==e.pointerId)return;
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
+ if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&['Enter',' ','ArrowRight','ArrowLeft'].includes(e.key)){
+  e.preventDefault();rotateSpecimen();
+  canvas.querySelector('[data-rotate-block]')?.focus({preventScroll:true});return;
+ }
  if(visible&&mode==='demo'&&memory.scene===3&&e.target.closest('[data-unit-cycle]')&&['Enter',' '].includes(e.key)){
   e.preventDefault();const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
