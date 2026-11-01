@@ -14,7 +14,7 @@ const parse=s=>Number(String(s).trim().replace(/\s/g,'').replace(',','.'));
 const fmt=(v,d=2)=>Number(v).toLocaleString('uk-UA',{maximumFractionDigits:d});
 const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const specs=[
- {name:'Спостереження',title:'Порівняй деталі',prompt:'Яка довша — A чи B?'},
+ {name:'Спостереження',title:'Який брусок довший?',prompt:'Натисни на той, що здається довшим.'},
  {name:'Інструмент',title:'Підготуй штангенциркуль',prompt:'Розкрий губки. Зведи їх до нуля.'},
  {name:'Вимірювання',title:'Виміряй обидві деталі',prompt:'Зведи губки до торців і зчитай показ.'},
  {name:'Одиниці',title:'Зміни одиниці',prompt:'Чи зміниться довжина?'},
@@ -30,6 +30,7 @@ const tasks=[
  {name:'Масштаби',prompt:'Перетвори мега в кіло.'}
 ];
 const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0};
+const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
 let memory={...initial};
 try{
  const p=JSON.parse(localStorage.getItem(STORE)||'{}');
@@ -132,9 +133,10 @@ function blockSvg(x,y,w,title,selected=false,dim=true){
 }
 function overviewScene(){
  let s=schematic();
- s+=blockSvg(350,242,50*MM,'Деталь A',choice==='a');
- s+=blockSvg(665,242,54*MM,'Деталь B',choice==='b');
- s+='<text x="600" y="410" fill="#a9d1dc" text-anchor="middle" font-size="18">Розміри не показані — їх потрібно виміряти.</text>';
+ s+='<g class="m01-choice'+(choice==='a'?' m01-chosen':'')+'" data-guess="a" role="button" tabindex="0" aria-label="Обрати деталь A" aria-pressed="'+(choice==='a')+'">'+
+    blockSvg(350,242,50*MM,'A',choice==='a')+'</g>';
+ s+='<g class="m01-choice'+(choice==='b'?' m01-chosen':'')+'" data-guess="b" role="button" tabindex="0" aria-label="Обрати деталь B" aria-pressed="'+(choice==='b')+'">'+
+    blockSvg(665,242,54*MM,'B',choice==='b')+'</g>';
  return s;
 }
 function caliperScene(calTarget,calGap,showBlock=true){
@@ -246,8 +248,7 @@ function controlView(){
  const quest=mode==='quest',step=quest?memory.assessment:memory.scene;
  if(quest&&step>=4)return '';
  if(!quest&&step===7)return '';
- if(!quest&&step===0)return ''+
-  '<div class="m01-buttons">'+selectButton('choose-a','Деталь A',choice==='a')+selectButton('choose-b','Деталь B',choice==='b')+'</div>';
+ if(!quest&&step===0)return '';
  if((!quest&&(step===1||step===2||step===6&&practiceIndex===0))||(quest&&step===0)){
   const isZero=!quest&&step===1,measurement=!isZero;
   let content='';
@@ -365,9 +366,9 @@ function render(){
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
  const replay=root.querySelector('[data-act="repeat"]');
  const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
- next.hidden=quest&&current<4;
+ next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
- next.textContent=quest?'Пісочниця →':current===7?'До заліку →':'Далі →';
+ next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):'Далі →';
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
  replay.hidden=quest||current===7;
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
@@ -386,8 +387,10 @@ function hintMessage(){
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
 }
+let choiceTimer=null;
+function cancelChoiceTimer(){if(choiceTimer!==null){clearTimeout(choiceTimer);choiceTimer=null}}
 function setScene(index){
- memory.scene=clamp(index,0,7);persist();resetStep();render();
+ cancelChoiceTimer();memory.scene=clamp(index,0,7);persist();resetStep();render();
 }
 function setAssessment(index){
  memory.assessment=clamp(index,0,4);persist();resetStep();render();
@@ -474,13 +477,24 @@ function respond(act){
  if(act==='next'){
   if(mode==='quest'&&memory.assessment===4){document.querySelector('#expModes [data-mode="explore"]')?.click();return}
   if(mode==='demo'&&sceneComplete()){
-   if(memory.scene===7){document.querySelector('#expModes [data-mode="quest"]')?.click();return}
+   if(memory.scene===7){
+    if(firstUnfinished()<7){setScene(firstUnfinished());return}
+    document.querySelector('#expModes [data-mode="quest"]')?.click();return;
+   }
    setScene(memory.scene+1);
   }
   return;
  }
  if(act==='repeat'){resetStep();render();return}
- if(act==='choose-a'||act==='choose-b'){choice=act.slice(-1);success('Припущення збережено. Тепер перевір його вимірюванням.');render();return}
+ if(act==='choose-a'||act==='choose-b'){
+  if(mode!=='demo'||memory.scene!==0||choice)return;
+  choice=act.slice(-1);success('✓ Обрано. Перевіримо вимірюванням.');render();
+  cancelChoiceTimer();choiceTimer=setTimeout(()=>{
+   choiceTimer=null;
+   if(visible&&mode==='demo'&&memory.scene===0&&choice)setScene(1);
+  },520);
+  return;
+ }
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
  if(act.startsWith('prefix-')){prefixIndex=Number(act.slice(7));seenPrefix.add(prefixIndex);render();return}
@@ -488,6 +502,10 @@ function respond(act){
 }
 root.addEventListener('click',e=>{
  const button=e.target.closest('button[data-act]');if(button)respond(button.dataset.act);
+});
+canvas.addEventListener('click',e=>{
+ if(!visible||mode!=='demo'||memory.scene!==0)return;
+ const item=e.target.closest('[data-guess]');if(item)respond('choose-'+item.dataset.guess);
 });
 root.addEventListener('keydown',e=>{
  if(e.key==='Enter'&&e.target.id==='m01Value'){e.preventDefault();check()}
@@ -541,6 +559,10 @@ canvas.addEventListener('pointercancel',e=>{
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
+ const item=e.target.closest('[data-guess]');
+ if(visible&&mode==='demo'&&memory.scene===0&&item&&['Enter',' '].includes(e.key)){
+  e.preventDefault();respond('choose-'+item.dataset.guess);return;
+ }
  if(!visible||!caliperStep()||!e.target.closest('[data-jaw]'))return;
  const key=e.key;
  if(!['ArrowLeft','ArrowRight','PageUp','PageDown','Home','End'].includes(key))return;
@@ -554,7 +576,11 @@ canvas.addEventListener('keydown',e=>{
  }
 });
 function show(nextMode){
- visible=true;mode=nextMode;root.hidden=false;
+ cancelChoiceTimer();visible=true;mode=nextMode;root.hidden=false;
+ // A skipped final screen is not a completed course. Resume the first missing activity.
+ if(nextMode==='demo'&&memory.scene===7&&firstUnfinished()<7){
+  memory.scene=firstUnfinished();persist();
+ }
  document.body.classList.add('gnss-mission-active');
  window.GNSSLab01Journey?.close?.();
  const legacy=document.getElementById('jRestoreRoute');if(legacy)legacy.hidden=true;
@@ -562,7 +588,7 @@ function show(nextMode){
 }
 function hide(){
  if(!visible)return;
- visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
+ cancelChoiceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
  const legacy=document.getElementById('jRestoreRoute');
  if(legacy&&document.body.dataset.expMode==='explore')legacy.hidden=false;
 }
@@ -578,7 +604,7 @@ window.GNSSLab01MissionV1={
  get assessment(){return memory.assessment},get passed(){return memory.passed},
  restart(){
   if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {memory.scene=0;memory.completed=[];memory.skipped=[];persist()}
+  else {cancelChoiceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];persist()}
   resetStep();if(visible)render();
  }
 };
