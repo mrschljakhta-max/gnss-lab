@@ -45,7 +45,7 @@ function closestOnShape(p,shape){
  if(shape.type==='circle'){
   const v=sub(p,shape),l=Math.hypot(v.x,v.y);
   if(!Number.isFinite(shape.r)||shape.r<=0)return null;
-  return {p:add(shape,mul(v,l>EPS?shape.r/l:1)),d:Math.abs(l-shape.r)};
+  return {p:l>EPS?add(shape,mul(v,shape.r/l)):{x:shape.x+shape.r,y:shape.y},d:Math.abs(l-shape.r)};
  }
  const verts=polygon(shape);
  if(!verts)return null;
@@ -151,7 +151,7 @@ function resetPlacement(){
 function sync(){
  const show=visible();
  root.hidden=!show;
- if(!show){phase='idle';cancelAnimation();drag=null;return}
+ if(!show){phase='idle';cancelAnimation();drag=null;publishPose();return}
  if(phase==='idle')resetPlacement();
  render();
 }
