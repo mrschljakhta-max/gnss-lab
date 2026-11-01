@@ -124,13 +124,31 @@ function schematic(){
  '</defs><rect width="1200" height="660" fill="url(#m01Grid)" pointer-events="none"/>';
  return grid;
 }
+// Transparent wood specimen generated for GNSS LAB. Pixel artwork is decorative:
+// its SVG width remains the exact physical measurement used by the caliper.
+const WOOD_SPECIMEN='./assets/wooden-block.webp';
+function woodSurface(x,y,w,h){
+ const cap=Math.min(22,Math.max(11,w*.12));
+ const img=(viewX,viewW,ox,ow)=>'<svg x="'+ox+'" y="'+y+'" width="'+ow+'" height="'+h+
+  '" viewBox="'+viewX+' 0 '+viewW+' 139" preserveAspectRatio="none" overflow="hidden" aria-hidden="true">'+
+  '<image href="'+WOOD_SPECIMEN+'" x="0" y="0" width="220" height="139" preserveAspectRatio="none"/>'+
+  '</svg>';
+ // Nine-slice-like horizontal scaling prevents elongated corners on the 50-mm teaching ruler.
+ if(w>225){
+  return img(0,30,x,cap)+img(30,160,x+cap,w-2*cap)+img(190,30,x+w-cap,cap);
+ }
+ return '<image class="m01-wood-image" href="'+WOOD_SPECIMEN+
+  '" x="'+x+'" y="'+y+'" width="'+w+'" height="'+h+'" preserveAspectRatio="none"/>';
+}
 function blockSvg(x,y,w,title,selected=false,dim=true){
- return '<g class="m01-workpiece">'+
- '<rect x="'+(x+11)+'" y="'+(y+13)+'" width="'+w+'" height="96" rx="5" fill="#031725" opacity=".42"/>'+
- '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="96" rx="4" fill="url(#m01Ceramic)" stroke="'+(selected?'#b7f58d':'#f1e3c4')+'" stroke-width="'+(selected?2.5:1.6)+'"/>'+
- '<path d="M'+(x+3)+' '+(y+8)+'L'+(x+12)+' '+(y+4)+'H'+(x+w-7)+'" fill="none" stroke="#fff2d1" stroke-opacity=".75" stroke-width="2"/>'+
- '<path d="M'+(x+3)+' '+(y+91)+'H'+(x+w-5)+'" stroke="#87785e" stroke-opacity=".6" stroke-width="2"/>'+
- (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
+ const height=96;
+ return '<g class="m01-workpiece m01-wood-workpiece" data-wood="true">'+
+  '<rect x="'+(x+8)+'" y="'+(y+11)+'" width="'+w+'" height="'+height+'" rx="6" fill="#001b2b" opacity=".34"/>'+
+  // Keep a neutral fallback until the external WebP loads.
+  '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+height+'" rx="18" fill="url(#m01Ceramic)" stroke="none"/>'+
+  woodSurface(x,y,w,height)+
+  (selected?'<rect x="'+x+'" y="'+y+'" width="'+w+'" height="'+height+'" rx="6" fill="none" stroke="#b6fb91" stroke-width="2.5"/>':'')+
+  (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
 }
 function overviewScene(){
  let s=schematic();
