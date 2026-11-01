@@ -66,7 +66,8 @@ function geometryTask(){
   3:{kind:'line',width:50},4:{kind:'rect',width:40,height:25},5:{kind:'circle',radius:20}
  }[memory.scene]||null;
 }
-let geomPointer=null,geomDraft=null,geomDone=false,geomLast=null,geomKeyboard=0;
+let geomPointer=null,geomDraft=null,geomDone=false,geomLast=null,geomKeyboard=0,
+ geomAnimating=false,geomAnimationId=null;
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
  answers={},
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
@@ -90,7 +91,7 @@ const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01C
 const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
- stopTurnAnimation();
+ stopTurnAnimation();stopDraftingAnimation();
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
  hintLevel=0;feedback='';feedbackSuccess=false;
  geomPointer=null;geomDraft=null;geomLast=null;geomKeyboard=0;
@@ -425,6 +426,132 @@ function drawnShape(task,draft){
   fmt(v.width,1)+' × '+fmt(v.height,1)+' мм':'R '+fmt(v.radius,1)+' мм';
  return shape+'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>';
 }
+
+// Instruments are real scene objects, not a CSS wipe across a finished shape.
+// The student defines dimensions; only then do pencil/ruler (or compass)
+// construct the result stroke by stroke. No grade or Next before completion.
+function cancelDraftingAnimation(){
+ if(geomAnimationId!==null){
+  window.cancelAnimationFrame?.(geomAnimationId);
+  geomAnimationId=null;
+ }
+ geomAnimating=false;
+}
+function draftedSegments(task){
+ const x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y,g=shapeGoal(task);
+ if(task.kind==='line')return [{x1:x,y1:y,x2:x+g.dx,y2:y}];
+ if(task.kind==='rect')return [
+  {x1:x,y1:y,x2:x+g.dx,y2:y},
+  {x1:x+g.dx,y1:y,x2:x+g.dx,y2:y+g.dy},
+  {x1:x+g.dx,y1:y+g.dy,x2:x,y2:y+g.dy},
+  {x1:x,y1:y+g.dy,x2:x,y2:y}
+ ];
+ return [];
+}
+function drawingPencil(tx,ty){
+ return '<g class="m01-working-pencil" transform="translate('+tx.toFixed(2)+' '+ty.toFixed(2)+') rotate(18)">'+
+  // Tip is (0,0), so it physically follows the growing ink.
+  '<path d="M0 0L-8 -20L-9 -113Q-9 -118 -4 -121H4Q9 -118 9 -113L8 -20Z" fill="#e5ae4c" stroke="#ffe3a1" stroke-width="1.4"/>'+
+  '<path d="M-8 -20L0 0L8 -20Z" fill="#b88258" stroke="#f2c08d" stroke-width="1"/>'+
+  '<path d="M-2 -5L0 0L2 -5Z" fill="#26313a"/>'+
+  '<path d="M-2 -111L-2 -27" stroke="#f7d68c" stroke-width="3" opacity=".8"/>'+
+  '<rect x="-8" y="-120" width="16" height="12" rx="2" fill="#b9c7cb" stroke="#6b8c96" stroke-width="1"/>'+
+  '<path d="M-8 -116h16m-16 4h16" stroke="#edf4f0" stroke-opacity=".7"/>'+
+  '</g>';
+}
+function drawingRuler(segment){
+ const {x1,y1,x2,y2}=segment,len=Math.hypot(x2-x1,y2-y1),
+  angle=Math.atan2(y2-y1,x2-x1)*180/Math.PI;
+ let ticks='';
+ for(let mm=0;mm*MM<=len+.1;mm++){
+  const xx=(mm*MM).toFixed(2),major=mm%10===0,medium=mm%5===0;
+  ticks+='<line x1="'+xx+'" x2="'+xx+'" y1="-9" y2="'+(major?-27:medium?-22:-17)+'" stroke="#385b6b" stroke-width="'+(major?1.3:0.9)+'"/>';
+  if(major)ticks+='<text x="'+xx+'" y="-33" font-size="8" text-anchor="middle" fill="#214558">'+mm+'</text>';
+ }
+ return '<g class="m01-working-ruler" transform="translate('+x1+' '+y1+') rotate('+angle.toFixed(3)+')">'+
+  '<rect x="-6" y="-43" width="'+(len+12).toFixed(2)+'" height="45" rx="4" fill="#061e2d" opacity=".30"/>'+
+  '<rect x="-6" y="-46" width="'+(len+12).toFixed(2)+'" height="42" rx="3" fill="url(#m01Steel)" stroke="#e8f4f1" stroke-width="1.6"/>'+
+  '<rect x="-6" y="-46" width="'+(len+12).toFixed(2)+'" height="6" rx="2" fill="#eff9f7" opacity=".48"/>'+
+  '<g>'+ticks+'</g>'+
+  '<path d="M0 -3H'+len.toFixed(2)+'" stroke="#234c60" stroke-width="1.3"/>'+
+  '</g>';
+}
+function drawingCompass(cx,cy,r,angle){
+ const ex=cx+r*Math.cos(angle),ey=cy+r*Math.sin(angle),
+  hx=(cx+ex)/2,hy=(cy+ey)/2-88;
+ return '<g class="m01-working-compass">'+
+  '<path d="M'+cx+' '+cy+'L'+hx.toFixed(2)+' '+hy.toFixed(2)+'L'+ex.toFixed(2)+' '+ey.toFixed(2)+'"'+
+   ' fill="none" stroke="#273c49" stroke-width="13" stroke-linejoin="round" stroke-linecap="round"/>'+
+  '<path d="M'+cx+' '+cy+'L'+hx.toFixed(2)+' '+hy.toFixed(2)+'" stroke="#b9d0d6" stroke-width="8" stroke-linecap="round"/>'+
+  '<path d="M'+hx.toFixed(2)+' '+hy.toFixed(2)+'L'+ex.toFixed(2)+' '+ey.toFixed(2)+'" stroke="#d8e3e2" stroke-width="8" stroke-linecap="round"/>'+
+  '<path d="M'+cx+' '+cy+'l-3 -11" stroke="#657880" stroke-width="3"/>'+
+  '<circle cx="'+cx+'" cy="'+cy+'" r="5" fill="#d2e4e3" stroke="#33505d" stroke-width="2"/>'+
+  '<circle cx="'+hx.toFixed(2)+'" cy="'+hy.toFixed(2)+'" r="9" fill="#d2dfe3" stroke="#36586b" stroke-width="3"/>'+
+  '<path d="M'+(hx-4).toFixed(2)+' '+(hy-8).toFixed(2)+'v-25h8v25" fill="#c9d2d4" stroke="#3f6876" stroke-width="2"/>'+
+  '<circle cx="'+ex.toFixed(2)+'" cy="'+ey.toFixed(2)+'" r="4" fill="#b7f990" stroke="#234a40" stroke-width="1.5"/>'+
+  '</g>';
+}
+function animationDraftFrame(task,progress){
+ const x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+ const ink='<g class="m01-animated-ink" fill="none" stroke="#d2faf2" stroke-width="3.8" stroke-linecap="round" stroke-linejoin="round">';
+ if(task.kind==='circle'){
+  const radius=task.radius*MM,angle0=-Math.PI/2,segments=120,
+   n=Math.max(0,Math.ceil(progress*segments)),points=[];
+  for(let i=0;i<=n;i++){
+   const a=angle0+2*Math.PI*(i/segments);
+   points.push((x+radius*Math.cos(a)).toFixed(2)+' '+(y+radius*Math.sin(a)).toFixed(2));
+  }
+  const d=points.map((pt,i)=>(i?'L':'M')+pt).join(' ');
+  const angle=angle0+Math.PI*2*progress;
+  return {ink:ink+'<path d="'+d+'"/></g>',tool:drawingCompass(x,y,radius,angle)};
+ }
+ const segments=draftedSegments(task),exact=Math.min(segments.length,progress*segments.length),
+  active=Math.min(segments.length-1,Math.floor(Math.max(0,exact-1e-9)));
+ let marks='';
+ for(let i=0;i<segments.length;i++){
+  const f=clamp(exact-i,0,1);
+  if(f<=0)continue;
+  const seg=segments[i],ex=seg.x1+(seg.x2-seg.x1)*f,ey=seg.y1+(seg.y2-seg.y1)*f;
+  marks+='<path d="M'+seg.x1.toFixed(2)+' '+seg.y1.toFixed(2)+'L'+ex.toFixed(2)+' '+ey.toFixed(2)+'"/>';
+ }
+ const seg=segments[active],f=clamp(exact-active,0,1),
+  tipX=seg.x1+(seg.x2-seg.x1)*f,tipY=seg.y1+(seg.y2-seg.y1)*f;
+ return {ink:ink+marks+'</g>',tool:drawingRuler(seg)+drawingPencil(tipX,tipY)};
+}
+function updateDraftingFrame(task,progress){
+ const layer=canvas.querySelector('[data-geom-ink]'),tools=canvas.querySelector('[data-geom-tools]');
+ if(!layer||!tools)return;
+ const frame=animationDraftFrame(task,progress);
+ layer.innerHTML=frame.ink;
+ tools.innerHTML=frame.tool;
+}
+function startDraftingAnimation(task){
+ cancelDraftingAnimation();
+ geomAnimating=true;geomDraft=null;geomPointer=null;
+ render(); // Render the empty drawing first, then let the pencil lay down fresh ink.
+ const reduced=window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches||false;
+ const duration=task.kind==='rect'?2200:task.kind==='circle'?1850:1250;
+ let origin=null;
+ function done(){
+  geomAnimationId=null;geomAnimating=false;geomDone=true;
+  geomDraft=shapeGoal(task);
+  if(mode==='quest'){onSuccess();return}
+  success('✓ Інструментом побудовано '+shapeDescription(task)+'. Натисни «Далі →».');
+  render();
+ }
+ function frame(now){
+  if(!geomAnimating||!visible||geometryTask()?.kind!==task.kind){
+   geomAnimationId=null;return;
+  }
+  if(origin===null)origin=now;
+  const progress=reduced?1:clamp((now-origin)/duration,0,1);
+  updateDraftingFrame(task,progress);
+  if(progress>=1)done();
+  else geomAnimationId=window.requestAnimationFrame(frame);
+ }
+ geomAnimationId=window.requestAnimationFrame(frame);
+}
+
 function geometryScene(){
  const task=geometryTask();
  if(!task)return schematic();
@@ -447,8 +574,10 @@ function geometryScene(){
  }else{
   s+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
  }
- const current=geomDraft||(geomDone?shapeGoal(task):null);
- s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
+ const current=geomAnimating?null:(geomDraft||(geomDone?shapeGoal(task):null));
+ s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>'+
+  '<g data-geom-ink="true" aria-hidden="true"></g>'+
+  '<g data-geom-tools="true" aria-hidden="true"></g>';
  s+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
   '<circle cx="'+x+'" cy="'+y+'" r="29" class="m01-geom-handle" data-geom-start="true"'+
   ' fill="transparent" stroke="#c7ffa7" stroke-width="2" stroke-dasharray="5 6" tabindex="0"'+
@@ -463,7 +592,7 @@ function updateGeometryPreview(){
  if(group)group.innerHTML=drawnShape(task,geomDraft);
 }
 function finishGeometry(draft){
- const task=geometryTask();if(!task||geomDone)return;
+ const task=geometryTask();if(!task||geomDone||geomAnimating)return;
  geomLast=draft;
  if(!shapeMatches(task,draft)){
   const values=geometryDimensions(task,draft);
@@ -474,13 +603,10 @@ function finishGeometry(draft){
   geomDraft=null;updateGeometryPreview();
   return;
  }
- geomDone=true;geomDraft=shapeGoal(task);
- if(mode==='quest'){onSuccess();return}
- success('✓ Побудовано: '+shapeDescription(task)+'. Натисни «Далі →».');
- render();
+ startDraftingAnimation(task);
 }
 function geometryBegin(e){
- if(!visible||!geometryTask()||geomDone||e.button!==0||!e.target.closest('[data-geom-start]'))return false;
+ if(!visible||!geometryTask()||geomDone||geomAnimating||e.button!==0||!e.target.closest('[data-geom-start]'))return false;
  const p=clientToSvg(e);if(!p)return false;
  geomPointer=e.pointerId;geomDraft={dx:0,dy:0};geomLast=null;
  e.preventDefault();
@@ -506,7 +632,7 @@ function geometryEnd(e,cancelled=false){
 }
 function geometryKeyboard(e){
  const task=geometryTask();
- if(!visible||!task||geomDone||!e.target.closest('[data-geom-start]'))return false;
+ if(!visible||!task||geomDone||geomAnimating||!e.target.closest('[data-geom-start]'))return false;
  const keys=['ArrowRight','ArrowLeft','ArrowUp','ArrowDown','Enter',' '];
  if(!keys.includes(e.key))return false;
  e.preventDefault();
@@ -591,7 +717,8 @@ function controlView(){
    '<div class="m01-control-title">'+kind+'</div>'+
    '<div class="m01-geometry-target">'+shapeDescription(task)+'</div>'+
    '<div class="m01-geometry-instruction">Натисни на зелену точку й тягни до потрібного розміру. Відпусти для перевірки.</div>'+
-   (geomDone?'<div class="m01-geometry-done">✓ Побудова зарахована</div>':
+   (geomAnimating?'<div class="m01-geometry-building">✎ Проводимо лінії інструментом…</div>':
+    geomDone?'<div class="m01-geometry-done">✓ Побудова зарахована</div>':
     '<div class="m01-geometry-keyhint">Клавіатура: стрілки — 1 мм, Shift+стрілки — 5 мм, Enter — зафіксувати</div>')+
    '</div>';
  }
@@ -664,7 +791,7 @@ function render(){
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
  el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():geomAnimating?'Інструмент проводить креслення…':quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  renderScaleLoupe();
@@ -673,7 +800,7 @@ function render(){
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
  const replay=root.querySelector('[data-act="repeat"]');
- const allowed=quest?current>=4:sceneComplete()||memory.completed.includes(current);
+ const allowed=quest?current>=4:!geomAnimating&&(sceneComplete()||memory.completed.includes(current));
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
  next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current>=3&&current<=5&&allowed?'Наступна побудова →':'Далі →';
@@ -1005,7 +1132,7 @@ function show(nextMode){
  resetStep();render();
 }
 function hide(){
- stopTurnAnimation();
+ stopTurnAnimation();stopDraftingAnimation();
  if(!visible)return;
  cancelChoiceTimer();cancelAdvanceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
  const legacy=document.getElementById('jRestoreRoute');
