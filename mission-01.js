@@ -84,7 +84,7 @@ root.innerHTML=
  '<section class="m01-scale-loupe" id="m01ScaleLoupe" aria-label="Збільшена механічна шкала" hidden></section>'+
  '<div class="m01-controls" id="m01Controls"></div>'+
  '<div class="m01-feedback" id="m01Feedback" role="status" aria-live="polite"></div>'+
- '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint" title="Підказка" aria-label="Підказка">?</button><button type="button" data-act="repeat" title="Повторити крок" aria-label="Повторити крок">↻</button></div>'+
+ '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint" title="Підказка" aria-label="Підказка">?</button><button type="button" data-act="restart-all" id="m01Reset" title="Скинути місію та почати з 1/8" aria-label="Скинути весь прогрес місії та повернутися до першого рівня">↻</button><button type="button" data-act="repeat" title="Повторити поточний крок" aria-label="Повторити поточний крок">Повторити крок</button></div>'+
  '<div class="m01-footer-right"><span id="m01Progress"></span><button type="button" data-act="skip" id="m01Skip">Пропустити</button><button type="button" data-act="next" id="m01Next" class="m01-primary">Далі →</button></div></footer>';
 board.append(root);
 const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01Controls'),feedbackEl=el('m01Feedback');
@@ -909,7 +909,22 @@ function endManualTurn(event,cancelled=false){
  return true;
 }
 
+function resetMissionToStart(){
+ // Reset Mission 01 only. Keep the sandbox and other lessons untouched.
+ cancelChoiceTimer();cancelAdvanceTimer();stopTurnAnimation();cancelDraftingAnimation();
+ memory={...initial,completed:[],skipped:[],dimensionProgress:{},geometryProgress:{}};
+ persist();
+ // Completed assessments stay in Quest mode unless we switch the active tab.
+ if(mode!=='demo'||document.body.dataset.expMode!=='demo'){
+  document.querySelector('#expModes [data-mode="demo"]')?.click();
+  if(document.body.dataset.expMode!=='demo')document.body.dataset.expMode='demo';
+ }
+ mode='demo';visible=true;root.hidden=false;
+ document.body.classList.add('gnss-mission-active');
+ resetStep();render();
+}
 function respond(act){
+ if(act==='restart-all'){resetMissionToStart();return}
  if(act==='hint'){hintLevel=Math.min(3,hintLevel+1);render();return}
  if(act==='show'){hintLevel=3;render();return}
  if(act==='skip'&&mode==='demo'){if(!memory.skipped.includes(memory.scene))memory.skipped.push(memory.scene);setScene(memory.scene+1);return}
@@ -1068,11 +1083,7 @@ new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilte
 window.GNSSLab01MissionV1={
  get active(){return visible},get scene(){return memory.scene},
  get assessment(){return memory.assessment},get passed(){return memory.passed},
- restart(){
-  if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};memory.geometryProgress={};memory.curriculumVersion=3;persist()}
-  resetStep();if(visible)render();
- }
+ restart(){resetMissionToStart()}
 };
 sync();
 })();

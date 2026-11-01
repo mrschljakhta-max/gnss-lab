@@ -646,3 +646,23 @@ body.gnss-mission-active.gnss-mission-tool-playback .gnss-draft-preview
 @media(prefers-reduced-motion:reduce){
  #gnssMissionV1 .m01-geometry-building::before{animation:none!important}
 }
+
+
+/* The arrow at bottom-left resets the ENTIRE mission, including the final quiz.
+ * "Повторити крок" is a separate action and never wipes unrelated progress.
+ */
+#gnssMissionV1 #m01Reset{
+ font-size:20px;line-height:1;min-width:38px;min-height:38px;
+ padding:7px!important;font-weight:700;
+}
+#gnssMissionV1 #m01Reset:hover,
+#gnssMissionV1 #m01Reset:focus-visible{
+ border-color:#b9f78f;color:#d8ffbb;
+}
+#gnssMissionV1 .m01-footer-left button[data-act="repeat"]{
+ font-size:10px;letter-spacing:0;padding:8px 9px;
+}
+@media(max-width:650px){
+ #gnssMissionV1 #m01Reset{min-width:34px;min-height:34px;font-size:18px}
+ #gnssMissionV1 .m01-footer-left button[data-act="repeat"]{font-size:9px;padding:7px}
+}
