@@ -726,3 +726,74 @@ body.gnss-mission-active #gnssIntroReplay{
   max-width:calc(100% - 28px);
  }
 }
+
+
+/* The caliper is the central object: show a live loupe during zeroing,
+ * then place only the measured value and confirmation at the bottom. */
+#gnssMissionV1 .m01-measure-answer{
+ position:absolute;z-index:8;
+ left:50%;right:auto;bottom:89px;
+ transform:translateX(-50%);
+ width:min(500px,calc(100% - 220px));
+ max-width:calc(100% - 24px);
+ box-sizing:border-box;
+ display:flex;align-items:center;gap:10px;
+ padding:10px 11px;border-radius:11px;
+ border:1px solid rgba(150,206,194,.55);
+ background:linear-gradient(145deg,rgba(4,27,41,.97),rgba(6,37,48,.95));
+ box-shadow:0 12px 30px rgba(0,17,25,.48);
+}
+#gnssMissionV1 .m01-measure-answer[hidden]{display:none!important}
+#gnssMissionV1 .m01-measure-answer input{
+ display:block;flex:1 1 auto;min-width:0;
+ height:44px;box-sizing:border-box;
+ padding:0 14px;
+ background:#061d2d;color:#edfdee;
+ border:1px solid #6f9a9f;border-radius:7px;
+ outline:none;
+ font:700 18px ui-monospace,Consolas,monospace;
+}
+#gnssMissionV1 .m01-measure-answer input::placeholder{
+ color:#9abec8;font:550 13px system-ui,sans-serif;
+}
+#gnssMissionV1 .m01-measure-answer input:focus-visible{
+ border-color:#b9f992;box-shadow:0 0 0 2px #b9f99233;
+}
+#gnssMissionV1 .m01-measure-answer .m01-submit{
+ min-height:44px;flex:0 0 auto;
+ padding:0 19px;font-size:13px;
+}
+/* A small view still needs the jaw, loupe, input and next controls visible. */
+@media(max-width:900px){
+ #gnssMissionV1 .m01-measure-answer{
+  bottom:86px;width:min(470px,calc(100% - 140px));
+ }
+}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-measure-answer{
+  bottom:63px;width:calc(100% - 22px);
+  max-width:calc(100% - 22px);
+  gap:7px;padding:7px;
+ }
+ #gnssMissionV1 .m01-measure-answer input{
+  height:39px;padding:0 9px;font-size:15px;
+ }
+ #gnssMissionV1 .m01-measure-answer input::placeholder{font-size:11px}
+ #gnssMissionV1 .m01-measure-answer .m01-submit{
+  min-height:39px;padding:0 11px;font-size:11px;
+ }
+ #gnssMissionV1.m01-answer-visible .m01-controls:has(.m01-dim-panel){
+  bottom:142px;max-height:31%;
+ }
+ #gnssMissionV1.m01-answer-visible .m01-dim-panel .m01-manual-hint{
+  display:none!important;
+ }
+}
+body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
+ bottom:264px;
+}
+@media(max-width:650px){
+ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
+  bottom:226px;
+ }
+}
