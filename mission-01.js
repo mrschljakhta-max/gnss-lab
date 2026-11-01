@@ -43,7 +43,8 @@ try{
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
  answers={},unitsIndex=0,zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
- practiceIndex=0,practiced=new Set(),assessmentTarget=42,assessmentSeed=0;
+ practiceIndex=0,practiced=new Set(),assessmentTarget=42,assessmentSeed=0,
+ caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
 const root=document.createElement('section');
 root.id='gnssMissionV1';
 root.hidden=true;
@@ -61,7 +62,7 @@ const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01C
 const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
- part='a';gap=78;caliperChosen=false;moved=false;choice='';answers={};unitsIndex=0;zoomIndex=0;prefixIndex=0;
+ part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
  dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
  if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
@@ -69,6 +70,9 @@ function resetStep(){
  if(mode==='demo'&&memory.scene===2)gap=70;
  if(mode==='demo'&&memory.scene===6)gap=66;
  if(mode==='demo'&&memory.scene===1)gap=12;
+ caliperChosen=mode==='quest'&&memory.assessment===0||mode==='demo'&&(
+  memory.scene===1||memory.scene===2||memory.scene===6);
+ caliperStartGap=gap;
 }
 function target(){
  if(mode==='quest')return assessmentTarget;
@@ -76,7 +80,7 @@ function target(){
  if(memory.scene===6)return 42;
  return 50;
 }
-function canMeasure(){return caliperChosen&&moved&&Math.abs(gap-target())<.001}
+function canMeasure(){return caliperChosen&&moved&&settledContact&&Math.abs(gap-target())<.001}
 function sceneComplete(){
  if(mode==='quest')return memory.assessment>=4;
  switch(memory.scene){
@@ -113,15 +117,18 @@ function schematic(){
  const grid='<defs>'+
  '<pattern id="m01Grid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" stroke="#9ecbd8" stroke-opacity=".12" stroke-width="1" fill="none"/></pattern>'+
  '<linearGradient id="m01Steel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f7f7"/><stop offset=".24" stop-color="#b5c5cc"/><stop offset=".7" stop-color="#6a8393"/><stop offset="1" stop-color="#d2e4e6"/></linearGradient>'+
- '<linearGradient id="m01Dark" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#4e7484"/><stop offset="1" stop-color="#153749"/></linearGradient>'+
+ '<linearGradient id="m01Dark" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#4e7484"/><stop offset="1" stop-color="#153749"/></linearGradient>'+ 
+ '<linearGradient id="m01Ceramic" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#e3d7bb"/><stop offset=".4" stop-color="#c9b997"/><stop offset="1" stop-color="#9f916f"/></linearGradient>'+
  '</defs><rect width="1200" height="660" fill="url(#m01Grid)" pointer-events="none"/>';
  return grid;
 }
 function blockSvg(x,y,w,title,selected=false,dim=true){
- return '<g><rect x="'+(x+8)+'" y="'+(y+12)+'" width="'+w+'" height="96" rx="5" fill="#041627" opacity=".35"/>'+
- '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="96" rx="4" fill="url(#m01Steel)" stroke="'+(selected?'#b7f58d':'#d0e1e5')+'" stroke-width="'+(selected?3:1.5)+'"/>'+
- '<path d="M'+(x+8)+' '+(y+10)+'h'+(w-16)+'" stroke="#e8f5f6" stroke-opacity=".85" stroke-width="2"/>'+
- (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#ddf3ef" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
+ return '<g class="m01-workpiece">'+
+ '<rect x="'+(x+11)+'" y="'+(y+13)+'" width="'+w+'" height="96" rx="5" fill="#031725" opacity=".42"/>'+
+ '<rect x="'+x+'" y="'+y+'" width="'+w+'" height="96" rx="4" fill="url(#m01Ceramic)" stroke="'+(selected?'#b7f58d':'#f1e3c4')+'" stroke-width="'+(selected?2.5:1.6)+'"/>'+
+ '<path d="M'+(x+3)+' '+(y+8)+'L'+(x+12)+' '+(y+4)+'H'+(x+w-7)+'" fill="none" stroke="#fff2d1" stroke-opacity=".75" stroke-width="2"/>'+
+ '<path d="M'+(x+3)+' '+(y+91)+'H'+(x+w-5)+'" stroke="#87785e" stroke-opacity=".6" stroke-width="2"/>'+
+ (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
 }
 function overviewScene(){
  let s=schematic();
@@ -131,36 +138,46 @@ function overviewScene(){
  return s;
 }
 function caliperScene(calTarget,calGap,showBlock=true){
- let s=schematic();const jawX=X0+calGap*MM,contact=Math.abs(calGap-calTarget)<.001;
+ let s=schematic();
+ const jawX=X0+calGap*MM,contact=Math.abs(calGap-calTarget)<.001;
+ const travelStart=calGap,limit=showBlock?calTarget:0;
+ const label=mode==='quest'?'Невідома деталь':memory.scene===6?'Нова деталь':part==='a'?'Деталь A':'Деталь B';
  if(showBlock){
-  s+=blockSvg(X0,262,calTarget*MM,'',contact,false);
-  s+='<text x="'+(X0+calTarget*MM/2)+'" y="245" fill="#ddeef3" text-anchor="middle" font-size="17">'+(mode==='quest'?'Невідома деталь':memory.scene===6?'Нова деталь':part==='a'?'Деталь A':'Деталь B')+'</text>';
+  s+=blockSvg(X0,265,calTarget*MM,'',false,false);
+  s+='<text x="'+(X0+calTarget*MM/2)+'" y="242" fill="#e3efdf" text-anchor="middle" font-size="17">'+label+'</text>';
  }
- // Accurate 1 mm tick spacing: one millimetre equals MM scene units.
- s+='<g class="m01-caliper" aria-label="Механічний штангенциркуль із основною шкалою">'+
+ s+='<g class="m01-caliper" aria-label="Механічний штангенциркуль">'+
   '<rect x="'+(X0-38)+'" y="410" width="608" height="56" rx="4" fill="url(#m01Steel)" stroke="#dce9eb" stroke-width="2"/>'+
   '<rect x="'+(X0-38)+'" y="465" width="608" height="8" fill="#466272"/>'+
-  '<path d="M'+(X0-15)+' 405V265H'+X0+'V405Z" fill="url(#m01Steel)" stroke="#e4f1f2" stroke-width="2"/>'+
-  '<path d="M'+(jawX-14)+' 405V265H'+jawX+'V405Z" fill="url(#m01Steel)" stroke="#e4f1f2" stroke-width="2"/>'+
-  '<rect x="'+(jawX-23)+'" y="405" width="76" height="76" rx="3" fill="url(#m01Dark)" stroke="#d1e6ed" stroke-width="2"/>';
+  '<path d="M'+(X0-17)+' 405V265H'+X0+'V405Z" fill="url(#m01Steel)" stroke="#e4f1f2" stroke-width="2"/>';
  for(let i=0;i<=170;i++){
   const px=X0+i*MM,major=i%10===0,half=i%5===0;
   s+='<line x1="'+px+'" x2="'+px+'" y1="414" y2="'+(major?441:half?432:424)+'" stroke="#244559" stroke-width="'+(major?1.8:1.05)+'"/>';
   if(major)s+='<text x="'+px+'" y="455" text-anchor="middle" font-size="11" font-weight="700" fill="#183e51">'+i+'</text>';
  }
- // vernier engraved on slider, no automatic numeric shortcut.
- for(let i=0;i<=10;i++){const px=jawX+i*MM*.9;
+ s+='<g class="m01-jaw-assembly" data-jaw-assembly data-base-gap="'+travelStart+'" data-active="false">'+
+  '<path class="m01-moving-jaw" d="M'+(jawX-14)+' 405V265H'+jawX+'V405Z" fill="url(#m01Steel)" stroke="#e4f1f2" stroke-width="2"/>'+
+  '<rect class="m01-carriage" x="'+(jawX-23)+'" y="405" width="76" height="76" rx="3" fill="url(#m01Dark)" stroke="#d1e6ed" stroke-width="2"/>';
+ // Nonius stays rigidly attached to the movable slider.
+ for(let i=0;i<=10;i++){
+  const px=jawX+i*MM*.9;
   s+='<line x1="'+px+'" x2="'+px+'" y1="479" y2="'+(i%5===0?493:486)+'" stroke="#dbeaf0" stroke-width="1.6"/>';
  }
- s+='<rect x="'+(jawX+13)+'" y="482" width="29" height="24" rx="7" fill="#becbd1" stroke="#567887" stroke-width="2"/>'+
- '<circle cx="'+(jawX+27)+'" cy="494" r="5" fill="#648192"/>';
- if(contact&&showBlock)s+='<path d="M'+X0+' 266V358 M'+(X0+calTarget*MM)+' 266V358" stroke="#b8f78c" stroke-width="4" opacity=".8"/>';
- if(contact&&!showBlock)s+='<circle cx="'+X0+'" cy="284" r="10" fill="none" stroke="#b7f88b" stroke-width="2"/>';
- s+='</g>';
- const min=showBlock?calTarget:0;
- // Accessible handle: pointer drag + arrow keys (0.1 mm).
- s+='<rect x="'+(jawX-25)+'" y="267" width="82" height="247" fill="transparent" data-jaw="true" class="m01-drag-jaw" tabindex="0" role="slider" aria-label="Рухома каретка штангенциркуля" aria-valuemin="'+min+'" aria-valuemax="160" aria-valuenow="'+calGap.toFixed(1)+'" aria-valuetext="'+(contact?'Контакт':'Губки розкриті')+'"/>';
- s+='<text x="600" y="559" text-anchor="middle" fill="#bbd8df" font-size="16">Перетягни каретку або скористайся стрілками ← →</text>';
+ s+='<rect class="m01-thumb-wheel" x="'+(jawX+9)+'" y="481" width="40" height="31" rx="9" fill="#becbd1" stroke="#567887" stroke-width="2"/>'+
+  '<circle cx="'+(jawX+29)+'" cy="496" r="7" fill="#648192" stroke="#dfedef" stroke-width="1.5"/>'+
+  '<path d="M'+(jawX+23)+' 496h12" stroke="#d8e8e5" stroke-width="1.5"/>'+
+  '<rect class="m01-jaw-hit" x="'+(jawX-35)+'" y="259" width="112" height="258" rx="8" fill="transparent" data-jaw="true" tabindex="0" role="slider" aria-label="Пересунути рухому каретку штангенциркуля" aria-valuemin="'+limit+'" aria-valuemax="160" aria-valuenow="'+calGap.toFixed(1)+'" aria-valuetext="'+(contact?'Контакт':'Губки розкриті')+'"/>'+
+  '</g></g>';
+ if(showBlock){
+  s+='<g data-contact-indicator class="m01-contact-indicator" style="opacity:'+(contact?1:0)+'">'+
+   '<path d="M'+X0+' 270V357 M'+(X0+calTarget*MM)+' 270V357" stroke="#b9fa83" stroke-width="4" stroke-linecap="round"/>'+
+   '</g>';
+ }else{
+  s+='<g data-contact-indicator class="m01-contact-indicator" style="opacity:'+(contact?1:0)+'"><circle cx="'+X0+'" cy="276" r="10" fill="none" stroke="#bcf78b" stroke-width="2"/></g>';
+ }
+ s+='<g class="m01-drag-cue" data-drag-cue style="opacity:'+(settledContact||caliperPhase==='answer'?0:1)+'">'+
+  '<path d="M'+(jawX+29)+' 528v20 m-20 -9 20 9 20 -9" stroke="#b9fa89" stroke-width="2" fill="none" stroke-linecap="round"/>'+
+  '</g>';
  return s;
 }
 function conversionScene(){
@@ -234,17 +251,16 @@ function controlView(){
  if((!quest&&(step===1||step===2||step===6&&practiceIndex===0))||(quest&&step===0)){
   const isZero=!quest&&step===1,measurement=!isZero;
   let content='';
-  if(!caliperChosen)content+='<button type="button" data-act="caliper" class="m01-pill">Взяти штангенциркуль</button>';
+  // No extra tool-selection button: the mechanical caliper is already on the bench.
   if(!isZero&&!quest&&step===2){
    content+='<div class="m01-buttons">'+selectButton('part-a','Деталь A',part==='a')+selectButton('part-b','Деталь B',part==='b')+'</div>';
    content+='<span class="m01-dots" aria-label="Виміряні деталі">'+(answers.a===50?'✓ A':'○ A')+' · '+(answers.b===54?'✓ B':'○ B')+'</span>';
   }
-  const contact=isZero?gap===0:Math.abs(gap-target())<.001;
-  if(caliperChosen)content+='<label class="m01-sr-only" for="m01JawRange">Рухома каретка</label>'+
-   '<input type="range" id="m01JawRange" min="'+(isZero?0:target())+'" max="160" step="0.1" value="'+gap+'" aria-label="Положення рухомої губки"/>';
-  if(measurement&&contact&&caliperChosen)content+=promptInput('Що показує шкала?','Введи відлік','мм')+'<button type="button" class="m01-submit" data-act="check">Перевірити вимірювання</button>';
-
-  return content;
+  if(measurement&&canMeasure()){
+   content+=promptInput('Твій відлік','Введи значення','мм')+
+    '<button type="button" class="m01-submit" data-act="check">Перевірити</button>';
+  }
+    return content;
  }
  if(!quest&&step===3){
   const q=[['50 мм = ? см','см'],['120 мм = ? см','см'],['50 мм = ? м','м']][Math.min(unitsIndex,2)];
@@ -298,6 +314,39 @@ function guidance(){
  ];
  return msgs[memory.scene]||'';
 }
+function caliperStep(){
+ return mode==='quest'&&memory.assessment===0||
+  mode==='demo'&&(memory.scene===1||memory.scene===2||
+    memory.scene===6&&practiceIndex===0);
+}
+function calibration(){return mode==='demo'&&memory.scene===1}
+function atContact(){return Math.abs(gap-(calibration()?0:target()))<.001}
+function caliperInstruction(){
+ if(caliperPhase==='success')return '✓ Вимірювання підтверджено';
+ if(caliperPhase==='answer')return 'Контакт. Зчитай шкалу та введи результат.';
+ if(caliperPhase==='contact')return 'Контакт. Відпусти каретку.';
+ if(caliperPhase==='approach')return 'Ще трохи…';
+ if(caliperPhase==='drag')return 'Рухай губку до деталі.';
+ return calibration()?'Зведи губки до нуля.':'Підведи рухому губку до торця деталі.';
+}
+function syncCaliperVisual(){
+ const assembly=canvas.querySelector('[data-jaw-assembly]');
+ if(!assembly)return;
+ const base=Number(assembly.getAttribute('data-base-gap'));
+ assembly.setAttribute('transform','translate('+((gap-base)*MM).toFixed(3)+',0)');
+ assembly.setAttribute('data-active',String(dragId!==null));
+ const hit=assembly.querySelector('[data-jaw]');
+ if(hit){
+  hit.setAttribute('aria-valuenow',gap.toFixed(1));
+  hit.setAttribute('aria-valuetext',atContact()?'Контакт':'Губки розкриті');
+ }
+ const light=canvas.querySelector('[data-contact-indicator]');
+ if(light)light.style.opacity=atContact()?'1':'0';
+ const cue=canvas.querySelector('[data-drag-cue]');
+ if(cue)cue.style.opacity=atContact()?'0':'1';
+ const prompt=el('m01Prompt');
+ if(prompt)prompt.textContent=caliperInstruction();
+}
 function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
@@ -307,7 +356,7 @@ function render(){
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
  el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  controls.innerHTML=controlView();
@@ -353,7 +402,7 @@ function onSuccess(){
    announce('✓ Практичний залік завершено. Усі чотири навички підтверджено.',true);
   }else announce('✓ Правильно! Наступна практична задача.',true);
  }else if(memory.scene===6){
-  practiceIndex+=1;gap=66;caliperChosen=false;moved=false;
+  practiceIndex+=1;gap=66;caliperChosen=practiceIndex===0;moved=false;settledContact=false;caliperPhase='idle';
   if(practiceIndex===3){success('✓ Усі три тренувальні задачі виконано.');}
   else{announce('✓ Виконано. Наступна вправа.',true)}
   render();
@@ -389,8 +438,8 @@ function check(){
   const doneA=answers.a===50,doneB=answers.b===54;
   if(doneA&&doneB){
    success('✓ A = 50 мм, B = 54 мм. Твій висновок можна перевірити вимірюванням.');
-  }else{part=doneA?'b':'a';gap=target()+20;caliperChosen=true;moved=false;
-   announce('✓ Першу деталь виміряно. Тепер виміряй другу.',true)}
+  }else{part=doneA?'b':'a';gap=target()+20;caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';
+   announce('✓ Деталь виміряно. Наступна.',true)}
   render();return;
  }
  if(memory.scene===3){unitsIndex+=1;if(unitsIndex>=3)success('✓ 50 мм = 5 см = 0,05 м. Розмір не змінився.');else announce('✓ Правильно. Спробуй ще одну одиницю.',true);}
@@ -400,13 +449,21 @@ function check(){
  render();
 }
 function updateGap(v,passive=false){
- if(!caliperChosen)return;
- const min=mode==='quest'?assessmentTarget:memory.scene===1?0:memory.scene===2?target():42;
- const newGap=Math.round(clamp(v,min,160)*10)/10;
- if(Math.abs(gap-newGap)>.001)moved=true;
+ if(!caliperStep()||!caliperChosen)return;
+ const min=calibration()?0:target(),newGap=Math.round(clamp(v,min,160)*10)/10;
+ if(Math.abs(gap-newGap)>.001){moved=true;settledContact=false}
  gap=newGap;
- if(mode==='demo'&&memory.scene===1&&gap===0&&moved)success('✓ Каретку зведено до нуля. Тепер можна вимірювати.');
- if(passive){draw(mainScene());return}
+ caliperPhase=atContact()?'contact':gap-min<=5?'approach':dragId!==null?'drag':'idle';
+ syncCaliperVisual();
+ if(!passive&&dragId===null)finishCaliperMotion();
+}
+function finishCaliperMotion(){
+ if(!caliperStep())return;
+ settledContact=atContact()&&moved;
+ if(settledContact){
+  caliperPhase=calibration()?'success':'answer';
+  if(calibration())success('✓ Нуль установлено.');
+ }else caliperPhase='idle';
  render();
 }
 function respond(act){
@@ -422,7 +479,6 @@ function respond(act){
   return;
  }
  if(act==='repeat'){resetStep();render();return}
- if(act==='caliper'){caliperChosen=true;gap=mode==='quest'?assessmentTarget+24:memory.scene===1?12:memory.scene===6?66:target()+20;announce('✓ Інструмент готовий. Рухай каретку до контакту.',true);render();return}
  if(act==='choose-a'||act==='choose-b'){choice=act.slice(-1);success('Припущення збережено. Тепер перевір його вимірюванням.');render();return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
@@ -435,47 +491,66 @@ root.addEventListener('click',e=>{
 root.addEventListener('keydown',e=>{
  if(e.key==='Enter'&&e.target.id==='m01Value'){e.preventDefault();check()}
 });
-root.addEventListener('input',e=>{
- if(e.target.id==='m01JawRange')updateGap(Number(e.target.value),true);
-});
-root.addEventListener('change',e=>{
- if(e.target.id==='m01JawRange')render();
-});
+
 dock.addEventListener('click',e=>{
- if(!visible||((mode==='demo'&&![1,2,6].includes(memory.scene))||(mode==='quest'&&memory.assessment!==0)))return;
+ if(!visible||!caliperStep())return;
  const b=e.target.closest('button[data-tool="caliper"]');
  if(!b)return;
  // The training station owns the measurement: don't trigger the free-drafting tool.
  e.preventDefault();e.stopImmediatePropagation();
- respond('caliper');
+ // Already present and interactive in this lesson; don't open the free-drawing version.
 },{capture:true});
 function clientToSvg(event){
  const p=canvas.createSVGPoint();p.x=event.clientX;p.y=event.clientY;
  const mat=canvas.getScreenCTM();return mat?p.matrixTransform(mat.inverse()):null;
 }
+canvas.addEventListener('pointerover',e=>{
+ if(!visible||!caliperStep()||dragId!==null||!e.target.closest('[data-jaw]'))return;
+ caliperPhase=atContact()?'contact':'hover';
+ syncCaliperVisual();
+});
+canvas.addEventListener('pointerout',e=>{
+ if(!visible||!caliperStep()||dragId!==null||!e.target.closest('[data-jaw]'))return;
+ caliperPhase=atContact()?'contact':'idle';
+ syncCaliperVisual();
+});
 canvas.addEventListener('pointerdown',e=>{
- if(!visible||e.button!==0||!e.target.closest('[data-jaw]'))return;
- if(!caliperChosen)return;
- dragId=e.pointerId;e.preventDefault();
+ if(!visible||!caliperStep()||e.button!==0||!e.target.closest('[data-jaw]'))return;
+ const p=clientToSvg(e);if(!p)return;
+ dragOffset=p.x-(X0+gap*MM);
+ dragId=e.pointerId;caliperPhase='drag';settledContact=false;
+ e.preventDefault();
  try{canvas.setPointerCapture(dragId)}catch{}
- const p=clientToSvg(e);if(p)updateGap((p.x-X0)/MM,true);
+ syncCaliperVisual();
 });
 canvas.addEventListener('pointermove',e=>{
  if(dragId!==e.pointerId)return;
- const p=clientToSvg(e);if(p)updateGap((p.x-X0)/MM,true);
+ const p=clientToSvg(e);
+ if(p)updateGap((p.x-dragOffset-X0)/MM,true);
 });
 function release(e){
  if(dragId!==e.pointerId)return;
- dragId=null;try{canvas.releasePointerCapture(e.pointerId)}catch{}
- render();
+ dragId=null;
+ try{canvas.releasePointerCapture(e.pointerId)}catch{}
+ finishCaliperMotion();
 }
-canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
+canvas.addEventListener('pointerup',release);
+canvas.addEventListener('pointercancel',e=>{
+ if(dragId!==e.pointerId)return;
+ dragId=null;settledContact=false;caliperPhase='idle';render();
+});
 canvas.addEventListener('keydown',e=>{
- if(!e.target.closest('[data-jaw]')||!['ArrowLeft','ArrowRight','PageUp','PageDown'].includes(e.key))return;
+ if(!visible||!caliperStep()||!e.target.closest('[data-jaw]'))return;
+ const key=e.key;
+ if(!['ArrowLeft','ArrowRight','PageUp','PageDown','Home','End'].includes(key))return;
  e.preventDefault();
- const delta=e.key==='ArrowLeft'?-0.1:e.key==='ArrowRight'?0.1:e.key==='PageDown'?-1:1;
- updateGap(gap+delta);
- canvas.querySelector('[data-jaw]')?.focus({preventScroll:true});
+ const delta=key==='ArrowLeft'?-0.1:key==='ArrowRight'?0.1:key==='PageDown'?-1:1;
+ const val=key==='Home'?(calibration()?0:target()):key==='End'?160:gap+delta;
+ updateGap(val,true);
+ if(atContact()){
+  finishCaliperMotion();
+  canvas.querySelector('[data-jaw]')?.focus({preventScroll:true});
+ }
 });
 function show(nextMode){
  visible=true;mode=nextMode;root.hidden=false;
