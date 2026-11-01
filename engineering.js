@@ -51,7 +51,7 @@ container.innerHTML=`
       <button type="button" data-tool="rectangle" title="Прямокутник: протягни діагональ, Ctrl — квадрат" aria-label="Прямокутник, Ctrl — квадрат"><span class="eng-tool-icon">▭</span><small>Прямокутник</small></button>
       <button type="button" data-tool="triangle" title="Трикутник: протягни діагональ, Ctrl — рівносторонній" aria-label="Трикутник, Ctrl — рівносторонній"><span class="eng-tool-icon">△</span><small>Трикутник</small></button>
       <button type="button" data-tool="compass" title="Накреслити коло"><span class="eng-tool-icon">◉</span><small>Циркуль</small></button>
-      <button type="button" data-tool="caliper" title="Виміряти діаметр"><span class="eng-tool-icon">⊣</span><small>Штангенциркуль</small></button>
+      <button type="button" data-tool="caliper" title="Виміряти фігуру: вкажи дві точки A і B" aria-label="Штангенциркуль — виміряти на цьому кресленні"><span class="eng-tool-icon">⊣</span><small>Штангенциркуль</small></button>
       <button type="button" data-tool="eraser" title="Видалити елемент"><span class="eng-tool-icon">⌫</span><small>Гумка</small></button>
       <span class="eng-divider"></span>
       <button type="button" data-tool="units" title="Перемкнути одиниці"><span class="eng-tool-icon" id="engUnitIcon">мм</span><small>Одиниці</small></button>
@@ -65,6 +65,31 @@ const readout=qs('#engReadout',container),status=qs('#engStatus',container),conf
 const cmd=qs('#engCommand',container),right=qs('.eng-right',container),stepNote=qs('#engStepNote',container);
 const svgEl=(tag,attr={},children=[])=>{const el=document.createElementNS(ns,tag);for(const [k,v] of Object.entries(attr))el.setAttribute(k,v);for(const child of children)el.append(child);return el};
 const copyRecords=()=>state.records.map(r=>({...r}));
+// Free-drafting shapes survive tool changes, lesson overlay visits and reloads.
+const freeDrawingKey='gnss-lab-free-drawing-v1';
+let lastFreeDrawingJSON=null;
+function safeFreeShape(s){
+ if(!s||typeof s!=='object')return null;
+ const keys=s.type==='line'?['x1','y1','x2','y2']:
+  s.type==='circle'?['x','y','r']:
+  (s.type==='rect'||s.type==='triangle')?['x','y','w','h']:null;
+ if(!keys||keys.some(k=>!Number.isFinite(s[k])||Math.abs(s[k])>10000))return null;
+ if((s.type==='circle'&&s.r<=0)||((s.type==='rect'||s.type==='triangle')&&(s.w<=0||s.h<=0)))return null;
+ return {type:s.type,...Object.fromEntries(keys.map(k=>[k,s[k]]))};
+}
+function readFreeDrawing(){
+ try{
+  const v=JSON.parse(localStorage.getItem(freeDrawingKey)||'[]');
+  return Array.isArray(v)?v.slice(0,300).map(safeFreeShape).filter(Boolean):[];
+ }catch{return []}
+}
+function persistFreeDrawing(){
+ if(state.mode!=='explore')return;
+ const json=JSON.stringify(state.records.map(safeFreeShape).filter(Boolean));
+ if(json===lastFreeDrawingJSON)return;
+ lastFreeDrawingJSON=json;
+ try{localStorage.setItem(freeDrawingKey,json)}catch{}
+}
 function snapshot(){return {records:copyRecords(),stage:state.stage,segment:state.segment,saved:state.saved,tool:state.tool,measure:state.measure,complete:state.complete}}
 function restoreSnapshot(s){state.records=s.records.map(r=>({...r}));state.stage=s.stage;state.segment=s.segment;state.saved=s.saved;state.tool=s.tool;state.measure=s.measure;state.complete=s.complete;save()}
 function saveHistory(){state.history.push(snapshot());if(state.history.length>60)state.history.shift();state.future=[]}
@@ -79,7 +104,10 @@ function setMode(next){
   if(state.stage>=1)state.records.push(...expectedLines());
   if(state.stage>=2)state.records.push({type:'circle',x:circle.x,y:circle.y,r:circle.r});
  }
- if(next==='explore'){state.stage=0;state.tool='line';state.records=[];state.history=[];state.future=[]}
+ if(next==='explore'){
+  state.stage=0;state.tool='line';state.records=readFreeDrawing();
+  state.history=[];state.future=[];lastFreeDrawingJSON=null;
+ }
  draw();
 }
 function expectedLines(){const x=rect.x,y=rect.y,w=rect.w,h=rect.h;return [
@@ -265,6 +293,7 @@ function draw(){
   {font:13,obstacles:measureShapes.flatMap(shapeEdges)}
  )||[];
  window.GNSSPublishedShapes=saved.map(shape=>({...shape}));
+ persistFreeDrawing();
  if(state.layerDrawing){
   saved.forEach((shape,i)=>{
    const path=addShape(actual,shape);
