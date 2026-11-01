@@ -150,3 +150,139 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-feedback{bottom:250px}
 @media(prefers-reduced-motion:reduce){
  #gnssMissionV1 button{transition:none!important}
 }
+
+
+/* M01 / Quiet interface: one action, no duplicate narration. */
+#gnssMissionV1 .m01-header{
+ top:20px;
+ max-width:min(450px,48%);
+}
+#gnssMissionV1 .m01-header h2{
+ font-size:clamp(17px,1.7vw,24px);
+ margin:5px 0 3px;
+ line-height:1.14;
+ font-weight:710;
+}
+#gnssMissionV1 .m01-header p{
+ font-size:12px;
+ max-width:400px;
+ color:#c5e1e4;
+}
+#gnssMissionV1 .m01-header p:empty{display:none}
+#gnssMissionV1 .m01-guidance{
+ top:108px;
+ max-width:300px;
+ width:max-content;
+ font-size:11px;
+ padding:6px 9px;
+ background:rgba(4,27,41,.8);
+ border-left:1.5px solid #a8ef7a;
+}
+#gnssMissionV1 .m01-guidance:empty{display:none!important}
+#gnssMissionV1 .m01-controls{
+ top:145px;
+ right:24px;
+ width:max-content;
+ max-width:290px;
+ min-width:0;
+ max-height:calc(100% - 258px);
+ padding:10px 11px;
+ border:0;
+ border-radius:8px;
+ background:rgba(6,30,43,.62);
+ box-shadow:none;
+ backdrop-filter:blur(5px);
+}
+#gnssMissionV1 .m01-controls[hidden],
+#gnssMissionV1 .m01-controls:empty{display:none!important}
+#gnssMissionV1 .m01-controls p{display:none}
+#gnssMissionV1 .m01-controls .m01-buttons{margin:0;gap:5px}
+#gnssMissionV1 .m01-controls .m01-pill{padding:8px 10px}
+#gnssMissionV1 .m01-controls .m01-control-title{
+ color:#a9cdd6;font-size:11px;font-weight:600;line-height:1.35;margin-bottom:6px;
+}
+#gnssMissionV1 .m01-controls .m01-answer{
+ margin:6px 0 9px;font-size:12px;
+}
+#gnssMissionV1 .m01-controls .m01-field input{
+ font-size:17px;padding:8px 10px;
+}
+#gnssMissionV1 .m01-dots{
+ font:600 10px ui-monospace,Consolas,monospace;
+ color:#b6d3da;display:inline-block;margin:4px 0 7px;
+}
+#gnssMissionV1 .m01-sr-only{
+ position:absolute;width:1px;height:1px;margin:-1px;padding:0;
+ border:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;
+}
+#gnssMissionV1 .m01-feedback{
+ left:24px;
+ bottom:77px;
+ max-width:280px;
+ padding:5px 9px;
+ border-left-width:2px;
+ background:rgba(5,29,42,.73);
+ box-shadow:none;
+ font-size:11px;
+}
+#gnssMissionV1 .m01-footer{
+ bottom:18px;
+ left:20px;right:20px;
+}
+#gnssMissionV1 .m01-footer-left button{
+ border:1px solid rgba(148,190,193,.24);
+ background:rgba(8,35,46,.3);
+ color:#c7e2e4;
+ font-size:15px;
+ width:34px;height:34px;
+ padding:0;
+ display:grid;place-items:center;
+}
+#gnssMissionV1 .m01-footer-right button:not(.m01-primary){
+ background:transparent;border:0;color:#a9c7d1;
+ font-size:11px;
+}
+#gnssMissionV1 .m01-footer-right button.m01-primary{
+ padding:9px 13px;
+ font-size:12px;
+}
+#gnssMissionV1 #m01Progress{font-size:11px;opacity:.75}
+#gnssMissionV1 .m01-final-ring,
+#gnssMissionV1 .m01-final-check{
+ animation:m01-summary-in .5s ease-out both;
+ transform-origin:600px 335px;
+}
+@keyframes m01-summary-in{
+ from{opacity:0;transform:scale(.87)}
+ to{opacity:1;transform:scale(1)}
+}
+@media(max-width:900px){
+ #gnssMissionV1 .m01-header{left:16px;max-width:min(390px,58%)}
+ #gnssMissionV1 .m01-controls{
+  top:157px;right:12px;width:max-content;max-width:min(255px,48%);
+ }
+ #gnssMissionV1 .m01-guidance{left:16px;top:112px}
+}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-header{top:57px;left:11px;max-width:calc(100% - 22px)}
+ #gnssMissionV1 .m01-header h2{font-size:18px}
+ #gnssMissionV1 .m01-header p{font-size:11px}
+ #gnssMissionV1 .m01-guidance{top:137px;left:11px;max-width:min(280px,80vw)}
+ #gnssMissionV1 .m01-controls{
+  top:auto;bottom:84px;right:8px;
+  width:max-content;min-width:0;
+  max-width:min(290px,85vw);max-height:40%;
+  padding:8px;
+ }
+ #gnssMissionV1 .m01-feedback{
+  bottom:58px;left:10px;max-width:260px;font-size:10px;
+ }
+ #gnssMissionV1 .m01-footer{left:8px;right:8px;bottom:7px}
+ #gnssMissionV1 .m01-footer-left button{width:30px;height:30px}
+ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-controls{bottom:258px;max-height:32%}
+}
+@media(prefers-reduced-motion:reduce){
+ #gnssMissionV1 .m01-final-ring,#gnssMissionV1 .m01-final-check{
+  animation:none!important;
+ }
+}
