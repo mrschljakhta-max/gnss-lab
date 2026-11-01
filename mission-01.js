@@ -998,7 +998,7 @@ function show(nextMode){
  cancelChoiceTimer();cancelAdvanceTimer();visible=true;mode=nextMode;root.hidden=false;
  // On reload, don't leave a student on an already-completed calibration or a skipped ending.
  if(nextMode==='demo'&&(firstUnfinished()<memory.scene||
-   memory.scene<7&&memory.completed.includes(memory.scene))){
+   memory.scene<7&&memory.scene!==5&&memory.completed.includes(memory.scene))){
   memory.scene=firstUnfinished();persist();
  }
  document.body.classList.add('gnss-mission-active');
