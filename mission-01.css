@@ -479,70 +479,6 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
  #gnssMissionV1 .m01-scale-loupe{top:125px}
 }
 
-/* Mission 01 / step 04: physical-unit ruler, one action without a text quiz. */
-#gnssMissionV1 .m01-canvas .m01-unit-physical{pointer-events:none}
-#gnssMissionV1 .m01-canvas .m01-unit-ticks,
-#gnssMissionV1 .m01-canvas .m01-unit-reading{
- animation:m01-unit-engrave .2s ease-out both;pointer-events:none;
-}
-#gnssMissionV1 .m01-canvas .m01-unit-hit{
- pointer-events:all!important;cursor:pointer;touch-action:manipulation;outline:none;
-}
-#gnssMissionV1 .m01-canvas .m01-unit-hit:hover,
-#gnssMissionV1 .m01-canvas .m01-unit-hit:focus-visible{
- stroke:#b9f68e;stroke-width:2.6;stroke-dasharray:8 6;
-}
-#gnssMissionV1 .m01-controls:has(.m01-unit-switch){
- top:auto;right:25px;bottom:16%;width:315px;max-width:calc(100% - 40px);
- padding:13px;overflow:visible;
- border:1px solid #658c98;background:rgba(6,29,43,.92);
- box-shadow:0 10px 26px #06172465;border-radius:11px;
-}
-#gnssMissionV1 .m01-unit-heading{
- display:flex;justify-content:space-between;align-items:center;gap:10px;
- margin-bottom:11px;color:#c0dce4;
- font:750 11px/1.3 ui-monospace,Consolas,monospace;letter-spacing:.45px;
-}
-#gnssMissionV1 .m01-unit-heading span:last-child{color:#baf68d}
-#gnssMissionV1 .m01-unit-buttons{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-#gnssMissionV1 .m01-unit-buttons button{
- min-height:54px;padding:10px 4px;border-radius:9px;font-size:18px;font-weight:780;
- border:1px solid #567a89;background:#15394d;color:#e5f5f4;white-space:nowrap;
-}
-#gnssMissionV1 .m01-unit-buttons button.active{
- background:#244b38;color:#d7ffbb;border:2px solid #b8f789;
- box-shadow:inset 0 0 0 1px #baf58c2e;
-}
-#gnssMissionV1 .m01-unit-buttons button.m01-unit-seen:not(.active){
- border-color:#568f6b;color:#b8e5c6;
-}
-#gnssMissionV1 button.m01-unit-next-ready{
- background:#b5f68b;color:#173526;border-color:#b5f68b;
- animation:m01-ready-pulse 1.7s ease-in-out infinite;
-}
-@keyframes m01-ready-pulse{50%{box-shadow:0 0 0 5px #b5f68b31}}
-@keyframes m01-unit-engrave{
- from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}
-}
-@media(max-width:900px){
- #gnssMissionV1 .m01-controls:has(.m01-unit-switch){right:12px;bottom:15%;width:280px}
- #gnssMissionV1 .m01-unit-buttons button{min-height:50px}
-}
-@media(max-width:650px){
- #gnssMissionV1 .m01-controls:has(.m01-unit-switch){
-  right:8px;bottom:91px;top:auto;width:min(284px,80vw);
-  max-width:80vw;padding:9px;
- }
- #gnssMissionV1 .m01-unit-heading{font-size:10px;margin-bottom:6px}
- #gnssMissionV1 .m01-unit-buttons{gap:5px}
- #gnssMissionV1 .m01-unit-buttons button{min-height:43px;font-size:15px;padding:6px 4px}
-}
-@media(prefers-reduced-motion:reduce){
- #gnssMissionV1 .m01-canvas .m01-unit-ticks,
- #gnssMissionV1 .m01-canvas .m01-unit-reading,
- #gnssMissionV1 button.m01-unit-next-ready{animation:none!important}
-}
-
 /* Lesson 01 · station 07: physically turn the 42 × 28 × 18 mm wooden specimen. */
 #gnssMissionV1 .m01-canvas .m01-rotating-face{pointer-events:none}
 #gnssMissionV1 .m01-canvas .m01-face-animation{
@@ -611,157 +547,58 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
  #gnssMissionV1 .m01-canvas .m01-face-animation{animation:none!important}
 }
 
-/* Mission 01, stage 06 — seven SI prefixes through three tactile experiments. */
-#gnssMissionV1 .m01-controls:has(.m01-prefix-panel){
- top:137px;right:19px;bottom:auto;width:315px;
- max-width:min(32%,320px);max-height:calc(100% - 240px);
- overflow-y:auto;padding:12px 13px;
- background:linear-gradient(150deg,rgba(4,28,43,.96),rgba(7,34,48,.93));
- border:1px solid #628a99;border-radius:12px;
- box-shadow:0 12px 31px rgba(0,14,23,.58);
+
+/* Lesson 01 — pencil, ruler, and compass: user constructs actual geometry. */
+#gnssMissionV1 .m01-canvas .m01-geom-handle{
+ pointer-events:all;touch-action:none;cursor:crosshair;
+ stroke-opacity:.92;stroke-dasharray:5 6;
+ animation:m01-geom-pulse 2s ease-in-out infinite;
 }
-#gnssMissionV1 .m01-prefix-heading{
- display:flex;align-items:center;justify-content:space-between;gap:9px;
- color:#b1d5e2;font:750 10px/1.4 ui-monospace,Consolas,monospace;
- letter-spacing:.45px;margin-bottom:6px;
+#gnssMissionV1 .m01-canvas .m01-geom-handle:active{cursor:grabbing}
+#gnssMissionV1 .m01-canvas .m01-geom-handle:hover,
+#gnssMissionV1 .m01-canvas .m01-geom-handle:focus-visible{
+ stroke:#d6ffac;stroke-width:3;outline:none;fill:#b9f99120;
 }
-#gnssMissionV1 .m01-prefix-heading span:last-child{color:#b7f38d}
-#gnssMissionV1 .m01-prefix-panel .m01-control-title{
- font-size:13px;margin-bottom:10px;letter-spacing:.12px;
+#gnssMissionV1 .m01-canvas [data-geom-preview]{
+ pointer-events:none;filter:drop-shadow(0 0 3px #b7f98842);
 }
-#gnssMissionV1 .m01-prefix-current{
- color:#c5f8a5;background:rgba(21,57,63,.42);border-radius:8px;
- padding:10px 9px;text-align:center;
- font:800 25px/1.2 ui-monospace,Consolas,monospace;
- font-variant-numeric:tabular-nums;
+#gnssMissionV1 .m01-controls:has(.m01-geometry-panel){
+ width:290px;max-width:min(32vw,310px);
+ top:162px;right:18px;bottom:auto;max-height:45%;overflow-y:auto;
+ padding:15px 14px;border-radius:11px;
+ background:rgba(6,32,45,.96);
+ border:1px solid #699294;box-shadow:0 13px 28px #00131d69;
 }
-#gnssMissionV1 .m01-prefix-slider-wrap{padding:10px 1px 8px}
-#gnssMissionV1 .m01-prefix-slider-wrap input{
- width:100%;height:29px;cursor:ew-resize;accent-color:#b7f58e;
- touch-action:pan-y;
+#gnssMissionV1 .m01-geometry-panel .m01-control-title{
+ color:#c2e3e9;letter-spacing:.6px;font-size:11px;margin:0 0 10px;
 }
-#gnssMissionV1 .m01-prefix-sr{
- position:absolute!important;width:1px!important;height:1px!important;
- padding:0!important;border:0!important;margin:-1px!important;
- overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;
+#gnssMissionV1 .m01-geometry-target{
+ background:#214439;border:1px solid #9fcb7e;color:#d6ffb4;
+ text-align:center;font:bold 27px/1.25 ui-monospace,Consolas,monospace;
+ padding:12px 5px;border-radius:8px;margin-bottom:12px;
 }
-#gnssMissionV1 .m01-prefix-row{display:flex;gap:7px}
-#gnssMissionV1 .m01-prefix-row button{min-height:40px;font-size:13px}
-#gnssMissionV1 .m01-prefix-row button:first-child{
- font-size:19px;font-weight:800;min-width:47px;
+#gnssMissionV1 .m01-geometry-instruction{
+ color:#e5f1f1;font-size:13px;line-height:1.52;
 }
-#gnssMissionV1 .m01-prefix-grow{
- flex:1;background:#214e43!important;color:#dfffcc!important;border-color:#98d976!important;
+#gnssMissionV1 .m01-geometry-keyhint{
+ margin-top:11px;color:#a6c8d0;font-size:10px;line-height:1.5;
 }
-#gnssMissionV1 .m01-prefix-steps{
- display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
- gap:5px;margin-top:10px;
+#gnssMissionV1 .m01-geometry-done{
+ margin-top:10px;color:#b5fa96;font-size:13px;font-weight:750;
 }
-#gnssMissionV1 .m01-prefix-steps button{
- min-width:0;padding:8px 3px;font-size:10px;min-height:35px;
- white-space:nowrap;letter-spacing:-.2px;
+@keyframes m01-geom-pulse{
+ 50%{stroke-opacity:.46;stroke-dashoffset:10}
 }
-#gnssMissionV1 .m01-prefix-steps button.active{
- background:#245442;border-color:#b8f793;color:#e6ffd7;
-}
-#gnssMissionV1 .m01-prefix-steps button.seen:not(.active){color:#b4ecbd;border-color:#679879}
-#gnssMissionV1 .m01-prefix-pair-buttons{grid-template-columns:repeat(3,minmax(0,1fr));margin-top:5px}
-#gnssMissionV1 .m01-prefix-pair-buttons button{font-size:12px;min-height:49px}
-#gnssMissionV1 .m01-prefix-relationship{
- font:700 19px/1.5 ui-monospace,Consolas,monospace;
- text-align:center;color:#b8f891;margin-top:10px;
-}
-#gnssMissionV1 .m01-prefix-proceed{
- display:block;width:100%;margin:12px 0 2px!important;
- min-height:45px;background:#b9f58a!important;color:#193d28!important;
- border-color:#b9f58a!important;font-weight:800!important;
-}
-#gnssMissionV1 .m01-prefix-ok{
- color:#d1f5b7;font:700 11px/1.5 system-ui,sans-serif;margin-top:10px;
-}
-#gnssMissionV1 .m01-prefix-reference-toggle{
- display:block;width:100%;margin-top:13px!important;
- background:transparent!important;border:0!important;
- padding:7px 3px!important;text-align:left;color:#a8cbd7!important;
- font:650 11px/1.35 system-ui,sans-serif!important;
-}
-#gnssMissionV1 .m01-prefix-reference{
- display:grid;grid-template-columns:1fr 35px 54px;gap:6px 8px;
- padding:8px;border:1px solid #406377;border-radius:8px;
- color:#d3e4e7;font:600 11px/1.35 system-ui,sans-serif;
- background:#061c2bf0;
-}
-#gnssMissionV1 .m01-prefix-reference b{color:#c0f6a0;text-align:center}
-#gnssMissionV1 .m01-prefix-reference span:nth-child(3n){text-align:right}
-#gnssMissionV1 .m01-prefix-reference small{
- grid-column:1/-1;border-top:1px solid #34576a;padding-top:8px;
- color:#c0dfec;font-size:10px;
-}
-#gnssMissionV1 .m01-prefix-wave{
- filter:drop-shadow(0 0 5px #a6f98565);
- stroke-dasharray:2600;stroke-dashoffset:0;
- animation:m01-prefix-wave-show .38s ease-out both;
-}
-#gnssMissionV1 .m01-prefix-focus{animation:m01-prefix-focus-blink 1.9s ease-in-out infinite}
-@keyframes m01-prefix-focus-blink{50%{fill-opacity:.25;stroke-opacity:.35}}
-@keyframes m01-prefix-wave-show{
- from{stroke-dashoffset:320;opacity:.45}to{stroke-dashoffset:0;opacity:1}
-}
-@media(max-width:970px){
- #gnssMissionV1 .m01-controls:has(.m01-prefix-panel){
-  right:11px;top:164px;max-width:35%;width:270px;padding:10px 11px;
+@media(max-width:740px){
+ #gnssMissionV1 .m01-controls:has(.m01-geometry-panel){
+  top:auto;bottom:79px;right:7px;width:min(285px,75vw);
+  max-width:75vw;padding:10px 11px;max-height:45%;
  }
- #gnssMissionV1 .m01-prefix-steps button{font-size:9px}
-}
-@media(max-width:650px){
- #gnssMissionV1 .m01-controls:has(.m01-prefix-panel){
-  right:7px;top:auto;bottom:83px;width:min(290px,77vw);
-  max-width:77vw;max-height:52%;padding:9px 10px;
- }
- #gnssMissionV1 .m01-prefix-panel .m01-control-title{font-size:11px;margin-bottom:5px}
- #gnssMissionV1 .m01-prefix-current{font-size:19px;padding:6px}
- #gnssMissionV1 .m01-prefix-row button{min-height:34px;font-size:11px}
- #gnssMissionV1 .m01-prefix-steps button{min-height:31px}
- #gnssMissionV1 .m01-prefix-reference-toggle{margin-top:7px!important}
+ #gnssMissionV1 .m01-geometry-target{font-size:22px;padding:8px 4px}
+ #gnssMissionV1 .m01-geometry-instruction{font-size:11px}
+ #gnssMissionV1 .m01-geometry-keyhint{font-size:10px}
 }
 @media(prefers-reduced-motion:reduce){
- #gnssMissionV1 .m01-prefix-wave,#gnssMissionV1 .m01-prefix-focus{animation:none!important}
+ #gnssMissionV1 .m01-canvas .m01-geom-handle{animation:none!important}
 }
 
-
-/* Manual 3D grip: the user drags the wooden solid itself, not a fake rotation button. */
-#gnssMissionV1 .m01-manual-hint{
- display:flex;gap:10px;align-items:center;
- margin:6px 0 11px;padding:11px 10px;
- border:1px solid #648a7c;border-radius:9px;
- background:rgba(22,62,53,.52);color:#e2f4ea;
- font-size:12px;line-height:1.5;
-}
-#gnssMissionV1 .m01-manual-hint strong{color:#c2f598;font-weight:750}
-#gnssMissionV1 .m01-hand-symbol{flex-shrink:0;font-size:20px}
-#gnssMissionV1 .m01-dim-chips button{
- cursor:pointer;min-height:30px;appearance:none;
- transition:background-color .15s,border-color .15s;
-}
-#gnssMissionV1 .m01-dim-chips button:hover{background:#26554a;border-color:#b1f38a}
-#gnssMissionV1 .m01-dim-chips button:focus-visible{
- outline:3px solid #b6f58a;outline-offset:2px;
-}
-#gnssMissionV1 .m01-canvas .m01-rotatable-block{pointer-events:none}
-#gnssMissionV1 .m01-canvas .m01-rotate-hit{
- pointer-events:all!important;touch-action:none;
- cursor:grab;stroke:#b5f78b;stroke-opacity:0;
- stroke-width:2;transition:stroke-opacity .15s;
-}
-#gnssMissionV1 .m01-canvas .m01-rotate-hit:hover,
-#gnssMissionV1 .m01-canvas .m01-rotate-hit:focus-visible{
- stroke-opacity:.74;stroke-dasharray:6 5;
-}
-#gnssMissionV1 .m01-canvas .m01-rotate-hit:active{cursor:grabbing}
-#gnssMissionV1 .m01-canvas [data-solid-mesh]{pointer-events:none}
-#gnssMissionV1 .m01-canvas .m01-wood-workpiece svg{user-select:none}
-@media(max-width:650px){
- #gnssMissionV1 .m01-manual-hint{font-size:11px;padding:7px 8px;line-height:1.4}
- #gnssMissionV1 .m01-hand-symbol{font-size:16px}
- #gnssMissionV1 .m01-dim-chips button{min-height:28px}
-}
