@@ -84,7 +84,7 @@ root.innerHTML=
  '<section class="m01-scale-loupe" id="m01ScaleLoupe" aria-label="Збільшена механічна шкала" hidden></section>'+
  '<div class="m01-controls" id="m01Controls"></div>'+
  '<div class="m01-feedback" id="m01Feedback" role="status" aria-live="polite"></div>'+
- '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint" title="Підказка" aria-label="Підказка">?</button><button type="button" data-act="restart-all" id="m01Reset" title="Скинути місію та почати з 1/8" aria-label="Скинути весь прогрес місії та повернутися до першого рівня">↻</button><button type="button" data-act="repeat" title="Повторити поточний крок" aria-label="Повторити поточний крок">Повторити крок</button></div>'+
+ '<footer class="m01-footer"><div class="m01-footer-left"><button type="button" data-act="hint" title="Підказка" aria-label="Підказка">?</button><button type="button" data-act="restart-all" id="m01Reset" title="Скинути місію та почати з 1/8" aria-label="Скинути весь прогрес місії та повернутися до першого рівня">↻</button></div>'+
  '<div class="m01-footer-right"><span id="m01Progress"></span><button type="button" data-act="skip" id="m01Skip">Пропустити</button><button type="button" data-act="next" id="m01Next" class="m01-primary">Далі →</button></div></footer>';
 board.append(root);
 const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01Controls'),feedbackEl=el('m01Feedback');
@@ -482,13 +482,6 @@ function geometryScene(){
  // A pale target makes the first action discoverable without pre-drawing the answer.
  s+='<text x="600" y="216" text-anchor="middle" font-size="24" font-weight="750" fill="#d9f4e6">'+
  (task.kind==='line'?'ВІДРІЗОК':task.kind==='rect'?'ПРЯМОКУТНИК':'КОЛО')+' · '+shapeDescription(task)+'</text>';
- for(let i=0;i<=10;i++){
-  const xx=x+i*MM*5;
-  s+='<line x1="'+xx+'" y1="477" x2="'+xx+'" y2="'+(i%2===0?499:490)+'" stroke="#b8dbe2" stroke-width="1.8"/>'+
-    (i%2===0?'<text x="'+xx+'" y="518" font-size="13" text-anchor="middle" fill="#b8dbe2">'+i*5+'</text>':'');
- }
- s+='<path d="M'+x+' 476H'+(x+50*MM)+'" stroke="#bdd2dc" stroke-width="3"/>'+
-  '<text x="403" y="522" fill="#b8dbe2" font-size="13">мм</text>';
  if(task.kind==='line'){
   s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+goal.dx)+'" y2="'+y+'" stroke="#9cd3c2" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 8"/>';
  }else if(task.kind==='rect'){
@@ -705,6 +698,7 @@ function syncCaliperVisual(){
 function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
+ root.classList.toggle('m01-geometry-active',!!geometryTask());
  const spec=quest?tasks[Math.min(current,3)]:specs[current];
  const trainingFinished=memory.completed.length===7;
  el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,4)+'/4':
@@ -719,14 +713,14 @@ function render(){
  controls.hidden=!controls.innerHTML.trim();
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
- const replay=root.querySelector('[data-act="repeat"]');
+
  const allowed=quest?current>=4:!geomAnimating&&(sceneComplete()||memory.completed.includes(current));
  next.hidden=quest&&current<4||mode==='demo'&&current===0;
  next.disabled=!allowed;
  next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current>=3&&current<=5&&allowed?'Наступна побудова →':'Далі →';
  next.classList.toggle('m01-next-ready',mode==='demo'&&current>=3&&current<=6&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
- replay.hidden=quest||current===7;
+
  el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
   '✓ '+memory.completed.length+'/7';
 }
