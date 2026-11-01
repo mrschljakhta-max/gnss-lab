@@ -66,3 +66,54 @@ body.lab01-route .mode-peek{z-index:90}
  #lab01Journey .j-units{top:183px;right:10px}
  #lab01Journey .j-progress{display:none}
 }
+
+
+/* Physical analogue measuring station, not a digital measurement display. */
+#lab01Journey .j-caliper-drag{cursor:ew-resize;touch-action:none;outline:none}
+#lab01Journey .j-caliper-drag:focus-visible{stroke:#bcf98e;stroke-width:2.4}
+#lab01Journey .j-cal-tick{stroke:#213d51;stroke-width:1.15;pointer-events:none}
+#lab01Journey .j-cal-vernier-tick{stroke:#c9edf0;stroke-width:1.3;pointer-events:none}
+#lab01Journey .j-cal-number{
+ fill:#daebec;font:600 10px ui-monospace,Consolas,monospace;
+ paint-order:stroke fill;stroke:#183c4e;stroke-width:2;pointer-events:none
+}
+#lab01Journey .j-cal-vernier-num{
+ fill:#bdf68f;font:700 11px ui-monospace,Consolas,monospace;
+ pointer-events:none
+}
+#lab01Journey .j-cal-heading{
+ fill:#bce7e9;font:700 11px ui-monospace,Consolas,monospace;
+ letter-spacing:.4px;pointer-events:none
+}
+#lab01Journey #jCaliperLens{pointer-events:none}
+body.gnss-caliper-3d-ready #jCaliperHardware{visibility:hidden}
+#lab01Journey .j-caliper-entry{
+ position:absolute;right:30px;bottom:75px;z-index:35;width:265px;
+ display:flex;flex-direction:column;gap:8px;
+ padding:10px 0 12px;
+ border-bottom:1px solid rgba(185,240,217,.45);
+ background:rgba(6,32,49,.75);backdrop-filter:blur(6px);
+ color:#e6f7f8
+}
+#lab01Journey .j-caliper-entry[hidden]{display:none!important}
+#lab01Journey .j-caliper-entry label{
+ color:#c1f1e9;font:650 12px ui-sans-serif,Arial,sans-serif
+}
+#lab01Journey .j-caliper-entry small{
+ color:#a7c8d2;font:500 11px/1.4 ui-sans-serif,Arial,sans-serif
+}
+#lab01Journey .j-caliper-input{display:flex;align-items:center;gap:8px}
+#lab01Journey .j-caliper-input input{
+ flex:1;min-width:0;background:rgba(6,32,49,.62);
+ border:1px solid rgba(147,194,203,.6);border-radius:3px;
+ padding:9px 11px;color:#ebffef;font:700 20px ui-monospace,Consolas,monospace;
+ outline:none
+}
+#lab01Journey .j-caliper-input input:focus{border-color:#bcfb88}
+#lab01Journey .j-caliper-input input::placeholder{color:#96b4be;font-size:15px}
+#lab01Journey .j-caliper-input span{font:700 12px ui-monospace,monospace;color:#b7dada}
+@media(max-width:780px){
+ #lab01Journey .j-caliper-entry{right:12px;bottom:90px;width:200px;padding:8px 0}
+ #lab01Journey .j-caliper-input input{font-size:16px;padding:7px}
+ #lab01Journey .j-caliper-entry label{font-size:11px}
+}
