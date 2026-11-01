@@ -449,6 +449,11 @@ svg.addEventListener('dblclick',e=>{if(state.tool==='ruler'){state.ruler.angle=(
 confirm.addEventListener('click',commit);
 tools.addEventListener('click',e=>{const btn=e.target.closest('button[data-tool]');if(!btn||state.mode==='demo')return;const t=btn.dataset.tool;
  if(t==='units'){state.measureUnit=state.measureUnit==='mm'?'cm':'mm';draw();return}
+ // The normal drafting toolbar opens the actual measuring instrument
+ // instead of selecting the old inactive caliper cursor in free mode.
+ if(t==='caliper'&&state.mode==='explore'&&window.GNSSLab01Journey?.openStage){
+  if(window.GNSSLab01Journey.openStage(6))return;
+ }
  state.tool=t;state.pending=null;draw();});
 cmd.addEventListener('click',e=>{const b=e.target.closest('[data-cmd]');if(!b)return;const a=b.dataset.cmd;
  if(a==='replay'){state.demoStart=performance.now();state.demoPlaying=true;state.records=[]}
