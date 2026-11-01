@@ -727,3 +727,41 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
 @media(prefers-reduced-motion:reduce){
  #gnssMissionV1 .m01-prefix-wave,#gnssMissionV1 .m01-prefix-focus{animation:none!important}
 }
+
+
+/* Manual 3D grip: the user drags the wooden solid itself, not a fake rotation button. */
+#gnssMissionV1 .m01-manual-hint{
+ display:flex;gap:10px;align-items:center;
+ margin:6px 0 11px;padding:11px 10px;
+ border:1px solid #648a7c;border-radius:9px;
+ background:rgba(22,62,53,.52);color:#e2f4ea;
+ font-size:12px;line-height:1.5;
+}
+#gnssMissionV1 .m01-manual-hint strong{color:#c2f598;font-weight:750}
+#gnssMissionV1 .m01-hand-symbol{flex-shrink:0;font-size:20px}
+#gnssMissionV1 .m01-dim-chips button{
+ cursor:pointer;min-height:30px;appearance:none;
+ transition:background-color .15s,border-color .15s;
+}
+#gnssMissionV1 .m01-dim-chips button:hover{background:#26554a;border-color:#b1f38a}
+#gnssMissionV1 .m01-dim-chips button:focus-visible{
+ outline:3px solid #b6f58a;outline-offset:2px;
+}
+#gnssMissionV1 .m01-canvas .m01-rotatable-block{pointer-events:none}
+#gnssMissionV1 .m01-canvas .m01-rotate-hit{
+ pointer-events:all!important;touch-action:none;
+ cursor:grab;stroke:#b5f78b;stroke-opacity:0;
+ stroke-width:2;transition:stroke-opacity .15s;
+}
+#gnssMissionV1 .m01-canvas .m01-rotate-hit:hover,
+#gnssMissionV1 .m01-canvas .m01-rotate-hit:focus-visible{
+ stroke-opacity:.74;stroke-dasharray:6 5;
+}
+#gnssMissionV1 .m01-canvas .m01-rotate-hit:active{cursor:grabbing}
+#gnssMissionV1 .m01-canvas [data-solid-mesh]{pointer-events:none}
+#gnssMissionV1 .m01-canvas .m01-wood-workpiece svg{user-select:none}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-manual-hint{font-size:11px;padding:7px 8px;line-height:1.4}
+ #gnssMissionV1 .m01-hand-symbol{font-size:16px}
+ #gnssMissionV1 .m01-dim-chips button{min-height:28px}
+}

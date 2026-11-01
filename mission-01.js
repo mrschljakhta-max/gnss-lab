@@ -95,7 +95,7 @@ const prefixLabComplete=()=>prefixLabStage===2&&prefixPairSeen.size===3;
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
  answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
- practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,suppressTurnClick=false,assessmentTarget=42,assessmentSeed=0,
+ practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,solidPose={roll:0,yaw:0,pitch:0},turnAnimation=null,turning=false,assessmentTarget=42,assessmentSeed=0,
  caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
 const root=document.createElement('section');
 root.id='gnssMissionV1';
@@ -115,6 +115,7 @@ const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01C
 const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
+ stopTurnAnimation();
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
   prefixReferenceOpen=false;
@@ -124,7 +125,7 @@ function resetStep(){
    Object.fromEntries(DIMENSIONS.filter(d=>memory.dimensionProgress?.[d.id]===d.mm).map(d=>[d.id,d.mm])):{};
   dimensionIndex=mode==='demo'&&memory.scene===6?
    Math.max(0,DIMENSIONS.findIndex(d=>dimensionReadings[d.id]!==d.mm)):0;
-  turnPointer=null;suppressTurnClick=false;
+  turnPointer=null;solidPose=facePose(dimensionIndex);
  if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
   assessmentTarget=[42,47,63,38,69][assessmentSeed];gap=assessmentTarget+24;}
  if(mode==='demo'&&memory.scene===2)gap=70;
@@ -140,7 +141,7 @@ function target(){
  if(memory.scene===6)return DIMENSIONS[dimensionIndex].mm;
  return 50;
 }
-function canMeasure(){return caliperChosen&&moved&&settledContact&&Math.abs(gap-target())<.001}
+function canMeasure(){return caliperChosen&&!turnPointer&&!turning&&moved&&settledContact&&Math.abs(gap-target())<.001}
 function sceneComplete(){
  if(mode==='quest')return memory.assessment>=4;
  switch(memory.scene){
@@ -209,35 +210,97 @@ function blockSvg(x,y,w,title,selected=false,dim=true){
   (dim?'<text x="'+(x+w/2)+'" y="'+(y-20)+'" fill="#e3f2e9" font-size="19" font-weight="600" text-anchor="middle">'+title+'</text>':'')+'</g>';
 }
 
-/* A 2.5D orthographic turn of the SAME 42×28×18 mm block.
- * The dimension exposed between the jaws is always target()*MM.
- * Length: top face; width: 90° around vertical axis of screen;
- * thickness: tip onto the 42×18 mm side face.
+/* A single 42×28×18 mm solid. Its six physical faces are projected from
+ * three-dimensional vertices. Dragging redraws the mesh in place, frame by
+ * frame; measured widths are authoritative only when a face has snapped.
+ * Keeping the photo texture on the faces also avoids another image download.
  */
-function orientableBlockSvg(){
- const dim=DIMENSIONS[dimensionIndex],w=dim.mm*MM;
- const h=(dimensionIndex===0?28:42)*MM,y=dimensionIndex===0?268:246;
- const base='<rect x="0" y="0" width="'+w+'" height="'+h+'" rx="5" fill="url(#m01Ceramic)"/>';
- let face='';
- if(dimensionIndex!==0){
-  // Rotate the original wood grain instead of stretching it through 90 degrees.
-  face='<g transform="translate('+w+' 0) rotate(90)">'+woodSurface(0,0,h,w)+'</g>';
- }else{
-  face=woodSurface(0,0,w,h);
+const SOLID_PI=Math.PI;
+const FACE_POSES=[
+ {roll:0,yaw:0,pitch:0},
+ {roll:-SOLID_PI/2,yaw:0,pitch:0},
+ {roll:0,yaw:SOLID_PI/2,pitch:0}
+];
+function facePose(index){return {...FACE_POSES[index]}}
+function angleGap(a,b){return Math.atan2(Math.sin(a-b),Math.cos(a-b))}
+function nearestFace(pose){
+ const candidates=[
+  {index:0,roll:0,yaw:0},
+  {index:1,roll:-SOLID_PI/2,yaw:0},
+  {index:1,roll:SOLID_PI/2,yaw:0},
+  {index:2,roll:0,yaw:SOLID_PI/2},
+  {index:2,roll:0,yaw:-SOLID_PI/2}
+ ];
+ let best=candidates[0],distance=Infinity;
+ for(const c of candidates){
+  const d=Math.pow(angleGap(pose.roll,c.roll),2)+Math.pow(angleGap(pose.yaw,c.yaw),2);
+  if(d<distance){best=c;distance=d}
  }
- const highlight=dimensionIndex===2
-  ?'<path d="M3 7v'+(h-14)+'" stroke="#fff4d8" stroke-width="4" stroke-opacity=".25"/>'+
-   '<path d="M'+(w-5)+' 9v'+(h-18)+'" stroke="#6d4f31" stroke-width="4" stroke-opacity=".42"/>'
-  :'<path d="M7 4h'+(w-14)+'" stroke="#ffedd3" stroke-width="2" stroke-opacity=".35"/>';
+ return best;
+}
+function solidPoint(pose,vec,cx,cy){
+ const [x,y,z]=vec,cY=Math.cos(pose.yaw),sY=Math.sin(pose.yaw),
+  cP=Math.cos(pose.pitch||0),sP=Math.sin(pose.pitch||0),
+  cR=Math.cos(pose.roll),sR=Math.sin(pose.roll);
+ const a=x*cY+z*sY,b=z*cY-x*sY,yy=y*cP-b*sP,zz=y*sP+b*cP;
+ return {x:cx+a*cR-yy*sR,y:cy+a*sR+yy*cR,z:zz};
+}
+function woodSolidMesh(pose,cx){
+ const L=42*MM/2,W=28*MM/2,T=18*MM/2,cy=313;
+ const faces=[
+  {name:'front',n:[0,0,1],corners:[[-L,-W,T],[L,-W,T],[L,W,T],[-L,W,T]],tint:'#ead4aa'},
+  {name:'back',n:[0,0,-1],corners:[[L,-W,-T],[-L,-W,-T],[-L,W,-T],[L,W,-T]],tint:'#d7b78c'},
+  {name:'right',n:[1,0,0],corners:[[L,-W,T],[L,-W,-T],[L,W,-T],[L,W,T]],tint:'#ad8255'},
+  {name:'left',n:[-1,0,0],corners:[[-L,-W,-T],[-L,-W,T],[-L,W,T],[-L,W,-T]],tint:'#ae8054'},
+  {name:'top',n:[0,-1,0],corners:[[-L,-W,-T],[L,-W,-T],[L,-W,T],[-L,-W,T]],tint:'#f0dcba'},
+  {name:'bottom',n:[0,1,0],corners:[[-L,W,T],[L,W,T],[L,W,-T],[-L,W,-T]],tint:'#a98256'}
+ ];
+ const visible=faces.map((f,i)=>{
+  const n=solidPoint(pose,f.n,0,0),d=n.z;
+  const pts=f.corners.map(p=>solidPoint(pose,p,cx,cy));
+  return {...f,id:i,d,pts,depth:pts.reduce((sum,p)=>sum+p.z,0)/4};
+ }).filter(f=>f.d>.0001).sort((a,b)=>a.depth-b.depth);
+ let out='<defs>'+
+  '<filter id="m01SolidShadow" x="-30%" y="-30%" width="160%" height="170%">'+
+  '<feGaussianBlur stdDeviation="5"/></filter>'+
+  '</defs>';
+ out+='<ellipse cx="'+(cx+8).toFixed(2)+'" cy="378" rx="85" ry="12" fill="#031b2b" opacity=".26" filter="url(#m01SolidShadow)"/>';
+ for(const f of visible){
+  const path=f.pts.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ');
+  const xs=f.pts.map(p=>p.x),ys=f.pts.map(p=>p.y),
+   lx=Math.min(...xs),ly=Math.min(...ys),ww=Math.max(...xs)-lx,hh=Math.max(...ys)-ly;
+  out+='<polygon points="'+path+'" fill="'+f.tint+'" stroke="#654c31" stroke-width="1.7" stroke-linejoin="round"/>';
+  if(ww>2&&hh>2){
+   // Affine-map the existing wooden photograph onto each planar 3D face.
+   // The grain now rotates WITH the solid instead of sticking to the screen.
+   const [p0,p1,p2,p3]=f.pts,mat=[
+    p1.x-p0.x,p1.y-p0.y,p3.x-p0.x,p3.y-p0.y,p0.x,p0.y
+   ].map(v=>v.toFixed(4)).join(' ');
+   // The orthographic projection of a rectangular face is a parallelogram;
+   // its affine image has the correct boundary without an extra clip-path.
+   out+='<image href="'+WOOD_SPECIMEN+'" x="0" y="0" width="1" height="1"'+
+    ' preserveAspectRatio="none" transform="matrix('+mat+')"'+
+    ' opacity="'+(f.name==='front'||f.name==='back'?.92:.68)+'"/>';
+  }
+  const shade=f.name==='front'?'#f4e2c1':f.name==='back'?'#a57d53':'#98683b';
+  out+='<polygon points="'+path+'" fill="'+shade+'" fill-opacity="'+(f.name==='front'?.08:.22)+'"'+
+   ' stroke="#efd7aa" stroke-opacity=".53" stroke-width="1"/>';
+ }
+ return out;
+}
+function orientableBlockSvg(){
+ const dim=DIMENSIONS[dimensionIndex],activeWidth=dim.mm*MM,cx=X0+activeWidth/2;
  return '<g class="m01-workpiece m01-wood-workpiece m01-rotatable-block" data-wood="true"'+
-  ' data-orientation="'+dim.id+'" aria-label="Дерев’яний брусок, '+dim.name.toLowerCase()+'">'+
-  '<rect x="'+(X0+8)+'" y="'+(y+10)+'" width="'+w+'" height="'+h+'" rx="5" fill="#001b2b" opacity=".32"/>'+
-  '<g class="m01-rotating-face" transform="translate('+X0+' '+y+')"><g class="m01-face-animation">'+
-   base+face+highlight+'</g></g>'+
-  '<rect class="m01-rotate-hit" x="'+(X0+9)+'" y="'+(y+5)+'" width="'+Math.max(w-20,29)+'" height="'+(h-10)+'"'+
-  ' rx="8" fill="transparent" role="button" tabindex="0" data-rotate-block="true"'+
-  ' aria-label="Повернути дерев’яний брусок, наступна грань" />'+
+  ' data-orientation="'+dim.id+'" aria-label="Дерев’яний брусок: утримуй і перетягуй для обертання">'+
+  '<g data-solid-mesh="true">'+woodSolidMesh(solidPose,cx)+'</g>'+
+  '<rect class="m01-rotate-hit" x="'+(cx-100)+'" y="225" width="200" height="164"'+
+  ' rx="15" fill="transparent" role="button" tabindex="0" data-rotate-block="true"'+
+  ' aria-label="Схопити брусок та повернути перетягуванням. Клавіші зі стрілками змінюють грань." />'+
   '</g>';
+}
+function updateManualMesh(pose,cx){
+ const g=canvas.querySelector('[data-solid-mesh]');
+ if(g)g.innerHTML=woodSolidMesh(pose,cx);
 }
 
 function overviewScene(){
@@ -581,17 +644,18 @@ function controlView(){
  if(!quest&&step===0)return '';
  if(!quest&&step===6){
   const dim=DIMENSIONS[dimensionIndex],done=Object.keys(dimensionReadings).length;
-  const chips=DIMENSIONS.map((d,i)=>'<span class="m01-dim-chip'+(dimensionIndex===i?' current':'')+
-   (dimensionReadings[d.id]===d.mm?' measured':'')+'">'+
-   (dimensionReadings[d.id]===d.mm?'✓ ':'○ ')+d.name+'</span>').join('');
+  const chips=DIMENSIONS.map((d,i)=>'<button type="button" data-act="orient-'+i+'" class="m01-dim-chip'+
+   (dimensionIndex===i?' current':'')+(dimensionReadings[d.id]===d.mm?' measured':'')+'"'+
+   ' aria-pressed="'+(dimensionIndex===i)+'" title="Клавіатурний вибір грані">'+
+   (dimensionReadings[d.id]===d.mm?'✓ ':'○ ')+d.name+'</button>').join('');
   const input=!sceneComplete()&&dimensionReadings[dim.id]!==dim.mm&&canMeasure()
    ?promptInput('Розмір грані','Зчитай шкалу','мм')+
     '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'';
   return '<div class="m01-dim-panel">'+
    '<div class="m01-control-title">Грань '+(dimensionIndex+1)+' / 3 · '+dim.name+'</div>'+
    '<div class="m01-dim-chips" aria-label="Виміряні грані">'+chips+'</div>'+
-   '<button type="button" class="m01-rotate-button" data-act="rotate-block"'+
-    ' aria-label="Повернути брусок до наступної грані">↻ Повернути брусок</button>'+
+   '<div class="m01-manual-hint"><span class="m01-hand-symbol">✋</span>'+
+    '<span>Утримуй брусок і тягни: <strong>праворуч → ширина, вгору ↑ товщина</strong>. Відпусти для фіксації.</span></div>'+
    '<div class="m01-dim-progress">'+done+'/3 виміряно</div>'+
    input+'</div>';
  }
@@ -647,7 +711,7 @@ function guidance(){
   'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
   'Масштаб зображення і одиниця вимірювання — різні речі.',
   'Керуй масштабом часу та частотою сигналу: кожен сусідній префікс відрізняється у 1 000 разів.',
-  'Натисни на брусок або поверни його свайпом. Виміряй кожну грань штангенциркулем.',
+  'Схопи брусок і тягни курсор: праворуч — до ширини, вгору — до товщини. Відпусти й виміряй.',
   'Готово! Тепер закріпи навички в режимі «Тести».'
  ];
  return msgs[memory.scene]||'';
@@ -733,7 +797,7 @@ function hintMessage(){
   ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
   ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
   ['Натисни «×1 000» або перемісти повзунок праворуч.','Переглянь 1 с, 1 мс, 1 мкс, 1 нс. Потім зміни частоту генератора.','Частота — коливання за секунду, період — час одного коливання: T = 1/f.'],
-  ['Виміряй довжину: потягни рухому губку до дерев’яного бруска.','Натисни «↻ Повернути брусок» або проведи пальцем по ньому.','Потрібно виміряти 3 грані: довжину, ширину і товщину.']
+  ['Утримуй брусок лівою кнопкою та веди мишу. Для ширини потягни вправо.','Для товщини потягни вгору. Після відпускання грань зафіксується.','Виміряй кожну грань штангенциркулем. Кнопки граней також доступні з клавіатури.']
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
 }
@@ -831,14 +895,83 @@ function finishCaliperMotion(){
  }else caliperPhase='idle';
  render();
 }
-function rotateSpecimen(){
- if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null)return;
- dimensionIndex=(dimensionIndex+1)%DIMENSIONS.length;
+// The user grips the specimen and rotates a genuine three-dimensional mesh.
+// Measurement is locked while rotating or snapping to a known planar face.
+function stopTurnAnimation(){
+ if(turnAnimation!==null){window.cancelAnimationFrame?.(turnAnimation);turnAnimation=null}
+ turning=false;turnPointer=null;
+}
+function commitFace(index,pose){
+ dimensionIndex=index;solidPose=pose||facePose(index);
  gap=target()+24;
- caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;
- feedback='';feedbackSuccess=false;hintLevel=0;
+ caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';
+ dragOffset=0;feedback='';feedbackSuccess=false;turning=false;
  render();
 }
+function animateFaceSnap(selected){
+ const finish={roll:selected.roll,yaw:selected.yaw,pitch:0},from={...solidPose},
+  centerStart=X0+DIMENSIONS[dimensionIndex].mm*MM/2,
+  centerEnd=X0+DIMENSIONS[selected.index].mm*MM/2;
+ turning=true;
+ let origin=null;
+ function frame(now){
+  if(!turning||!visible||mode!=='demo'||memory.scene!==6){turnAnimation=null;return}
+  if(origin===null)origin=now;
+  const t=clamp((now-origin)/330,0,1),smooth=1-Math.pow(1-t,3);
+  const at={roll:from.roll+angleGap(finish.roll,from.roll)*smooth,
+    yaw:from.yaw+angleGap(finish.yaw,from.yaw)*smooth,pitch:from.pitch*(1-smooth)};
+  solidPose=at;
+  updateManualMesh(at,centerStart+(centerEnd-centerStart)*smooth);
+  if(t<1){turnAnimation=window.requestAnimationFrame(frame)}
+  else{turnAnimation=null;turning=false;commitFace(selected.index,finish)}
+ }
+ turnAnimation=window.requestAnimationFrame(frame);
+}
+function rotateToFace(index){
+ if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null||turnPointer)return;
+ if(!Number.isInteger(index)||index<0||index>=DIMENSIONS.length)return;
+ stopTurnAnimation();
+ animateFaceSnap({index,...facePose(index)});
+}
+function beginManualTurn(event){
+ if(!visible||mode!=='demo'||memory.scene!==6||dragId!==null||event.button!==0)return false;
+ if(!event.target.closest('[data-rotate-block]'))return false;
+ const p=clientToSvg(event);if(!p)return false;
+ stopTurnAnimation();
+ turnPointer={id:event.pointerId,x:p.x,y:p.y,pose:{...solidPose},distance:0};
+ turning=true;settledContact=false;caliperPhase='idle';
+ event.preventDefault();
+ try{canvas.setPointerCapture(event.pointerId)}catch{}
+ return true;
+}
+function updateManualTurn(event){
+ if(!turnPointer||turnPointer.id!==event.pointerId)return false;
+ const p=clientToSvg(event);if(!p)return true;
+ const dx=p.x-turnPointer.x,dy=p.y-turnPointer.y;
+ turnPointer.distance=Math.hypot(dx,dy);
+ const start=turnPointer.pose;
+ solidPose={
+  roll:clamp(start.roll-dx*Math.PI/(2*125),-Math.PI,Math.PI),
+  yaw:clamp(start.yaw-dy*Math.PI/(2*125),-Math.PI,Math.PI),
+  pitch:clamp(dy/230,-.27,.27)
+ };
+ updateManualMesh(solidPose,X0+target()*MM/2);
+ return true;
+}
+function endManualTurn(event,cancelled=false){
+ if(!turnPointer||turnPointer.id!==event.pointerId)return false;
+ const drag=turnPointer;turnPointer=null;
+ try{canvas.releasePointerCapture(event.pointerId)}catch{}
+ if(cancelled||drag.distance<12){
+  commitFace(dimensionIndex,facePose(dimensionIndex));
+  if(!cancelled)announce('Утримуй брусок та перемісти курсор. Один клік його не перевертає.');
+  return true;
+ }
+ const selected=nearestFace(solidPose);
+ animateFaceSnap(selected);
+ return true;
+}
+
 function respond(act){
  if(act==='hint'){hintLevel=Math.min(3,hintLevel+1);render();return}
  if(act==='show'){hintLevel=3;render();return}
@@ -883,7 +1016,7 @@ function respond(act){
   controls.querySelector('[data-act="unit-'+unit+'"]')?.focus({preventScroll:true});
   return;
  }
- if(act==='rotate-block'){rotateSpecimen();return}
+ if(act.startsWith('orient-')){rotateToFace(Number(act.slice('orient-'.length)));return}
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act.startsWith('scale-')){zoomIndex=Number(act.slice(6));seenScale.add(zoomIndex);render();return}
  if(act.startsWith('prefix-')){prefixLabAction(act);return}
@@ -898,10 +1031,7 @@ root.addEventListener('change',e=>{
 });
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
- if(memory.scene===6&&e.target.closest('[data-rotate-block]')){
-  if(suppressTurnClick){suppressTurnClick=false;return}
-  rotateSpecimen();return;
- }
+ if(memory.scene===6&&e.target.closest('[data-rotate-block]'))return; // Clicking alone does not rotate.
  if(memory.scene===3&&e.target.closest('[data-unit-cycle]')){
   const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
@@ -935,15 +1065,7 @@ canvas.addEventListener('pointerout',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointerdown',e=>{
- if(visible&&mode==='demo'&&memory.scene===6&&e.button===0&&e.target.closest('[data-rotate-block]')){
-  const p=clientToSvg(e);
-  if(!p)return;
-  suppressTurnClick=false;
-  turnPointer={id:e.pointerId,x:p.x,y:p.y};
-  e.preventDefault();
-  try{canvas.setPointerCapture(e.pointerId)}catch{}
-  return;
- }
+ if(beginManualTurn(e))return;
  if(!visible||!caliperStep()||e.button!==0||!e.target.closest('[data-jaw]'))return;
  const p=clientToSvg(e);if(!p)return;
  dragOffset=p.x-(X0+gap*MM);
@@ -953,20 +1075,13 @@ canvas.addEventListener('pointerdown',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointermove',e=>{
- if(turnPointer&&turnPointer.id===e.pointerId)return;
+ if(updateManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  const p=clientToSvg(e);
  if(p)updateGap((p.x-dragOffset-X0)/MM,true);
 });
 function release(e){
- if(turnPointer&&turnPointer.id===e.pointerId){
-  turnPointer=null;
-  try{canvas.releasePointerCapture(e.pointerId)}catch{}
-  // A tap or swipe turns the wooden solid; suppress any synthetic click.
-  suppressTurnClick=true;
-  rotateSpecimen();
-  return;
- }
+ if(endManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  dragId=null;
  try{canvas.releasePointerCapture(e.pointerId)}catch{}
@@ -974,16 +1089,16 @@ function release(e){
 }
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',e=>{
- if(turnPointer&&turnPointer.id===e.pointerId){
-  turnPointer=null;suppressTurnClick=false;return;
- }
+ if(endManualTurn(e,true))return;
  if(dragId!==e.pointerId)return;
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
- if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&['Enter',' ','ArrowRight','ArrowLeft'].includes(e.key)){
-  e.preventDefault();rotateSpecimen();
-  canvas.querySelector('[data-rotate-block]')?.focus({preventScroll:true});return;
+ if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&
+  ['Enter',' ','ArrowRight','ArrowLeft','ArrowUp','ArrowDown'].includes(e.key)){
+  e.preventDefault();
+  const index=e.key==='ArrowLeft'||e.key==='ArrowDown'?(dimensionIndex+2)%3:(dimensionIndex+1)%3;
+  rotateToFace(index);return;
  }
  if(visible&&mode==='demo'&&memory.scene===3&&e.target.closest('[data-unit-cycle]')&&['Enter',' '].includes(e.key)){
   e.preventDefault();const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
@@ -1017,6 +1132,7 @@ function show(nextMode){
  resetStep();render();
 }
 function hide(){
+ stopTurnAnimation();
  if(!visible)return;
  cancelChoiceTimer();cancelAdvanceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
  const legacy=document.getElementById('jRestoreRoute');
