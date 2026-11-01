@@ -691,7 +691,8 @@ function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
  root.classList.toggle('m01-geometry-active',!!geometryTask());
- root.classList.toggle('m01-centered-heading',!quest&&current<=2);
+ root.classList.toggle('m01-centered-heading',!quest&&(current<=2||current===6));
+ root.classList.toggle('m01-stage7-active',!quest&&current===6);
  const spec=quest?tasks[Math.min(current,3)]:specs[current];
  const trainingFinished=memory.completed.length===7;
  el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,4)+'/4':
