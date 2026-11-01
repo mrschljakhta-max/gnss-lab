@@ -250,10 +250,9 @@ function circle(p,r,cls){return '<circle cx="'+p.x+'" cy="'+p.y+'" r="'+r+'" cla
 function measureMarks(){
  const marks=[];
  for(let i=0;i<=170;i++){
-  const x=i*SCALE;
-  const major=i%10===0,minor=i%5===0;
-  marks.push('<line x1="'+x+'" y1="4" x2="'+x+'" y2="'+(major?19:minor?15:10)+'" class="gfc-tick"/>');
-  if(major)marks.push('<text x="'+x+'" y="32" class="gfc-mark">'+i+'</text>');
+  const x=i*SCALE,major=i%10===0,minor=i%5===0;
+  marks.push('<line x1="'+x+'" y1="11" x2="'+x+'" y2="'+(major?30:minor?25:20)+'" class="gfc-tick"/>');
+  if(major)marks.push('<text x="'+x+'" y="48" class="gfc-mark">'+i+'</text>');
  }
  return marks.join('');
 }
@@ -297,32 +296,56 @@ function drawingSVG(){
   '</g>';
  const base='translate('+styleNumber(position.x)+' '+styleNumber(position.y)+') rotate('+styleNumber(dir)+') scale('+scale+')';
  const slider=job.open*SCALE;
+ const defs='<defs>'+
+  '<linearGradient id="gfcSilver" x1="0" y1="0" x2="0" y2="1">'+
+   '<stop offset="0%" stop-color="#f0f6f8"/><stop offset="26%" stop-color="#c5d2d9"/>'+
+   '<stop offset="55%" stop-color="#a6b9c3"/><stop offset="85%" stop-color="#c3d0d5"/>'+
+   '<stop offset="100%" stop-color="#7f949f"/></linearGradient>'+
+  '<linearGradient id="gfcDarkMetal" x1="0" y1="0" x2=".1" y2="1">'+
+   '<stop offset="0" stop-color="#51636f"/><stop offset=".6" stop-color="#314651"/>'+
+   '<stop offset="1" stop-color="#21343f"/></linearGradient>'+
+  '</defs>';
  const carriage='<g transform="translate('+slider+' 0)" class="gfc-moving">'+
-  '<path d="M0 0V-53H-14V-15H-33V5" class="gfc-jaw-shadow"/>'+
-  '<path d="M0 0V-53H-14V-15H-33V5" class="gfc-jaw-metal"/>'+
-  '<rect x="-13" y="25" width="56" height="47" rx="3" class="gfc-carriage"/>'+
-  '<rect x="-12" y="26" width="54" height="6" rx="2" class="gfc-highlight"/>'+
-  Array.from({length:11},(_,i)=>'<line x1="'+(i*2.7)+'" x2="'+(i*2.7)+'" y1="44" y2="'+(i%5===0?58:52)+'" class="gfc-vernier-tick"/>').join('')+
-  '<circle cx="15" cy="82" r="12" class="gfc-thumb"/><circle cx="15" cy="82" r="4" class="gfc-thumb-hub"/>'+
-  // The metal jaw itself is now a real drag handle. Keep its interactive
-  // silhouette aligned with the actual 3D moving jaw and on top of the
-  // visual geometry: it works even when the 3D mesh is shown underneath.
-  '<path d="M0 0V-53H-14V-15H-33V5" class="gfc-jaw-hit" data-gfc-drag="jaw" aria-label="Посунути рухомий вусик штангенциркуля"/>'+
-  '<path d="M0 0V-53H-14V-15H-33V5" class="gfc-jaw-hover" pointer-events="none"/>'+
-  // The whole thumb/carriage is draggable, not only the tiny wheel.
-  '<rect x="-34" y="15" width="95" height="92" rx="10" class="gfc-grab" data-gfc-drag="jaw" aria-label="Пересувати ноніус і рухому губку вздовж штанги" role="slider" tabindex="0" aria-valuemin="'+fmt(job.contact?.target||0)+'" aria-valuemax="170" aria-valuenow="'+fmt(job.open)+'"/>'+
+  '<g class="gfc-fallback-visual">'+
+   '<path d="M-36 -10L-23 -25H86L97 -11V3H-34Z" class="gfc-dark-shell"/>'+
+   '<path d="M40 62L40 4L25 -9L25 -108H3V-58L0 -40H-28V-11H0V65Z" class="gfc-dark-shell"/>'+
+   '<path d="M3 -108H23V-91H3Z" class="gfc-bright"/>'+
+   '<rect x="-20" y="59" width="130" height="60" rx="4" class="gfc-carriage"/>'+
+   '<rect x="-17" y="65" width="122" height="43" rx="2" class="gfc-vernier-plate"/>'+
+   Array.from({length:11},(_,i)=>'<line x1="'+(i*2.7)+'" x2="'+(i*2.7)+'" y1="69" y2="'+(i%5===0?88:81)+'" class="gfc-vernier-tick"/>').join('')+
+   '<text x="60" y="101" class="gfc-vernier-label">0,1 мм</text>'+
+   '<path d="M45 -15H92" stroke="#adfb71" stroke-width="3" fill="none"/>'+
+   '<circle cx="0" cy="2.5" r="8" class="gfc-reference-ring"/>'+
+   '<circle cx="44" cy="145" r="19" class="gfc-thumb"/>'+
+   '<circle cx="44" cy="145" r="13" class="gfc-thumb-face"/>'+
+   '<circle cx="44" cy="145" r="7" class="gfc-thumb-hub"/>'+
+   '<circle cx="-8" cy="103" r="5" class="gfc-screw"/>'+
+   '<circle cx="98" cy="103" r="5" class="gfc-screw"/>'+
+  '</g>'+
+  // The top metal jaw and the whole vernier plate are draggable in 3D.
+  '<path d="M3 -108V-58L0 -40H-28V-11H0" class="gfc-jaw-hit" data-gfc-drag="jaw" aria-label="Пересунути рухомий вусик штангенциркуля"/>'+
+  '<path d="M3 -108V-58L0 -40H-28V-11H0" class="gfc-jaw-hover" pointer-events="none"/>'+
+  '<rect x="-22" y="57" width="136" height="112" rx="12" class="gfc-grab" data-gfc-drag="jaw" aria-label="Перемістити рухому каретку і ноніус" role="slider" tabindex="0" aria-valuemin="'+fmt(job.contact?.target||0)+'" aria-valuemax="170" aria-valuenow="'+fmt(job.open)+'"/>'+
+  '<rect x="-28" y="-27" width="128" height="26" rx="10" class="gfc-grab" data-gfc-drag="jaw" aria-label="Пересунути верхній місток каретки"/>'+
   '</g>';
- const rail='<rect x="-37" y="-7" width="560" height="49" rx="4" class="gfc-rail"/>'+
-  '<rect x="-35" y="-5" width="555" height="4" class="gfc-highlight"/>'+
-  '<path d="M0 0V-53H14V-15H33V5" class="gfc-jaw-shadow"/>'+
-  '<path d="M0 0V-53H14V-15H33V5" class="gfc-jaw-metal"/>'+
-  '<g class="gfc-scale">'+measureMarks()+'</g>';
+ const rail='<g class="gfc-fallback-visual">'+
+  '<rect x="-45" y="-2" width="584" height="68" rx="5" class="gfc-dark-shell"/>'+
+  '<rect x="-38" y="3" width="569" height="55" rx="2" class="gfc-rail"/>'+
+  '<path d="M-44 61H489" stroke="#b2fa72" stroke-width="2.2" fill="none"/>'+
+  '<rect x="-37" y="-2" width="569" height="3" class="gfc-highlight"/>'+
+  '<path d="M-44 61V3H-27V-108H-3V-58L0 -40H28V-11H0V65H-44Z" class="gfc-dark-shell"/>'+
+  '<path d="M-23 -108H-4V-91H-23Z" class="gfc-bright"/>'+
+  '<g class="gfc-scale">'+measureMarks()+'</g>'+
+  '<circle cx="0" cy="2.5" r="8" class="gfc-reference-ring"/>'+
+  '<circle cx="-34" cy="12" r="5" class="gfc-screw"/>'+
+  '<circle cx="-34" cy="53" r="5" class="gfc-screw"/>'+
+  '</g>';
  // Deliberately no full-body drag region: AB locks position and orientation.
  const drift='';
  let guideLabel=phase==='enter'?'УСТАНОВЛЕННЯ':contactNow?'● КОНТАКТ':near?'◌ НАБЛИЖЕННЯ':'⇆ ЗВЕДИ ГУБКИ';
  if(job.contact?.witness)guideLabel=contactNow?'● ВІДРІЗОК ВИМІРЯНО':'⇆ ВІДРІЗОК AB';
  const msg='<g class="gfc-status"><text x="'+Math.max(60,job.center.x)+'" y="'+Math.max(72,job.center.y-112)+'">'+guideLabel+'</text></g>';
- return selection+highlight+
+ return defs+selection+highlight+
   '<g class="gfc-instrument'+(contactNow?' gfc-locked':'')+'" transform="'+base+'" opacity="'+progress+'">'+
   rail+carriage+drift+'</g>'+msg;
 }
