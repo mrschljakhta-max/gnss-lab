@@ -269,7 +269,6 @@ function woodSolidMesh(pose,cx){
   const path=f.pts.map(p=>p.x.toFixed(2)+','+p.y.toFixed(2)).join(' ');
   const xs=f.pts.map(p=>p.x),ys=f.pts.map(p=>p.y),
    lx=Math.min(...xs),ly=Math.min(...ys),ww=Math.max(...xs)-lx,hh=Math.max(...ys)-ly;
-  const woodId='m01WoodFace'+f.id;
   out+='<polygon points="'+path+'" fill="'+f.tint+'" stroke="#654c31" stroke-width="1.7" stroke-linejoin="round"/>';
   if(ww>2&&hh>2){
    // Affine-map the existing wooden photograph onto each planar 3D face.
@@ -277,10 +276,11 @@ function woodSolidMesh(pose,cx){
    const [p0,p1,p2,p3]=f.pts,mat=[
     p1.x-p0.x,p1.y-p0.y,p3.x-p0.x,p3.y-p0.y,p0.x,p0.y
    ].map(v=>v.toFixed(4)).join(' ');
-   out+='<clipPath id="'+woodId+'"><polygon points="'+path+'"/></clipPath>'+
-    '<image href="'+WOOD_SPECIMEN+'" x="0" y="0" width="1" height="1"'+
+   // The orthographic projection of a rectangular face is a parallelogram;
+   // its affine image has the correct boundary without an extra clip-path.
+   out+='<image href="'+WOOD_SPECIMEN+'" x="0" y="0" width="1" height="1"'+
     ' preserveAspectRatio="none" transform="matrix('+mat+')"'+
-    ' clip-path="url(#'+woodId+')" opacity="'+(f.name==='front'||f.name==='back'?.92:.68)+'"/>';
+    ' opacity="'+(f.name==='front'||f.name==='back'?.92:.68)+'"/>';
   }
   const shade=f.name==='front'?'#f4e2c1':f.name==='back'?'#a57d53':'#98683b';
   out+='<polygon points="'+path+'" fill="'+shade+'" fill-opacity="'+(f.name==='front'?.08:.22)+'"'+
