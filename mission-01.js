@@ -95,7 +95,7 @@ const prefixLabComplete=()=>prefixLabStage===2&&prefixPairSeen.size===3;
 let mode='',visible=false,part='a',gap=78,caliperChosen=false,moved=false,choice='',
  answers={},unitsIndex=0,unitSelected='mm',seenUnits=new Set(['mm']),zoomIndex=0,prefixIndex=0,seenScale=new Set(),seenPrefix=new Set(),
  hintLevel=0,feedback='',feedbackSuccess=false,dragId=null,roundAttempts=0,
- practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,suppressTurnClick=false,assessmentTarget=42,assessmentSeed=0,
+ practiceIndex=0,practiced=new Set(),dimensionIndex=0,dimensionReadings={},turnPointer=null,solidPose={roll:0,yaw:0,pitch:0},turnAnimation=null,turning=false,assessmentTarget=42,assessmentSeed=0,
  caliperPhase='idle',settledContact=false,dragOffset=0,caliperStartGap=0;
 const root=document.createElement('section');
 root.id='gnssMissionV1';
@@ -115,6 +115,7 @@ const el=id=>root.querySelector('#'+id),canvas=el('m01Canvas'),controls=el('m01C
 const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
+ stopTurnAnimation();
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
   prefixReferenceOpen=false;
@@ -124,7 +125,7 @@ function resetStep(){
    Object.fromEntries(DIMENSIONS.filter(d=>memory.dimensionProgress?.[d.id]===d.mm).map(d=>[d.id,d.mm])):{};
   dimensionIndex=mode==='demo'&&memory.scene===6?
    Math.max(0,DIMENSIONS.findIndex(d=>dimensionReadings[d.id]!==d.mm)):0;
-  turnPointer=null;suppressTurnClick=false;
+  turnPointer=null;solidPose=facePose(dimensionIndex);
  if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
   assessmentTarget=[42,47,63,38,69][assessmentSeed];gap=assessmentTarget+24;}
  if(mode==='demo'&&memory.scene===2)gap=70;
@@ -140,7 +141,7 @@ function target(){
  if(memory.scene===6)return DIMENSIONS[dimensionIndex].mm;
  return 50;
 }
-function canMeasure(){return caliperChosen&&moved&&settledContact&&Math.abs(gap-target())<.001}
+function canMeasure(){return caliperChosen&&!turnPointer&&!turning&&moved&&settledContact&&Math.abs(gap-target())<.001}
 function sceneComplete(){
  if(mode==='quest')return memory.assessment>=4;
  switch(memory.scene){
@@ -638,17 +639,18 @@ function controlView(){
  if(!quest&&step===0)return '';
  if(!quest&&step===6){
   const dim=DIMENSIONS[dimensionIndex],done=Object.keys(dimensionReadings).length;
-  const chips=DIMENSIONS.map((d,i)=>'<span class="m01-dim-chip'+(dimensionIndex===i?' current':'')+
-   (dimensionReadings[d.id]===d.mm?' measured':'')+'">'+
-   (dimensionReadings[d.id]===d.mm?'✓ ':'○ ')+d.name+'</span>').join('');
+  const chips=DIMENSIONS.map((d,i)=>'<button type="button" data-act="orient-'+i+'" class="m01-dim-chip'+
+   (dimensionIndex===i?' current':'')+(dimensionReadings[d.id]===d.mm?' measured':'')+'"'+
+   ' aria-pressed="'+(dimensionIndex===i)+'" title="Клавіатурний вибір грані">'+
+   (dimensionReadings[d.id]===d.mm?'✓ ':'○ ')+d.name+'</button>').join('');
   const input=!sceneComplete()&&dimensionReadings[dim.id]!==dim.mm&&canMeasure()
    ?promptInput('Розмір грані','Зчитай шкалу','мм')+
     '<button type="button" class="m01-submit" data-act="check">Перевірити</button>':'';
   return '<div class="m01-dim-panel">'+
    '<div class="m01-control-title">Грань '+(dimensionIndex+1)+' / 3 · '+dim.name+'</div>'+
    '<div class="m01-dim-chips" aria-label="Виміряні грані">'+chips+'</div>'+
-   '<button type="button" class="m01-rotate-button" data-act="rotate-block"'+
-    ' aria-label="Повернути брусок до наступної грані">↻ Повернути брусок</button>'+
+   '<div class="m01-manual-hint"><span class="m01-hand-symbol">✋</span>'+
+    '<span>Утримуй брусок і тягни: <strong>праворуч → ширина, вгору ↑ товщина</strong>. Відпусти для фіксації.</span></div>'+
    '<div class="m01-dim-progress">'+done+'/3 виміряно</div>'+
    input+'</div>';
  }
@@ -704,7 +706,7 @@ function guidance(){
   'Натисни «см» і «м» праворуч або саму лінійку. Брусок не змінюється.',
   'Масштаб зображення і одиниця вимірювання — різні речі.',
   'Керуй масштабом часу та частотою сигналу: кожен сусідній префікс відрізняється у 1 000 разів.',
-  'Натисни на брусок або поверни його свайпом. Виміряй кожну грань штангенциркулем.',
+  'Схопи брусок і тягни курсор: праворуч — до ширини, вгору — до товщини. Відпусти й виміряй.',
   'Готово! Тепер закріпи навички в режимі «Тести».'
  ];
  return msgs[memory.scene]||'';
@@ -790,7 +792,7 @@ function hintMessage(){
   ['Натисни кнопку «см» біля лінійки.','Тепер натисни «м». Порівняй числа над бруском.','Можна натискати й саму лінійку, щоб перемикати її шкалу.'],
   ['Відкрий усі масштаби.','Кіло означає тисячу.','1 000 м дорівнює 1 км.'],
   ['Натисни «×1 000» або перемісти повзунок праворуч.','Переглянь 1 с, 1 мс, 1 мкс, 1 нс. Потім зміни частоту генератора.','Частота — коливання за секунду, період — час одного коливання: T = 1/f.'],
-  ['Виміряй довжину: потягни рухому губку до дерев’яного бруска.','Натисни «↻ Повернути брусок» або проведи пальцем по ньому.','Потрібно виміряти 3 грані: довжину, ширину і товщину.']
+  ['Утримуй брусок лівою кнопкою та веди мишу. Для ширини потягни вправо.','Для товщини потягни вгору. Після відпускання грань зафіксується.','Виміряй кожну грань штангенциркулем. Кнопки граней також доступні з клавіатури.']
  ];
  return (hints[Math.min(stage,6)]||[])[Math.min(hintLevel-1,2)]||'';
 }
