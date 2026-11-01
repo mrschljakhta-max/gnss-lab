@@ -182,14 +182,14 @@ body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb-hub{
  fill:url(#gfcSilver);stroke:#607581;stroke-width:1.7;
 }
 #gnssFreeCaliper .gfc-fallback-visual .gfc-dark-shell{
- fill:url(#gfcDarkMetal);stroke:#1d343f;stroke-width:1.5;
- filter:drop-shadow(1px 2px 2px #001c2bbb)
+ fill:url(#gfcDarkMetal);stroke:#607988;stroke-width:1.6;
+ filter:drop-shadow(1px 2px 2px #001c2b66)
 }
 #gnssFreeCaliper .gfc-fallback-visual .gfc-bright{
- fill:#d8e6ec;stroke:#849aa5;stroke-width:1
+ fill:#f2f8f9;stroke:#8ba0aa;stroke-width:1
 }
 #gnssFreeCaliper .gfc-fallback-visual .gfc-carriage{
- fill:#536977;stroke:#2c4552;stroke-width:1.7
+ fill:#a5bac5;stroke:#526d7b;stroke-width:1.7
 }
 #gnssFreeCaliper .gfc-fallback-visual .gfc-vernier-plate{
  fill:url(#gfcSilver);stroke:#4d6776;stroke-width:1.6
@@ -203,7 +203,7 @@ body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb-hub{
  filter:drop-shadow(0 0 3px #a8f56e)
 }
 #gnssFreeCaliper .gfc-fallback-visual .gfc-screw{
- fill:#b9cdd6;stroke:#324b59;stroke-width:1.6
+ fill:#e0eaf0;stroke:#728b98;stroke-width:1.6
 }
 #gnssFreeCaliper .gfc-fallback-visual .gfc-thumb-face{
  fill:#9facb3;stroke:#334d5c;stroke-width:2
