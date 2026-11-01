@@ -58,7 +58,7 @@
       <circle cx="${p.x}" cy="${p.y}" r="18" fill="${p.color}" opacity=".12"/>
       <circle cx="${p.x}" cy="${p.y}" r="7" fill="${p.color}" stroke="#12364c" stroke-width="3"/>
       <text x="${p.x+17}" y="${p.y-14}" fill="${p.color}" font-size="19" font-weight="750">${p.name}</text>
-      ${active?`<circle cx="${p.x}" cy="${p.y}" r="29" class="intro0-touch"
+      ${active?`<circle cx="${p.x}" cy="${p.y}" r="63" class="intro0-touch"
          data-beacon="${p.name}" tabindex="0" role="button" aria-label="Побудувати коло маяка ${p.name}"/>`:''}
     </g>`;
   }
@@ -142,7 +142,7 @@
     ['Додай маяк B',`Потягни від B до ${round(radius(B))} м.`],
     ['Додай маяк C',`Потягни від C до ${round(radius(C))} м.`],
     ['Де точка X?','Натисни на правильний перетин.'],
-    ['Ти знайшов точку!','Те саме геометричне правило працює і в навігації.']
+    ['Ти знайшов точку!','GNSS вимірює час сигналів. Через похибку годинника приймача зазвичай потрібні щонайменше 4 супутники.']
   ];
   function render(){
     if(!visible)return;
