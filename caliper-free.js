@@ -276,8 +276,17 @@ function drawingSVG(){
   '<g class="gfc-instrument'+(contactNow?' gfc-locked':'')+'" transform="'+base+'" opacity="'+progress+'">'+
   rail+carriage+drift+'</g>'+msg;
 }
+function publishPose(){
+ const showing=visible()&&!!job&&(phase==='enter'||phase==='active');
+ const remain=showing&&phase==='enter'?Math.max(0,1-(performance.now()-introStart)/650):0;
+ const progress=1-Math.pow(remain,3);
+ document.dispatchEvent(new CustomEvent('gnss:free-caliper-pose',{detail:showing?
+  {active:true,origin:{...job.fixed},angle:Math.atan2(job.u.y,job.u.x),
+   normal:{...job.n},opening:job.open,progress,kind:phase,contact:!!job.contact&&job.open<=job.contact.target+.16}:
+  {active:false}}));
+}
 function render(){
- if(!visible()){root.hidden=true;return}
+ if(!visible()){root.hidden=true;publishPose();return}
  root.hidden=false;
  root.dataset.phase=phase;
  svg.classList.toggle('gfc-picking',phase==='first'||phase==='second');
@@ -288,6 +297,7 @@ function render(){
   'Перетягни ролик — губки. Потягни штангу — зміщення поперек осі.';
  hint.textContent=message;
  reset.hidden=phase==='first'||phase==='idle';
+ publishPose();
 }
 svg.addEventListener('pointerdown',pointerDown);
 svg.addEventListener('pointermove',pointerMove);
@@ -314,6 +324,7 @@ document.addEventListener('gnss:draft-state',e=>{
 });
 const observer=new MutationObserver(()=>sync());
 observer.observe(document.body,{attributes:true,attributeFilter:['class']});
+document.addEventListener('gnss:request-free-caliper-pose',publishPose);
 document.dispatchEvent(new CustomEvent('gnss:request-draft-state'));
 sync();
 window.GNSSFreeCaliper={
