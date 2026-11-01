@@ -802,3 +802,28 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
   bottom:226px;
  }
 }
+
+
+/* 7/8 · The instrument stays on the table; the face selector moves to the
+ * open upper-right area so it no longer competes with the footer/answer dock.
+ * The existing .m01-centered-heading style centers the instruction above it. */
+@media(min-width:901px){
+ #gnssMissionV1.m01-stage7-active .m01-controls:has(.m01-dim-panel){
+  top:clamp(175px,28vh,220px);
+  right:24px;
+  bottom:auto;
+  width:295px;
+  max-height:calc(100% - 290px);
+ }
+}
+@media(min-width:651px) and (max-width:900px){
+ #gnssMissionV1.m01-stage7-active .m01-controls:has(.m01-dim-panel){
+  top:clamp(160px,27vh,205px);
+  right:12px;
+  bottom:auto;
+  width:255px;
+  max-height:calc(100% - 260px);
+ }
+}
+/* On narrow phones preserve the earlier non-overlapping lower placement.
+ * The main learning heading is still centered. */
