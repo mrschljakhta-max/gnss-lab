@@ -151,3 +151,24 @@ body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb-hub{
  to{stroke-opacity:1;stroke-width:2.5}
 }
 @media(prefers-reduced-motion:reduce){#gnssFreeCaliper .gfc-hover-ring{animation:none}}
+
+/* Grab the actual movable measuring jaw, not just the thumb wheel.
+   Wider invisible stroke is a forgiving 2D/3D-aligned hit target. */
+#gnssFreeCaliper .gfc-jaw-hit{
+ fill:none;stroke:transparent;stroke-width:32;
+ stroke-linejoin:round;stroke-linecap:round;
+ pointer-events:stroke;cursor:ew-resize;touch-action:none;
+}
+#gnssFreeCaliper .gfc-jaw-hover{
+ fill:none;stroke:#c5ffa4;stroke-width:15;
+ stroke-linejoin:round;stroke-linecap:round;
+ opacity:0;filter:drop-shadow(0 0 5px #b6ff9a);
+ transition:opacity 120ms ease-out;
+}
+#gnssFreeCaliper .gfc-jaw-hit:hover+.gfc-jaw-hover,
+#gnssFreeCaliper .gfc-jaw-hit:active+.gfc-jaw-hover{
+ opacity:.45;
+}
+@media(prefers-reduced-motion:reduce){
+ #gnssFreeCaliper .gfc-jaw-hover{transition:none}
+}
