@@ -286,3 +286,81 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-feedback{bottom:250px}
   animation:none!important;
  }
 }
+
+
+/* Mechanical Caliper V2.1 — physical grip, non-jumping drag and clear material contrast. */
+#gnssMissionV1 .m01-canvas .m01-jaw-hit{
+ pointer-events:all!important;touch-action:none;cursor:grab;outline:none;
+}
+#gnssMissionV1 .m01-canvas .m01-jaw-hit:active,
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly[data-active="true"] .m01-jaw-hit{
+ cursor:grabbing;
+}
+#gnssMissionV1 .m01-canvas .m01-jaw-hit:focus-visible{
+ stroke:#c4fa96;stroke-width:2;stroke-dasharray:6 4;
+}
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly .m01-moving-jaw,
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly .m01-carriage,
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly .m01-thumb-wheel{
+ transition:stroke .13s ease,filter .13s ease;
+}
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly:hover .m01-carriage,
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly[data-active="true"] .m01-carriage{
+ stroke:#c1fa92;stroke-width:2.6;
+ filter:drop-shadow(0 0 5px #a9f57a70);
+}
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly:hover .m01-thumb-wheel,
+#gnssMissionV1 .m01-canvas .m01-jaw-assembly[data-active="true"] .m01-thumb-wheel{
+ stroke:#cbf8a7;stroke-width:2.3;
+}
+#gnssMissionV1 .m01-canvas .m01-contact-indicator{
+ pointer-events:none;
+ filter:drop-shadow(0 0 5px #b9ff8b);
+ transition:opacity .14s ease;
+}
+#gnssMissionV1 .m01-canvas .m01-drag-cue{
+ pointer-events:none;
+ opacity:.85;
+ transition:opacity .16s ease;
+}
+#gnssMissionV1 .m01-canvas .m01-workpiece{
+ filter:drop-shadow(3px 5px 3px #00121c6b);
+ pointer-events:none;
+}
+#gnssMissionV1 .m01-canvas .m01-caliper{
+ filter:drop-shadow(1px 4px 4px #03152675);
+}
+#gnssMissionV1 .m01-canvas .m01-caliper text{
+ user-select:none;pointer-events:none;
+}
+/* The action must be on the specimen and caliper, not on a permanent side card. */
+#gnssMissionV1 .m01-header{
+ max-width:min(480px,48%);
+}
+#gnssMissionV1 .m01-header p{
+ font-size:13px;font-weight:600;color:#d5f1e9;max-width:450px;
+}
+#gnssMissionV1 .m01-controls:empty,
+#gnssMissionV1 .m01-controls[hidden]{
+ display:none!important;
+}
+#gnssMissionV1 .m01-controls:has(.m01-answer){
+ top:auto;bottom:16%;right:25px;
+ border:1px solid rgba(157,202,195,.42);
+ background:rgba(5,30,42,.82);
+ padding:12px;
+}
+#gnssMissionV1 .m01-controls .m01-answer{margin:0 0 9px}
+#gnssMissionV1 .m01-controls .m01-field input{font-size:20px}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-header{max-width:calc(100% - 22px)}
+ #gnssMissionV1 .m01-controls:has(.m01-answer){
+  bottom:89px;right:8px;max-width:min(270px,80%);
+ }
+}
+@media(prefers-reduced-motion:reduce){
+ #gnssMissionV1 .m01-canvas .m01-jaw-assembly .m01-moving-jaw,
+ #gnssMissionV1 .m01-canvas .m01-jaw-assembly .m01-carriage,
+ #gnssMissionV1 .m01-canvas .m01-contact-indicator,
+ #gnssMissionV1 .m01-canvas .m01-drag-cue{transition:none!important}
+}
