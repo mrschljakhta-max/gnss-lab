@@ -608,3 +608,39 @@ body.gnss-mission-active #gnssMissionV1 .m01-footer-right{
  box-shadow:0 0 0 3px #b8f68c24;
 }
 #gnssMissionV1 .m01-footer button.m01-next-ready:hover{background:#d2ffb4!important}
+
+
+/* Animated physical drafting instruments — ruler, graphite pencil, compass. */
+#gnssMissionV1 .m01-canvas [data-geom-tools],
+#gnssMissionV1 .m01-canvas [data-geom-ink]{
+ pointer-events:none;user-select:none;
+}
+#gnssMissionV1 .m01-canvas .m01-working-ruler{
+ filter:drop-shadow(2px 7px 5px rgba(1,15,24,.4));
+}
+#gnssMissionV1 .m01-canvas .m01-working-pencil{
+ filter:drop-shadow(3px 7px 4px rgba(1,15,24,.45));
+}
+#gnssMissionV1 .m01-canvas .m01-working-compass{
+ filter:drop-shadow(3px 7px 4px rgba(1,15,24,.4));
+}
+#gnssMissionV1 .m01-canvas .m01-animated-ink{
+ filter:drop-shadow(0 0 2px #c6f7eb55);
+}
+#gnssMissionV1 .m01-geometry-building{
+ display:flex;align-items:center;gap:7px;
+ margin-top:12px;padding:9px 10px;border-radius:7px;
+ background:rgba(154,230,155,.08);border:1px solid #82b497;
+ color:#d6f9d8;font-size:12px;font-weight:700;line-height:1.45;
+}
+#gnssMissionV1 .m01-geometry-building::before{
+ content:"";width:7px;height:7px;border-radius:50%;
+ flex-shrink:0;background:#b7f18d;
+ animation:m01-inking-pulse .65s ease-in-out infinite alternate;
+}
+@keyframes m01-inking-pulse{
+ from{opacity:.35;transform:scale(.7)}to{opacity:1;transform:scale(1.35)}
+}
+@media(prefers-reduced-motion:reduce){
+ #gnssMissionV1 .m01-geometry-building::before{animation:none!important}
+}
