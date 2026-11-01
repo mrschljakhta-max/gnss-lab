@@ -130,3 +130,24 @@ body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb,
 body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb-hub{
  visibility:hidden
 }
+
+/* Linked endpoints and a larger physical grip on the moving carriage. */
+#gnssFreeCaliper .gfc-hover-ring{
+ fill:rgba(183,255,142,.13);stroke:#c4ff9e;stroke-width:2.2;
+ filter:drop-shadow(0 0 6px #aaff95);
+ animation:gfc-snap-heartbeat .85s ease-in-out infinite alternate;
+}
+#gnssFreeCaliper .gfc-moving .gfc-grab{
+ fill:transparent;stroke:transparent;
+ pointer-events:all;cursor:ew-resize;touch-action:none;
+}
+#gnssFreeCaliper .gfc-moving .gfc-grab:active{cursor:grabbing}
+#gnssFreeCaliper .gfc-rail,
+#gnssFreeCaliper .gfc-jaw-metal{
+ cursor:default
+}
+@keyframes gfc-snap-heartbeat{
+ from{stroke-opacity:.55;stroke-width:1.4}
+ to{stroke-opacity:1;stroke-width:2.5}
+}
+@media(prefers-reduced-motion:reduce){#gnssFreeCaliper .gfc-hover-ring{animation:none}}
