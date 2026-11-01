@@ -99,6 +99,15 @@ const KEY='gnss-lab-expeditions-v1';
 let wins={};try{wins=JSON.parse(localStorage.getItem(KEY)||'{}')||{}}catch{}
 const count=i=>Math.max(0,Math.min(3,Number(wins[i])||0));
 const total=()=>topics.reduce((n,_,i)=>n+count(i),0);
+/* Mission 01's physically verified practical exam is the first of the
+ * original 27 expedition missions; existing modules keep their progress. */
+document.addEventListener('gnss:mission-one-complete',event=>{
+ if(!event.detail?.completed||count(0)>=1)return;
+ wins[0]=1;save();
+ drawPanel();
+ toast('✓ Перша практична місія підтверджена й записана до журналу.');
+});
+
 function save(){try{localStorage.setItem(KEY,JSON.stringify(wins))}catch{}}
 function preserve(){snapshot=states[active].map(s=>({...s}));snapshotLab=active}
 function restore(){if(snapshot&&snapshotLab!==null){states[snapshotLab][0]={...snapshot[0]};states[snapshotLab][1]={...snapshot[1]}}snapshot=null;snapshotLab=null}
