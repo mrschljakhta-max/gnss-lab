@@ -719,17 +719,15 @@ function onSuccess(){
 }
 function check(){
  const text=controls.querySelector('#m01Value'),value=text?parse(text.value):NaN;
- if(!Number.isFinite(value)){announce('Введи числовий результат вимірювання або перетворення.');return}
+ if(!Number.isFinite(value)){announce('Введи відлік штангенциркуля в міліметрах.');return}
  let expected=null;
  if(mode==='quest'){
-  expected=[assessmentTarget,8.6,2500,3000][memory.assessment];
+  expected=memory.assessment===0?assessmentTarget:null;
   if(memory.assessment===0&&!canMeasure()){announce('Спочатку правильно встанови та зведи губки до контакту.');return}
  }else if(memory.scene===2){
   if(!canMeasure()){announce('Вимірювання зараховується лише після контакту губок.');return}
   expected=target();
- }else if(memory.scene===3)expected=[5,12,0.05][unitsIndex];
- else if(memory.scene===4)expected=1;
- // Prefix lab is instrument-led; the separate assessment keeps the conversion test.
+ }
  else if(memory.scene===6){
   if(!canMeasure()){announce('Підведи губки до контакту з обраною гранню.');return}
   expected=target();
@@ -737,7 +735,7 @@ function check(){
  const tolerance=Math.abs(expected)>=30?(mode==='quest'&&memory.assessment===0?0.5:0.5):0.00001;
  if(expected===null||Math.abs(value-expected)>tolerance){
   roundAttempts++;if(mode==='quest'){memory.assessmentAttempts++;persist()}
-  announce('Поки не збігається. Перевір шкалу, одиницю або десятковий множник.');
+  announce('Поки не збігається. Перевір шкалу й зчитай довжину в мм.');
   return;
  }
  if(mode==='quest'){onSuccess();return}
@@ -751,9 +749,6 @@ function check(){
    announce('✓ Деталь виміряно. Наступна.',true)}
   render();return;
  }
- // Scene 3 is an instrument-led experiment; its assessment remains a separate task.
- if(memory.scene===4){answers.km=1;success('✓ 1 000 м = 1 км. Зміна одиниці не змінює відстань.')}
- // Prefix experiments are completed through manipulation, not a text answer.
  if(memory.scene===6){
   const d=DIMENSIONS[dimensionIndex];
   dimensionReadings[d.id]=d.mm;
@@ -911,9 +906,6 @@ root.addEventListener('click',e=>{
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
  if(memory.scene===6&&e.target.closest('[data-rotate-block]'))return; // Clicking alone does not rotate.
- if(memory.scene===3&&e.target.closest('[data-unit-cycle]')){
-  const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
- }
  if(memory.scene!==0)return;
  const item=e.target.closest('[data-guess]');if(item)respond('choose-'+item.dataset.guess);
 });
@@ -944,6 +936,7 @@ canvas.addEventListener('pointerout',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointerdown',e=>{
+ if(geometryBegin(e))return;
  if(beginManualTurn(e))return;
  if(!visible||!caliperStep()||e.button!==0||!e.target.closest('[data-jaw]'))return;
  const p=clientToSvg(e);if(!p)return;
@@ -954,12 +947,14 @@ canvas.addEventListener('pointerdown',e=>{
  syncCaliperVisual();
 });
 canvas.addEventListener('pointermove',e=>{
+ if(geometryMove(e))return;
  if(updateManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  const p=clientToSvg(e);
  if(p)updateGap((p.x-dragOffset-X0)/MM,true);
 });
 function release(e){
+ if(geometryEnd(e))return;
  if(endManualTurn(e))return;
  if(dragId!==e.pointerId)return;
  dragId=null;
@@ -968,19 +963,18 @@ function release(e){
 }
 canvas.addEventListener('pointerup',release);
 canvas.addEventListener('pointercancel',e=>{
+ if(geometryEnd(e,true))return;
  if(endManualTurn(e,true))return;
  if(dragId!==e.pointerId)return;
  dragId=null;settledContact=false;caliperPhase='idle';render();
 });
 canvas.addEventListener('keydown',e=>{
+ if(geometryKeyboard(e))return;
  if(visible&&mode==='demo'&&memory.scene===6&&e.target.closest('[data-rotate-block]')&&
   ['Enter',' ','ArrowRight','ArrowLeft','ArrowUp','ArrowDown'].includes(e.key)){
   e.preventDefault();
   const index=e.key==='ArrowLeft'||e.key==='ArrowDown'?(dimensionIndex+2)%3:(dimensionIndex+1)%3;
   rotateToFace(index);return;
- }
- if(visible&&mode==='demo'&&memory.scene===3&&e.target.closest('[data-unit-cycle]')&&['Enter',' '].includes(e.key)){
-  e.preventDefault();const units=['mm','cm','m'];respond('unit-'+units[(units.indexOf(unitSelected)+1)%units.length]);return;
  }
  const item=e.target.closest('[data-guess]');
  if(visible&&mode==='demo'&&memory.scene===0&&item&&['Enter',' '].includes(e.key)){
