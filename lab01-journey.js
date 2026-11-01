@@ -344,6 +344,10 @@ function tick(now){
  render();
 }
 window.GNSSLab01Journey={get active(){return open},get stage(){return stage},
- get progress(){return state.done.filter(Boolean).length},open:()=>{restore.hidden=true;activate()},close:deactivate};
+ get progress(){return state.done.filter(Boolean).length},
+ open:()=>{restore.hidden=true;activate()},
+ openStage:i=>{if(!Number.isInteger(i)||i<0||i>=lessons.length)return false;
+  restore.hidden=true;activate();selected(i);return true},
+ close:deactivate};
 reset();activate();requestAnimationFrame(tick);
 })();
