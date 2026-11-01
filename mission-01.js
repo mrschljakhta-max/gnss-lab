@@ -176,7 +176,7 @@ function caliperScene(calTarget,calGap,showBlock=true){
   s+='<g data-contact-indicator class="m01-contact-indicator" style="opacity:'+(contact?1:0)+'"><circle cx="'+X0+'" cy="276" r="10" fill="none" stroke="#bcf78b" stroke-width="2"/></g>';
  }
  s+='<g class="m01-drag-cue" data-drag-cue style="opacity:'+(settledContact||caliperPhase==='answer'?0:1)+'">'+
-  '<path d="M'+(jawX+29)+' 528v20 m-20 -9 20 9 20 -9" stroke="#b9fa89" stroke-width="2" fill="none" stroke-linecap="round"/>'+
+  '<path d="M'+(jawX-11)+' 541H'+(jawX+68)+' M'+(jawX-2)+' 533l-9 8 9 8 M'+(jawX+59)+' 533l9 8 -9 8" stroke="#b9fa89" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
   '</g>';
  return s;
 }
@@ -437,7 +437,8 @@ function check(){
   answers[part]=target();
   const doneA=answers.a===50,doneB=answers.b===54;
   if(doneA&&doneB){
-   success('✓ A = 50 мм, B = 54 мм. Твій висновок можна перевірити вимірюванням.');
+   caliperPhase='success';
+   success('✓ Обидві деталі виміряно.');
   }else{part=doneA?'b':'a';gap=target()+20;caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';
    announce('✓ Деталь виміряно. Наступна.',true)}
   render();return;
@@ -445,7 +446,7 @@ function check(){
  if(memory.scene===3){unitsIndex+=1;if(unitsIndex>=3)success('✓ 50 мм = 5 см = 0,05 м. Розмір не змінився.');else announce('✓ Правильно. Спробуй ще одну одиницю.',true);}
  if(memory.scene===4){answers.km=1;success('✓ 1 000 м = 1 км. Зміна одиниці не змінює відстань.')}
  if(memory.scene===5){unitsIndex+=1;if(unitsIndex>=2)success('✓ Мега = 1 000 кіло, гіга = 1 000 мега.');else announce('✓ Правильно. Залишився ще один масштаб.',true)}
- if(memory.scene===6){onSuccess();return}
+ if(memory.scene===6){caliperPhase='success';onSuccess();return}
  render();
 }
 function updateGap(v,passive=false){
