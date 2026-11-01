@@ -116,3 +116,17 @@
 @media(prefers-reduced-motion:reduce){
  #gnssFreeCaliper .gfc-contact{animation:none}
 }
+
+/* Three.js owns the polished metal visualization when available.
+   Invisible SVG drag regions and the independent contour glow stay interactive. */
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-rail,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-highlight,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-jaw-shadow,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-jaw-metal,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-carriage,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-scale,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-vernier-tick,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb,
+body.gnss-free-caliper-3d-ready #gnssFreeCaliper .gfc-thumb-hub{
+ visibility:hidden
+}
