@@ -35,7 +35,7 @@ const DIMENSIONS=[
  {id:'width',name:'Ширина',mm:28,face:'поворот на 90°'},
  {id:'thickness',name:'Товщина',mm:18,face:'бічна грань'}
 ];
-const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0};
+const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{}};
 const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
 let memory={...initial};
 try{
@@ -72,11 +72,16 @@ const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{
 function resetStep(){
  part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};unitsIndex=0;unitSelected='mm';seenUnits=new Set(['mm']);zoomIndex=0;prefixIndex=0;
  seenScale=new Set();seenPrefix=new Set();hintLevel=0;feedback='';feedbackSuccess=false;
- dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();dimensionIndex=0;dimensionReadings={};turnPointer=null;suppressTurnClick=false;
+ dragId=null;roundAttempts=0;practiceIndex=0;practiced=new Set();
+  dimensionReadings=mode==='demo'&&memory.scene===6?
+   Object.fromEntries(DIMENSIONS.filter(d=>memory.dimensionProgress?.[d.id]===d.mm).map(d=>[d.id,d.mm])):{};
+  dimensionIndex=mode==='demo'&&memory.scene===6?
+   Math.max(0,DIMENSIONS.findIndex(d=>dimensionReadings[d.id]!==d.mm)):0;
+  turnPointer=null;suppressTurnClick=false;
  if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
   assessmentTarget=[42,47,63,38,69][assessmentSeed];gap=assessmentTarget+24;}
  if(mode==='demo'&&memory.scene===2)gap=70;
- if(mode==='demo'&&memory.scene===6)gap=DIMENSIONS[0].mm+24;
+ if(mode==='demo'&&memory.scene===6)gap=target()+24;
  if(mode==='demo'&&memory.scene===1)gap=12;
  caliperChosen=mode==='quest'&&memory.assessment===0||mode==='demo'&&(
   memory.scene===1||memory.scene===2||memory.scene===6);
@@ -612,6 +617,7 @@ function check(){
  if(memory.scene===6){
   const d=DIMENSIONS[dimensionIndex];
   dimensionReadings[d.id]=d.mm;
+  memory.dimensionProgress={...dimensionReadings};persist();
   if(sceneComplete())success('✓ Виміряно всі три грані! Натисни «До підсумку →».');
   else announce('✓ '+d.name+' — '+d.mm+' мм. Поверни брусок для наступного вимірювання.',true);
   caliperPhase='success';render();return;
@@ -669,7 +675,11 @@ function respond(act){
  }
  if(act==='repeat'){
   cancelAdvanceTimer();
-  if(mode==='demo'&&(memory.scene===3||memory.scene===6)){memory.completed=memory.completed.filter(x=>x!==memory.scene);persist()}
+  if(mode==='demo'&&(memory.scene===3||memory.scene===6)){
+   memory.completed=memory.completed.filter(x=>x!==memory.scene);
+   if(memory.scene===6)memory.dimensionProgress={};
+   persist();
+  }
   resetStep();render();return
  }
  if(act==='choose-a'||act==='choose-b'){
@@ -838,7 +848,7 @@ window.GNSSLab01MissionV1={
  get assessment(){return memory.assessment},get passed(){return memory.passed},
  restart(){
   if(mode==='quest'){memory.assessment=0;memory.assessmentAttempts++;persist()}
-  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];persist()}
+  else {cancelChoiceTimer();cancelAdvanceTimer();memory.scene=0;memory.completed=[];memory.skipped=[];memory.dimensionProgress={};persist()}
   resetStep();if(visible)render();
  }
 };
