@@ -484,7 +484,7 @@ function drawnShape(task,draft){
  const v=geometryDimensions(task,draft);
  const label=task.kind==='line'?fmt(v.length,1)+' мм':task.kind==='rect'?
   fmt(v.width,1)+' × '+fmt(v.height,1)+' мм':'R '+fmt(v.radius,1)+' мм';
- return shape+'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>';
+ return shape+(mode==='quest'?'':'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>');
 }
 
 // Lesson 01 uses the EXACT sandbox drawing engine; no duplicate tool models.
@@ -516,7 +516,7 @@ function startDraftingAnimation(task){
    render();return;
   }
   geomDone=true;geomDraft=shapeGoal(task);
-  if(mode==='quest'){onSuccess();return}
+  if(mode==='quest'){finishQuestStation(memory.assessment===4?'Помилкову сторону виправлено.':'Побудову виконано з правильною точністю.');return}
   success('✓ Побудовано інструментами: '+shapeDescription(task)+'. Натисни «Далі →».');
   render();
  };
@@ -535,30 +535,41 @@ function startDraftingAnimation(task){
 }
 
 function geometryScene(){
- const task=geometryTask();
- if(!task)return schematic();
- const goal=shapeGoal(task),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
- let s=schematic();
- // A pale target makes the first action discoverable without pre-drawing the answer.
- s+='<text x="600" y="216" text-anchor="middle" font-size="24" font-weight="750" fill="#d9f4e6">'+
- (task.kind==='line'?'ВІДРІЗОК':task.kind==='rect'?'ПРЯМОКУТНИК':'КОЛО')+' · '+shapeDescription(task)+'</text>';
- if(task.kind==='line'){
-  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+goal.dx)+'" y2="'+y+'" stroke="#9cd3c2" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 8"/>';
- }else if(task.kind==='rect'){
-  s+='<rect x="'+x+'" y="'+y+'" width="'+goal.dx+'" height="'+goal.dy+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
- }else{
-  s+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ const task=geometryTask(),quest=mode==='quest',station=memory.assessment;
+ let scene=schematic();
+ if(quest&&station===4&&memory.quest?.diagnosis!==questVariant().flaw){
+  const q=questVariant(),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+  const ticks=Array.from({length:7},(_,i)=>i*10).map(n=>
+   '<line x1="'+(x+n*MM)+'" x2="'+(x+n*MM)+'" y1="'+(y+182)+'" y2="'+(y+191)+'" stroke="#b6d7d5"/>'+
+   '<text x="'+(x+n*MM)+'" y="'+(y+209)+'" text-anchor="middle" font-size="11" fill="#c0d7d6">'+n+'</text>').join('');
+  scene+='<text x="600" y="210" text-anchor="middle" fill="#d9f4e6" font-size="22">КРЕСЛЕННЯ ДЛЯ ПЕРЕВІРКИ</text>'+
+   '<rect x="'+x+'" y="'+y+'" width="'+(q.wrong[0]*MM)+'" height="'+(q.wrong[1]*MM)+'" fill="#f5cb8130" stroke="#ffce87" stroke-width="3"/>'+
+   '<path d="M'+x+' '+(y+182)+'h'+(60*MM)+'" stroke="#dbe4d4" stroke-width="2"/>'+ticks+
+   '<text x="600" y="577" text-anchor="middle" font-size="15" fill="#cae5e6">Шкала під кресленням: 1 поділка = 10 мм</text>';
+  return scene;
  }
+ if(!task)return scene;
+ const goal=shapeGoal(task),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+ if(!quest){
+  scene+='<text x="600" y="216" text-anchor="middle" font-size="24" font-weight="750" fill="#d9f4e6">'+
+   (task.kind==='line'?'ВІДРІЗОК':task.kind==='rect'?'ПРЯМОКУТНИК':'КОЛО')+' · '+shapeDescription(task)+'</text>';
+  if(task.kind==='line')
+   scene+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+goal.dx)+'" y2="'+y+'" stroke="#9cd3c2" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 8"/>';
+  else if(task.kind==='rect')
+   scene+='<rect x="'+x+'" y="'+y+'" width="'+goal.dx+'" height="'+goal.dy+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+  else scene+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ }else scene+='<text x="600" y="214" text-anchor="middle" fill="#d5efeb" font-size="22">ВИКОНАЙ КРЕСЛЕННЯ</text>';
  const current=geomAnimating?null:(geomDraft||(geomDone?shapeGoal(task):null));
- s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
- s+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
+ scene+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
+ scene+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
   '<circle cx="'+x+'" cy="'+y+'" r="29" class="m01-geom-handle" data-geom-start="true"'+
   ' fill="transparent" stroke="#c7ffa7" stroke-width="2" stroke-dasharray="5 6" tabindex="0"'+
   ' role="button" aria-label="Початок побудови. Утримуй та переміщуй курсор, або використай стрілки й Enter"/>';
- s+='<text x="'+x+'" y="'+(y-43)+'" text-anchor="middle" fill="#d6f6da" font-size="15">ПОЧАТОК</text>';
- if(geomDone)s+='<text x="600" y="578" text-anchor="middle" fill="#b5fa8f" font-size="17">✓ Побудову виконано · Далі →</text>';
- return s;
+ if(!quest)scene+='<text x="'+x+'" y="'+(y-43)+'" text-anchor="middle" fill="#d6f6da" font-size="15">ПОЧАТОК</text>';
+ if(geomDone&&!quest)scene+='<text x="600" y="578" text-anchor="middle" fill="#b5fa8f" font-size="17">✓ Побудову виконано · Далі →</text>';
+ return scene;
 }
+
 function updateGeometryPreview(){
  const task=geometryTask();if(!task)return;
  const group=canvas.querySelector('[data-geom-preview]');
@@ -572,7 +583,8 @@ function finishGeometry(draft){
   const value=task.kind==='line'?fmt(values.length,1)+' мм':
    task.kind==='rect'?fmt(values.width,1)+' × '+fmt(values.height,1)+' мм':
    'R '+fmt(values.radius,1)+' мм';
-  announce('Поки '+value+'. Потрібно '+shapeDescription(task)+'. Спробуй ще раз.');
+  if(mode==='quest')questMistake('Неточна побудова. Перевір свої розміри та повтори.');
+  else announce('Поки '+value+'. Потрібно '+shapeDescription(task)+'. Спробуй ще раз.');
   geomDraft=null;updateGeometryPreview();
   return;
  }
@@ -635,8 +647,9 @@ function summaryScene(){
 }
 function mainScene(){
  if(mode==='quest'){
-  if(memory.assessment===0)return caliperScene(assessmentTarget,gap);
-  if(memory.assessment>=1&&memory.assessment<=3)return geometryScene();
+  if(memory.assessment===0)return caliperScene(0,gap,false);
+  if(memory.assessment===1)return caliperScene(target(),gap);
+  if(memory.assessment>=2&&memory.assessment<=4)return geometryScene();
   return summaryScene();
  }
  const scene=memory.scene;
@@ -649,7 +662,7 @@ function mainScene(){
 }
 function controlView(){
  const quest=mode==='quest',step=quest?memory.assessment:memory.scene;
- if(quest&&step>=4)return '';
+ if(quest&&step>=5)return questResultMarkup();
  if(!quest&&step===7)return '';
  if(!quest&&step===0)return '';
  if(!quest&&step===6){
@@ -666,7 +679,7 @@ function controlView(){
    '<div class="m01-dim-progress">'+done+'/3 виміряно</div></div>';
  }
  // The caliper is already on the table. Its reading entry lives at the bottom.
- if((!quest&&(step===1||step===2))||(quest&&step===0))return '';
+ if((!quest&&(step===1||step===2))||(quest&&(step===0||step===1)))return '';
  if(geometryTask()){
   const task=geometryTask();
   const kind=task.kind==='line'?'ЛІНІЙКА + ОЛІВЕЦЬ':task.kind==='rect'?'КУТНИК + ОЛІВЕЦЬ':'ЦИРКУЛЬ';
@@ -696,11 +709,11 @@ function guidance(){
  return msgs[memory.scene]||'';
 }
 function caliperStep(){
- return mode==='quest'&&memory.assessment===0||
+ return mode==='quest'&&(memory.assessment===0||memory.assessment===1)||
   mode==='demo'&&(memory.scene===1||memory.scene===2||
     memory.scene===6);
 }
-function calibration(){return mode==='demo'&&memory.scene===1}
+function calibration(){return mode==='quest'&&memory.assessment===0||mode==='demo'&&memory.scene===1}
 function atContact(){return Math.abs(gap-(calibration()?0:target()))<.001}
 function caliperInstruction(){
  if(mode==='demo'&&memory.scene===6){
