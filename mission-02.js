@@ -130,7 +130,7 @@ function frame(ts){
   const p=state.pendulum,elapsed=p.elapsed;
   p.theta=p.amplitude*Math.cos(TAU*elapsed/period())*Math.exp(-.009*elapsed);
   p.cycles=Math.floor(elapsed/period()+.00001);
-  if(p.cycles>=5){
+  if(p.cycles>=5&&mode!=='explore'){
    p.running=false;p.cycles=5;p.elapsed=5*period();
    state.stopwatch.running=false;state.stopwatch.stopped=true;
    state.stopwatch.elapsed=5*period();
@@ -251,7 +251,11 @@ function controlMarkup(){
     '<div class="m02-stat">Шлях '+round(state.distance,1)+' м · Швидкість '+round(state.speed,1)+' м/с</div>'+
     (n===3?'<label>Шлях <input data-setting="distance" type="range" min="1" max="5" step=".2" value="'+state.distance+'"></label>'+
       '<label>Швидкість <input data-setting="speed" type="range" min=".5" max="3" step=".1" value="'+state.speed+'"></label>':'')+
-    (n===4?input('m02Predict','Час прибуття','с'):n===2?'<div class="m02-stat">Дослідів: '+state.finishTimes.length+' / 2</div>':'')+
+    (n===4?input('m02Predict','Час прибуття','с')+
+     (state.cart.done?'<div class="m02-stat">Прогноз: '+round(state.predicted,1)+' с · Виміряно: '+round(state.cart.elapsed,1)+' с</div>':''):
+     n===2?'<div class="m02-stat">Дослідів: '+state.finishTimes.length+' / 2</div>'+
+      (state.finishTimes.length?'<div class="m02-stat">Час A: '+round(state.finishTimes[0],1)+' с'+
+       (state.finishTimes.length>1?' · B: '+round(state.finishTimes[1],1)+' с':'')+'</div>':''):'')+
     button('launch-cart',state.cart.running?'Візок рухається…':n===2?'Запустити дослід':'Запустити візок',state.cart.running?'disabled':'')+
     (n===2&&state.finishTimes.length>=2?button('choose-compare','Порівняти результати'):'')+
     '<div class="m02-time" id="m02Reading">'+round(time(),1)+' с</div>';
@@ -418,6 +422,7 @@ svg.addEventListener('pointerup',release);
 svg.addEventListener('pointercancel',release);
 document.addEventListener('visibilitychange',()=>{last=0;if(!document.hidden)startFrame()});
 window.addEventListener('hashchange',()=>setTimeout(sync,0));
+window.addEventListener('gnss:lab-change',sync);
 document.getElementById('sidebarNav')?.addEventListener('click',()=>setTimeout(sync,0));
 new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
 window.GNSSLab02={get active(){return shown},get stage(){return station()},get mode(){return mode},reset(){resetTrial()},restart(){saved=fresh();store();resetPhysics();render()}};
