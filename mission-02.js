@@ -235,16 +235,19 @@ function buildScene(){
   (carts?cartSvg():'')+(pend?pendulumSvg():'')+'</g>';
  paint();
 }
+function setReadout(id,value){
+ const el=get(id);if(el&&el.textContent!==value)el.textContent=value;
+}
 function paint(){
  if(!shown)return;
  const sw=state.stopwatch.elapsed,a=(sw%60)/60*TAU;
  const hand=get('m02Hand');
  if(hand){hand.setAttribute('x2',(203+Math.sin(a)*59).toFixed(3));
   hand.setAttribute('y2',(325-Math.cos(a)*59).toFixed(3))}
- const face=get('m02FaceTime');if(face)face.textContent=round(sw,1)+' с';
+ setReadout('m02FaceTime',round(sw,1)+' с');
  const cart=get('m02MovingCart');
  if(cart)cart.setAttribute('transform','translate('+(385+clamp(state.cart.elapsed/Math.max(duration(),.001),0,1)*430).toFixed(3)+',0)');
- const cartTime=get('m02CartTime');if(cartTime)cartTime.textContent='Час '+round(state.cart.elapsed,1)+' с';
+ setReadout('m02CartTime','Час '+round(state.cart.elapsed,1)+' с');
  const bob=get('m02PendBall'),cord=get('m02PendString');
  if(bob&&cord){
   const p=state.pendulum,r=clamp(p.length,.45,1.35)*148;
@@ -252,12 +255,9 @@ function paint(){
   bob.setAttribute('cx',x.toFixed(3));bob.setAttribute('cy',y.toFixed(3));
   cord.setAttribute('d','M730 218L'+x.toFixed(3)+' '+y.toFixed(3));
  }
- const count=get('m02PendCount');
- if(count)count.textContent=state.pendulum.cycles+' повних циклів';
- const reading=get('m02Reading');
- if(reading)reading.textContent=round(sw,1)+' с';
- const cycles=get('m02Cycles');
- if(cycles)cycles.textContent=state.pendulum.cycles+' циклів';
+ setReadout('m02PendCount',state.pendulum.cycles+' повних циклів');
+ setReadout('m02Reading',round(sw,1)+' с');
+ setReadout('m02Cycles',state.pendulum.cycles+' циклів');
 }
 function button(action,label,extra=''){return '<button type="button" data-action="'+action+'" '+extra+'>'+label+'</button>'}
 function input(id,placeholder,unit){return '<label class="m02-answer"><input id="'+id+'" inputmode="decimal" type="text" autocomplete="off" placeholder="'+placeholder+'"/><span>'+unit+'</span></label>'}
