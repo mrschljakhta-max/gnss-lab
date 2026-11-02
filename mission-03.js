@@ -59,7 +59,15 @@ function markDone(){if(mode==='demo'&&!save.done.includes(save.stage)){save.done
 function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw===2?3:raw===3?5:0):raw,wave=n===1||n===2||n===3;
  const line=(f,a,y,shift=0)=>Array.from({length:210},(_,i)=>{const x=90+i*4.9;return(i?'L':'M')+x.toFixed(1)+' '+(y-Math.sin(x/105*f+shift)*a).toFixed(1)}).join(' ');
  let shapes='<defs><linearGradient id="m03glow"><stop stop-color="#b7f48c"/><stop offset="1" stop-color="#63bcd8"/></linearGradient></defs><path d="M70 335H1120" stroke="#7498a5" stroke-dasharray="5 8"/>';
- if(n===0){shapes+='<circle cx="600" cy="340" r="146" stroke="#80bac5" fill="none" opacity=".3"/><path d="'+line(freq,95,340,time*freq)+'" stroke="#b4f58d" stroke-width="4" fill="none"/><circle cx="600" cy="'+(340-95*Math.sin(time*freq)).toFixed(1)+'" r="24" fill="#e9c67e" stroke="#f9edbf" stroke-width="3"/>'}
+ if(n===0){
+  const centerX=600,centerY=340,waveAmplitude=95;
+  const wavePhase=time*TAU*freq;
+  const waveY=x=>centerY-Math.sin(x/105*freq+wavePhase)*waveAmplitude;
+  const particleY=waveY(centerX);
+  shapes+='<circle cx="600" cy="340" r="146" stroke="#80bac5" fill="none" opacity=".3"/>'+
+   '<path d="'+line(freq,waveAmplitude,centerY,wavePhase)+'" stroke="#b4f58d" stroke-width="4" fill="none"/>'+
+   '<circle cx="'+centerX+'" cy="'+particleY.toFixed(2)+'" r="24" fill="#e9c67e" stroke="#f9edbf" stroke-width="3"/>';
+ }
  else if(n===1){shapes+='<rect x="125" y="145" width="930" height="405" rx="25" fill="#09344e" stroke="#79acbd" stroke-width="4"/>';const rings=source?Array.from({length:8},(_,i)=>((time*freq*42+i*68)%600)):waterRings.map(x=>x.r);for(const r of rings)if(r>0&&r<500)shapes+='<circle cx="590" cy="346" r="'+r+'" fill="none" stroke="#86dff2" stroke-width="2.5" opacity="'+(1-r/550)+'"/>';shapes+='<circle cx="590" cy="346" r="13" fill="#e4c18c"/>'}
  else if(wave){shapes+='<path d="'+line(freq,amp*95,320,time*freq*2)+'" stroke="#b8f687" stroke-width="4" fill="none"/>';if(mode==='quest'&&raw===1)shapes+='<path d="'+line(freq,amp*40,460,time*freq*2)+'" stroke="#7cc5e0" stroke-width="4" fill="none"/>';if(n===3){shapes+='<path d="M90 180V520H1120" stroke="#92b6bf" stroke-width="2"/>';for(const [i,m] of markers.entries())shapes+='<line data-marker="'+i+'" x1="'+(90+m*1030)+'" x2="'+(90+m*1030)+'" y1="180" y2="520" stroke="'+(i===0?'#f1c681':'#8dd3eb')+'" stroke-width="3" stroke-dasharray="6 5" style="cursor:ew-resize"/>'}}
  else if(n===4){for(const [x,f] of [[430,freq],[790,frequency2]]){const spread=50*(1/(1+(f-frequency2)*(f-frequency2)*2));const offset=started?Math.sin(time*f*4)*spread:0;shapes+='<path d="M'+(x-24+offset)+' 200L'+x+' 430L'+(x+24+offset)+' 200" fill="none" stroke="#d8e6e2" stroke-width="9"/><rect x="'+(x-70)+'" y="433" width="140" height="18" fill="#7e9ba4"/>'}}
