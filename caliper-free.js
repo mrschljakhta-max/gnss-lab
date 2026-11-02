@@ -27,7 +27,7 @@ root.innerHTML='<svg xmlns="'+NS+'" viewBox="0 0 1200 660" preserveAspectRatio="
  '<button id="gfcReset" type="button" aria-label="Вибрати інші дві точки">↻ Новий відрізок</button>';
 board.append(root);
 const svg=root.querySelector('#gfcSvg'),hint=root.querySelector('#gfcHint'),reset=root.querySelector('#gfcReset');
-function visible(){return mode==='explore'&&tool==='caliper'&&!document.body.classList.contains('lab01-route')}
+function visible(){return (typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex():0)===0&&mode==='explore'&&tool==='caliper'&&!document.body.classList.contains('lab01-route')}
 function shapes(){return Array.isArray(window.GNSSPublishedShapes)?window.GNSSPublishedShapes:[]}
 function polygon(shape){
  const {x,y,w,h}=shape;
