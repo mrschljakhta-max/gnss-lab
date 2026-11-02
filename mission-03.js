@@ -76,8 +76,7 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
   const centerX=600,centerY=340,waveAmplitude=95;
   const wavePhase=time*TAU*freq;
   const waveY=x=>centerY-Math.sin(x/105*freq+wavePhase)*waveAmplitude;
-  const particleY=waveY(centerX);
-  shapes+='<g>'+
+  shapes+=
    '<path d="'+line(freq,waveAmplitude,centerY,wavePhase)+'" stroke="#b4f58d" stroke-width="4" fill="none"/>'+
    '<circle cx="'+centerX+'" cy="'+particleY.toFixed(2)+'" r="24" fill="#e9c67e" stroke="#f9edbf" stroke-width="3"/>';
  }
