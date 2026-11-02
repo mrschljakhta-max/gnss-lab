@@ -287,7 +287,9 @@
   });
   replay.addEventListener('click',begin);
   function sync(){
-    const active=document.body.classList.contains('engineering-live')&&
+    const isFirstLab=(typeof window.GNSSLabActiveIndex==='function'?
+      window.GNSSLabActiveIndex():typeof active==='number'?active:0)===0;
+    const active=isFirstLab&&document.body.classList.contains('engineering-live')&&
       (document.body.dataset.expMode||'demo')==='demo';
     if(!active){if(visible)close();replay.hidden=true;return}
     if(!seen&&!autoShown&&!visible){autoShown=true;begin()}
