@@ -828,7 +828,9 @@ function frame(now){
   document.body.classList.toggle('engineering-live',showing);
   displayed=showing;
  }
- if(showing){
+ if(showing&&lesson()===0){
+  // Lab 02 only borrows the paper and board shell; its physics model owns
+  // the simulation loop. Do not initialize or redraw the hidden CAD engine.
   const m=mode();if(m!==state.lastMode)setMode(m);
   // Mission 01 has its own foreground scene. The underlying engineering
   // demo must not rebuild hundreds of SVG nodes behind completed results.
