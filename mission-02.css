@@ -1,0 +1,170 @@
+/* GNSS LAB — Lesson 02 / Time, Motion, Repetition.
+   Overlay the existing blue engineering paper. No competing sidebar or panels. */
+#gnssMission02{
+ position:absolute;inset:0;z-index:42;overflow:hidden;isolation:isolate;
+ color:#e5f4f0;font-family:Inter,system-ui,Arial,sans-serif;
+ pointer-events:none;
+}
+#gnssMission02[hidden]{display:none!important}
+body.gnss-lesson02-active #engSvg,
+body.gnss-lesson02-active #engCommand,
+body.gnss-lesson02-active #engReadout,
+body.gnss-lesson02-active #engStatus,
+body.gnss-lesson02-active #lab01Journey,
+body.gnss-lesson02-active #jRestoreRoute,
+body.gnss-lesson02-active #gnssFreeCaliper,
+body.gnss-lesson02-active #gnssFreeProtractor,
+body.gnss-lesson02-active #gfcThreeStage,
+body.gnss-lesson02-active .gnss-3d-stage,
+body.gnss-lesson02-active .eng-floats,
+body.gnss-lesson02-active .eng-dock{display:none!important}
+body.gnss-lesson02-active #engBoard{isolation:isolate}
+#gnssMission02 .m02-head{
+ position:absolute;z-index:5;top:clamp(78px,11vh,105px);left:50%;
+ transform:translateX(-50%);width:calc(100% - 35px);max-width:760px;
+ text-align:center;pointer-events:none;text-shadow:0 4px 9px #002030;
+}
+#gnssMission02 .m02-head small{
+ font:700 10px/1.35 ui-monospace,Consolas,monospace;letter-spacing:1.8px;color:#acd4d8;
+}
+#gnssMission02 .m02-head h2{
+ margin:9px 0 7px;font:790 clamp(21px,2.35vw,34px)/1.18 Inter,system-ui,sans-serif;
+ color:#f5fff8;letter-spacing:-.4px;
+}
+#gnssMission02 .m02-head p{
+ margin:0 auto;max-width:640px;
+ font:600 clamp(12px,1.05vw,15px)/1.5 Inter,system-ui,sans-serif;color:#c7e2e5;
+}
+#gnssMission02 .m02-scene{
+ position:absolute;inset:0;pointer-events:none;z-index:1;
+}
+#gnssMission02 .m02-scene svg{
+ display:block;width:100%;height:100%;pointer-events:none;overflow:visible;
+}
+#gnssMission02 svg circle[data-drag="pendulum"]{
+ pointer-events:all;touch-action:none;cursor:grab;
+ filter:drop-shadow(0 7px 5px #011a27aa);
+}
+#gnssMission02 svg circle[data-drag="pendulum"]:active{cursor:grabbing}
+#gnssMission02 svg circle[data-drag="pendulum"]:focus-visible{stroke:#bdff99;stroke-width:5}
+#gnssMission02 .m02-panel{
+ position:absolute;z-index:7;right:clamp(18px,2.1vw,35px);top:clamp(183px,27vh,240px);
+ width:clamp(238px,25vw,320px);max-width:35%;
+ max-height:calc(100% - 330px);overflow-y:auto;overscroll-behavior:contain;
+ padding:17px 17px 16px;
+ background:linear-gradient(140deg,#092939ed,#062335f3);
+ border:1px solid #608b91;border-radius:11px;
+ box-shadow:0 14px 36px #00172778;
+ pointer-events:auto;scrollbar-width:thin;backdrop-filter:blur(12px);
+}
+#gnssMission02 .m02-panel-title{
+ font:760 12px/1.4 Inter,system-ui,sans-serif;letter-spacing:.6px;
+ color:#dcebe8;text-transform:uppercase;margin-bottom:12px;
+}
+#gnssMission02 .m02-target{
+ font:780 23px/1.24 ui-monospace,Consolas,monospace;
+ color:#c4f68f;margin:8px 0 13px;
+}
+#gnssMission02 .m02-stat{font:620 12px/1.5 system-ui;color:#cee3e7;margin:7px 0}
+#gnssMission02 .m02-time{
+ font:780 24px/1.4 ui-monospace,Consolas,monospace;
+ color:#b7f78a;text-align:center;margin:11px auto;
+}
+#gnssMission02 .m02-panel button,
+#gnssMission02 .m02-footer button{
+ border:1px solid #58858f;border-radius:8px;background:#1b4354;
+ font:750 12px/1.3 Inter,system-ui,sans-serif;
+ padding:11px 12px;color:#e8f9f5;
+ pointer-events:auto;cursor:pointer;transition:background .18s,border-color .18s;
+}
+#gnssMission02 .m02-panel button{margin:5px 5px 5px 0;min-height:41px}
+#gnssMission02 button:hover,#gnssMission02 button:focus-visible{
+ background:#244f40;border-color:#b7ef90;outline-offset:2px;
+}
+#gnssMission02 button:focus-visible{outline:2px solid #b7ef90}
+#gnssMission02 button[disabled]{opacity:.43;cursor:default}
+#gnssMission02 .m02-panel label{
+ font:650 12px/1.5 system-ui;color:#d2e6e7;display:block;margin-top:12px;
+}
+#gnssMission02 input[type="range"]{
+ display:block;width:100%;margin:8px 0 11px;accent-color:#b6f18a;pointer-events:auto;
+}
+#gnssMission02 .m02-answer{
+ display:flex!important;gap:9px;align-items:center;
+ background:#081f30;border:1px solid #5d8792;border-radius:8px;
+ padding:0 11px 0 0;margin:14px 0 7px!important;
+ pointer-events:auto;
+}
+#gnssMission02 .m02-answer:focus-within{border-color:#b6f48a}
+#gnssMission02 .m02-answer input{
+ width:100%;min-width:0;background:transparent;color:#ecfff1;
+ border:0;outline:0;padding:12px;font:760 18px ui-monospace,Consolas,monospace;
+ pointer-events:auto;user-select:text;
+}
+#gnssMission02 .m02-answer input::placeholder{color:#8ab1bb;font:600 12px system-ui}
+#gnssMission02 .m02-answer span{color:#d4efdf;font-size:12px}
+#gnssMission02 .m02-footer{
+ position:absolute;z-index:9;bottom:20px;left:22px;right:22px;
+ display:flex;align-items:center;justify-content:space-between;gap:12px;
+ pointer-events:none;
+}
+#gnssMission02 .m02-footer>div{display:flex;align-items:center;gap:8px;pointer-events:auto}
+#gnssMission02 .m02-footer button{min-width:42px}
+#gnssMission02 .m02-next{
+ background:#b4f48b!important;border-color:#c3ffaa!important;color:#102b1b!important;
+ padding:11px 22px!important;
+}
+#gnssMission02 .m02-next[hidden]{display:none!important}
+#gnssMission02 .m02-next[disabled]{opacity:.42}
+#gnssMission02 #m02Progress{font:680 12px ui-monospace,monospace;color:#a6d0d7;margin-right:10px}
+#gnssMission02 .m02-feedback{
+ position:absolute;z-index:9;left:23px;bottom:105px;
+ max-width:min(360px,36%);padding:11px 13px;
+ border-left:3px solid #e9bd76;background:#082b3eea;
+ font:620 12px/1.6 system-ui;color:#f8dfb8;box-shadow:0 8px 20px #00141e66;
+ pointer-events:none;
+}
+#gnssMission02 .m02-feedback[hidden]{display:none}
+#gnssMission02 .m02-feedback.good{color:#d9facb;border-left-color:#a6f67a}
+#gnssMission02 .m02-grade{
+ font:800 55px/1.3 ui-monospace,Consolas,monospace;text-align:center;color:#b5f68c;
+}
+#gnssMission02 .m02-grade small{font-size:14px;color:#b1d2d6}
+#gnssMission02 .m02-score-row{
+ display:flex;justify-content:space-between;gap:9px;padding:8px 0;
+ border-bottom:1px solid #4f7b8539;
+ font:640 11px/1.5 system-ui;color:#c9e1e3;
+}
+#gnssMission02 .m02-score-row b{color:#d3f6df;white-space:nowrap}
+#gnssMission02 .m02-panel p{font:600 11px/1.6 system-ui;color:#b5d4d9}
+#gnssMission02 .m02-primary{
+ background:#aff486!important;color:#12301b!important;border-color:#c8ffa9!important;width:100%;
+}
+#gnssMission02.m02-finish .m02-panel{
+ left:50%;right:auto;transform:translateX(-50%);
+ width:min(440px,calc(100% - 30px));max-width:none;
+ top:clamp(197px,27vh,230px);max-height:calc(100% - 300px);
+}
+#gnssMission02.m02-finish .m02-head{top:clamp(75px,11vh,110px)}
+#gnssMission02.m02-finish .m02-scene{opacity:.17}
+@media(max-width:970px){
+ #gnssMission02 .m02-panel{right:11px;width:255px;max-width:42%;padding:12px}
+ #gnssMission02 .m02-head{top:66px}
+}
+@media(max-width:630px){
+ #gnssMission02 .m02-head{top:69px}
+ #gnssMission02 .m02-head h2{font-size:21px}
+ #gnssMission02 .m02-head p{font-size:11px}
+ #gnssMission02 .m02-panel{
+  top:auto;bottom:96px;right:9px;width:min(280px,calc(100% - 18px));
+  max-width:calc(100% - 18px);max-height:32%;padding:10px 12px;
+ }
+ #gnssMission02 .m02-panel-title{margin-bottom:5px;font-size:11px}
+ #gnssMission02 .m02-time{font-size:19px;margin:4px}
+ #gnssMission02 .m02-panel button{padding:8px 10px;min-height:35px}
+ #gnssMission02 .m02-feedback{max-width:calc(100% - 38px);bottom:84px;left:11px}
+ #gnssMission02 .m02-footer{left:12px;right:12px;bottom:12px}
+ #gnssMission02 #m02Progress{font-size:10px}
+ #gnssMission02.m02-finish .m02-panel{bottom:auto;top:170px;max-height:calc(100% - 244px)}
+}
+@media(prefers-reduced-motion:reduce){#gnssMission02 button{transition:none}}

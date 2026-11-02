@@ -107,6 +107,12 @@ document.addEventListener('gnss:mission-one-complete',event=>{
  drawPanel();
  toast('✓ Перша практична місія підтверджена й записана до журналу.');
 });
+document.addEventListener('gnss:mission-two-complete',event=>{
+ if(!event.detail?.completed||count(1)>=3)return;
+ // Lesson 02 replaces all three legacy parameter quests for this topic.
+ wins[1]=3;save();drawPanel();
+ toast('✓ Лабораторію часу завершено — залік записано до прогресу.');
+});
 
 function save(){try{localStorage.setItem(KEY,JSON.stringify(wins))}catch{}}
 function preserve(){snapshot=states[active].map(s=>({...s}));snapshotLab=active}
@@ -143,7 +149,8 @@ panel.innerHTML=`<div class="exp-box exp-quest ${passed?'passed':''}"><div><span
 const originalRender=render;
 render=function(){originalRender();drawPanel()};
 const originalGoLab=goLab;
-goLab=function(i){stop();restore();mode='explore';originalGoLab(i);switchMode('demo')};
+goLab=function(i){stop();restore();mode='explore';originalGoLab(i);switchMode('demo');
+ window.dispatchEvent(new CustomEvent('gnss:lab-change',{detail:{index:active}}));};
 function refreshModel(){renderControls();updateScene()}
 function setStepDemo(idx,exact=true){
 demoPos=Math.max(0,Math.min(2,idx));
@@ -166,7 +173,7 @@ updateScene();
 if(now-demoStart>=9300){stop();demoDone=true;drawPanel();return}
 raf=requestAnimationFrame(animate)
 }
-function play(){if(mode!=='demo')return;if(demoDone){demoPos=0;demoDone=false}playing=true;demoStart=performance.now()-demoPos*3100;drawPanel();raf=requestAnimationFrame(animate)}
+function play(){if(mode!=='demo'||active===1)return;if(demoDone){demoPos=0;demoDone=false}playing=true;demoStart=performance.now()-demoPos*3100;drawPanel();raf=requestAnimationFrame(animate)}
 function switchMode(next){
 if(!['demo','explore','quest'].includes(next))return;
 stop();restore();mode=next;
@@ -178,6 +185,7 @@ if(mode==='demo')play()
 }
 // Public mode transition for mission overlays. Using the same switchMode
 // path as a real tab click keeps expedition state, drawing engine and UI in sync.
+window.GNSSLabActiveIndex=()=>active;
 window.GNSSLabSwitchMode=next=>{if(!['demo','explore','quest'].includes(next))return false;switchMode(next);return true};
 function onInteraction(){
 if(mode!=='quest'||passed||count(active)===3)return;

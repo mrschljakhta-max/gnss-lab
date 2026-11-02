@@ -1333,11 +1333,14 @@ function hide(){
 }
 function sync(){
  const next=document.body.dataset.expMode||'demo';
- const active=document.body.classList.contains('engineering-live');
- if(!active||!['demo','quest'].includes(next)){hide();return}
+ const isFirstLab=(typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex():typeof active!=='undefined'?active:0)===0;
+ const eligible=document.body.classList.contains('engineering-live')&&isFirstLab;
+ if(!eligible||!['demo','quest'].includes(next)){hide();return}
  if(!visible||mode!==next)show(next);
 }
 new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
+window.addEventListener('gnss:lab-change',sync);
+window.addEventListener('hashchange',()=>setTimeout(sync,0));
 window.addEventListener('resize',()=>{if(visible)positionFaceControls()});
 window.GNSSLab01MissionV1={
  get active(){return visible},get scene(){return memory.scene},
