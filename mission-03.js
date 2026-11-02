@@ -27,6 +27,19 @@ function reset(resetSettings=true){started=false;cycles=0;source=false;waterRing
 const stage=()=>mode==='demo'?save.stage:mode==='quest'?save.q:tool;
 const btn=(id,label,disabled=false)=>'<button type="button" data-act="'+id+'"'+(disabled?' disabled':'')+'>'+label+'</button>';
 const slider=(key,label,val,min,max,step,unit='')=>'<label>'+label+' <output>'+fmt(val,step<1?1:0)+unit+'</output><input data-key="'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'"></label>';
+function toolThumb(i){
+ const start='<svg class="m03-thumb" viewBox="0 0 100 76" aria-hidden="true"><defs><linearGradient id="toolMetal'+i+'" x2=".8" y2="1"><stop stop-color="#e8f1ed"/><stop offset=".45" stop-color="#607e8b"/><stop offset="1" stop-color="#243846"/></linearGradient><linearGradient id="toolScreen'+i+'" x2="1" y2="1"><stop stop-color="#103a4b"/><stop offset="1" stop-color="#041723"/></linearGradient></defs>';
+ const m='url(#toolMetal'+i+')',d='url(#toolScreen'+i+')';
+ const images=[
+  '<rect x="14" y="19" width="72" height="45" rx="7" fill="'+m+'" stroke="#c3e7ed" stroke-width="2"/><rect x="20" y="25" width="46" height="24" rx="3" fill="'+d+'"/><path d="M24 38q5-12 10 0t10 0t10 0" fill="none" stroke="#adf582" stroke-width="2.2"/><circle cx="74" cy="34" r="5" fill="#233f4b" stroke="#e3eff2"/><circle cx="74" cy="50" r="4" fill="#233f4b" stroke="#d7eff0"/><rect x="22" y="56" width="40" height="3" rx="2" fill="#243946"/>',
+  '<path d="M9 29L23 17H77L91 29V60Q91 67 83 67H16Q9 67 9 60Z" fill="'+m+'" stroke="#e2fafc" stroke-width="2"/><path d="M17 29L27 23H73L83 29V55H17Z" fill="#063b55"/><ellipse cx="50" cy="42" rx="12" ry="5" fill="none" stroke="#50e0ed"/><ellipse cx="50" cy="42" rx="25" ry="11" fill="none" stroke="#44cde6" opacity=".8"/><ellipse cx="50" cy="42" rx="34" ry="17" fill="none" stroke="#38a8d3" opacity=".5"/><circle cx="50" cy="42" r="4" fill="#f0f5ed"/>',
+  '<rect x="12" y="59" width="76" height="6" rx="3" fill="'+m+'"/><rect x="17" y="29" width="6" height="31" rx="2" fill="'+m+'"/><rect x="78" y="29" width="6" height="31" rx="2" fill="'+m+'"/><path d="M23 41Q30 17 39 41T55 41T72 41T79 41" fill="none" stroke="#b2f590" stroke-width="3"/><circle cx="26" cy="41" r="4" fill="#e6c48d"/>',
+  '<rect x="12" y="15" width="76" height="53" rx="8" fill="'+m+'" stroke="#d9f4f4" stroke-width="2"/><rect x="17" y="20" width="52" height="37" rx="3" fill="'+d+'"/><path d="M20 40Q26 25 32 40T44 40T56 40T66 40" fill="none" stroke="#b1f484" stroke-width="2"/><path d="M30 22V55M48 22V55M18 38H68" stroke="#447082" opacity=".6"/><circle cx="77" cy="29" r="4" fill="#1b3743" stroke="#d5eef1"/><circle cx="77" cy="43" r="4" fill="#1b3743" stroke="#d5eef1"/>',
+  '<rect x="12" y="61" width="76" height="6" rx="2" fill="'+m+'"/><path d="M28 16L33 47Q36 56 43 56Q50 56 53 47L58 16M59 16L64 47Q67 56 74 56Q81 56 84 47L89 16" fill="none" stroke="'+m+'" stroke-width="6" stroke-linecap="round"/><path d="M43 56V61M74 56V61" stroke="#d4eff0" stroke-width="4"/>',
+  '<rect x="20" y="18" width="24" height="47" rx="5" fill="#152936" stroke="#9cbcc5" stroke-width="2"/><rect x="56" y="18" width="24" height="47" rx="5" fill="#152936" stroke="#9cbcc5" stroke-width="2"/><path d="M26 18V4M62 18V4" stroke="#d3e6e8" stroke-width="4" stroke-linecap="round"/><rect x="24" y="27" width="16" height="18" rx="2" fill="'+d+'"/><rect x="60" y="27" width="16" height="18" rx="2" fill="'+d+'"/><path d="M28 36h9M62 36q3-6 6 0t6 0" stroke="#b8f58e" fill="none" stroke-width="1.7"/><path d="M46 40Q50 34 54 40" stroke="#58d5fa" fill="none" stroke-width="2"/><path d="M25 51h14M61 51h14M25 55h14M61 55h14" stroke="#829aa3" stroke-width="2"/>'
+ ];
+ return start+images[i]+'</svg>';
+}
 const pass=()=>save.marks.reduce((a,b)=>a+(b||0),0)>=80;
 function grade(points){if(mode!=='quest'||save.q>=4)return;save.marks[save.q]=clamp(points,0,values[save.q]);save.q++;persist();reset();render();
  if(save.q===4&&pass())document.dispatchEvent(new CustomEvent('gnss:mission-three-complete',{detail:{mission:3,completed:true,score:save.marks.reduce((a,b)=>a+(b||0),0)}}))}
@@ -52,7 +65,7 @@ function render(){if(!shown)return;
  panel.innerHTML=panelContent();$('m03Progress').textContent=mode==='quest'?Math.min(n,4)+'/4':mode==='demo'?Math.min(n+1,6)+'/6':'Пісочниця';
  next.hidden=mode!=='demo';next.disabled=mode==='demo'&&!save.done.includes(n);next.textContent=mode==='demo'&&n>=5?'Пісочниця →':'Далі →';
  $('m03Toggle').hidden=mode!=='explore';$('m03Toggle').setAttribute('aria-expanded',String(dockOpen));dock.hidden=mode!=='explore'||!dockOpen;
- dock.innerHTML=['Генератор','Хвильова ванна','Мотузка','Осцилограф','Камертони','Радіосигнал'].map((name,i)=>'<button data-act="tool" data-tool="'+i+'" class="'+(tool===i?'selected':'')+'"><span class="m03-tool-icon">'+['◉','≈','〰','▤','♬','⌁'][i]+'</span>'+name+'</button>').join('');
+ dock.innerHTML=['Генератор','Хвильова ванна','Мотузка','Осцилограф','Камертони','Радіозв’язок'].map((name,i)=>'<button type="button" data-act="tool" data-tool="'+i+'" class="'+(tool===i?'selected':'')+'" aria-label="'+name+'" aria-pressed="'+(tool===i)+'">'+toolThumb(i)+'<span class="m03-tool-name">'+name+'</span></button>').join('');
  draw();
 }
 function markDone(){if(mode==='demo'&&!save.done.includes(save.stage)){save.done.push(save.stage);persist();next.disabled=false}}
@@ -64,7 +77,7 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
   const wavePhase=time*TAU*freq;
   const waveY=x=>centerY-Math.sin(x/105*freq+wavePhase)*waveAmplitude;
   const particleY=waveY(centerX);
-  shapes+='<circle cx="600" cy="340" r="146" stroke="#80bac5" fill="none" opacity=".3"/>'+
+  shapes+='<g>'+
    '<path d="'+line(freq,waveAmplitude,centerY,wavePhase)+'" stroke="#b4f58d" stroke-width="4" fill="none"/>'+
    '<circle cx="'+centerX+'" cy="'+particleY.toFixed(2)+'" r="24" fill="#e9c67e" stroke="#f9edbf" stroke-width="3"/>';
  }
