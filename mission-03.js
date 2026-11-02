@@ -18,7 +18,7 @@ const root=document.createElement('section');root.id='gnssMission03';root.hidden
  '<footer class="m03-footer"><button data-act="restart" title="На початок уроку">↻</button><span id="m03Progress"></span><button id="m03Next" data-act="next">Далі →</button></footer>';
 board.append(root);
 const $=id=>root.querySelector('#'+id),svg=$('m03Svg'),panel=$('m03Panel'),dock=$('m03Dock'),next=$('m03Next');
-let tank=null,tankLoading=false,mode='demo',shown=false,raf=0,last=0,dockOpen=true,tool=0,phase=0,started=false,cycles=0,pressed=false,qaChoice=null;
+let radioClock=0,radioLock=0,tank=null,tankLoading=false,mode='demo',shown=false,raf=0,last=0,dockOpen=true,tool=0,phase=0,started=false,cycles=0,pressed=false,qaChoice=null;
 let freq=2,amp=.55,frequency2=4,receiver=3,tx=5,markers=[.2,.4],source=false,waterRings=[],time=0,reading=null;
 const active=()=>typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex()===2:location.hash==='#lab-03';
 function sync(){const want=active()&&document.body.classList.contains('engineering-live');if(!want){if(shown){shown=false;root.hidden=true;document.body.classList.remove('gnss-lesson03-active');cancelAnimationFrame(raf);raf=0}return}
@@ -139,7 +139,7 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
  }
 
  else{
-  const tuned=Math.abs(tx-receiver)<.15;
+  const tuned=Math.abs(tx-receiver)<.051;
   shapes+='<defs><linearGradient id="m03RadioCase" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#53636a"/><stop offset=".15" stop-color="#1e303b"/><stop offset=".58" stop-color="#172730"/><stop offset="1" stop-color="#081820"/></linearGradient><linearGradient id="m03RadioRim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#899a9f"/><stop offset=".4" stop-color="#243c47"/><stop offset="1" stop-color="#6e7e7d"/></linearGradient><linearGradient id="m03RadioOrange" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffb04d"/><stop offset=".45" stop-color="#f27c21"/><stop offset="1" stop-color="#9c3c0c"/></linearGradient><linearGradient id="m03RadioScreen" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#001624"/><stop offset="1" stop-color="#073448"/></linearGradient></defs>';
   for(const [i,x,value] of [[0,335,tx],[1,870,receiver]]){
    const y=244,w=205,h=352,receiving=i===1&&tuned;
@@ -162,7 +162,7 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
     '<g fill="#e0f7fb" text-anchor="middle" font-family="Inter,system-ui,sans-serif"><text x="'+x+'" y="'+(y+65)+'" font-size="13" font-weight="800">'+(i===0?'ПЕРЕДАВАЧ':'ПРИЙМАЧ')+'</text><text x="'+x+'" y="'+(y+142)+'" font-size="19" font-weight="800">'+fmt(value,1)+' МГц</text></g>';
    if(i===0)shapes+='<path d="M'+x+' '+(y+87)+'v29m-10-22q-12 9 0 17m20-17q12 9 0 17m-29-26q-21 20 0 39m38-39q21 20 0 39" stroke="#80dafa" stroke-width="2.4" fill="none"/>';
    else{
-    const wave=Array.from({length:75},(_,j)=>{const px=x-60+j*1.62,py=y+107-(receiving?15:2)*Math.sin(j*.48+time*4);return (j?'L':'M')+px.toFixed(1)+' '+py.toFixed(1)}).join(' ');
+    const wave=Array.from({length:75},(_,j)=>{const px=x-60+j*1.62,py=y+107-(2+radioLock*13)*Math.sin(j*.48+radioClock*10);return (j?'L':'M')+px.toFixed(1)+' '+py.toFixed(1)}).join(' ');
     shapes+='<path d="'+wave+'" fill="none" stroke="'+(receiving?'#b8fa83':'#587680')+'" stroke-width="2.5"/><circle cx="'+(x+60)+'" cy="'+(y+65)+'" r="5" fill="'+(receiving?'#a5f477':'#496273')+'"/>';
    }
    shapes+='<rect x="'+(x-65)+'" y="'+(y+157)+'" width="130" height="8" rx="4" fill="#1a3c48"/>'+
@@ -174,9 +174,23 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
    for(let j=0;j<7;j++)shapes+='<path d="M'+(x-93)+' '+(y+198+j*13)+'h8M'+(x+85)+' '+(y+198+j*13)+'h8" stroke="#849498" stroke-width="1.2" opacity=".45"/>';
    shapes+='</g>';
   }
-  for(let j=0;j<4;j++){
-   const x=520+j*79;
-   shapes+='<path d="M'+x+' '+(365-j*10)+'q38 -42 76 0" fill="none" stroke="'+(tuned?'#72e6fa':'#59899c')+'" stroke-width="'+(tuned?3:2)+'" opacity="'+(tuned?.6:.3)+'"/>';
+  // Propagating wavefronts, independent of slider input and the older demo timer.
+  const pulsePhase=radioClock*1.15;
+  shapes+='<defs><linearGradient id="m03SignalGlow" x1="0" x2="1"><stop stop-color="#5bd4f4" stop-opacity=".1"/><stop offset=".5" stop-color="#82efff" stop-opacity=".95"/><stop offset="1" stop-color="#acfcb1" stop-opacity=".35"/></linearGradient><filter id="m03SignalBlur"><feGaussianBlur stdDeviation="4"/></filter></defs>';
+  // Ripples start at the TX antenna, travel to RX and fade gracefully.
+  for(let j=0;j<5;j++){
+   const p=((pulsePhase-j*.23)%1+1)%1;
+   const x=493+p*546,y=305+Math.sin(p*Math.PI)*100;
+   const fade=Math.sin(Math.PI*p),w=17+24*p;
+   if(fade<.03)continue;
+   const d='M'+(x-w).toFixed(1)+' '+(y+22).toFixed(1)+'Q'+x.toFixed(1)+' '+(y-27).toFixed(1)+' '+(x+w).toFixed(1)+' '+(y+22).toFixed(1);
+   const opacity=(fade*(.2+.65*radioLock)).toFixed(3);
+   shapes+='<path d="'+d+'" fill="none" stroke="#5bdef8" stroke-width="10" opacity="'+(.17*fade).toFixed(3)+'" filter="url(#m03SignalBlur)"/>'+
+     '<path d="'+d+'" fill="none" stroke="url(#m03SignalGlow)" stroke-width="'+(2+radioLock).toFixed(1)+'" opacity="'+opacity+'"/>';
+  }
+  // A tuned receiver brightens gradually instead of instantly toggling.
+  if(radioLock>.01){
+   shapes+='<circle cx="870" cy="309" r="'+(13+radioLock*20).toFixed(1)+'" fill="none" stroke="#b5fc8c" stroke-width="2" opacity="'+(.32*radioLock).toFixed(2)+'"/>';
   }
  }
  return shapes}
@@ -198,7 +212,7 @@ function draw(){
  }
  svg.innerHTML=graphics();
 }
-function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000):0;last=t;if(started||source)time+=dt;if(source)markDone();if(mode==='demo'&&(started||source))markDone();waterRings=waterRings.map(o=>({...o,r:o.r+dt*145})).filter(o=>o.r<650);draw();raf=requestAnimationFrame(tick)}
+function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000):0;last=t;if(started||source)time+=dt;radioClock+=dt;radioLock+=(Math.abs(tx-receiver)<.051?1:-1)*dt*2.8;radioLock=clamp(radioLock,0,1);if(source)markDone();if(mode==='demo'&&(started||source))markDone();waterRings=waterRings.map(o=>({...o,r:o.r+dt*145})).filter(o=>o.r<650);draw();raf=requestAnimationFrame(tick)}
 root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;if(act==='dock'){dockOpen=!dockOpen;render();return}if(act==='tool'){tool=Number(b.dataset.tool);dockOpen=false;reset(false);render();return}
  if(act==='restart'){if(mode==='demo'){save.stage=0;save.done=[];persist()}reset();render();return}
  if(act==='next'&&mode==='demo'&&save.done.includes(save.stage)){save.stage=Math.min(5,save.stage+1);persist();reset();render();return}
