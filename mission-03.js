@@ -12,13 +12,13 @@ if(!save||save.version!==1)save={version:1,stage:0,done:[],q:0,marks:[null,null,
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch{}};
 const root=document.createElement('section');root.id='gnssMission03';root.hidden=true;root.innerHTML=
  '<header class="m03-header"><h2 id="m03Title"></h2><p id="m03Subtitle"></p></header>'+
- '<div class="m03-stage"><svg id="m03Svg" viewBox="0 0 1200 660" aria-label="Інтерактивна фізична модель"></svg></div>'+
+ '<div class="m03-stage"><canvas id="m03WaterCanvas" aria-hidden="true" hidden></canvas><svg id="m03Svg" viewBox="0 0 1200 660" aria-label="Інтерактивна фізична модель"></svg></div>'+
  '<aside class="m03-panel" id="m03Panel"></aside><nav id="m03Dock" class="m03-dock" hidden></nav>'+
  '<button id="m03Toggle" data-act="dock" class="m03-toggle" aria-label="Відкрити інструменти" hidden>☷</button>'+
  '<footer class="m03-footer"><button data-act="restart" title="На початок уроку">↻</button><span id="m03Progress"></span><button id="m03Next" data-act="next">Далі →</button></footer>';
 board.append(root);
 const $=id=>root.querySelector('#'+id),svg=$('m03Svg'),panel=$('m03Panel'),dock=$('m03Dock'),next=$('m03Next');
-let mode='demo',shown=false,raf=0,last=0,dockOpen=true,tool=0,phase=0,started=false,cycles=0,pressed=false,qaChoice=null;
+let tank=null,mode='demo',shown=false,raf=0,last=0,dockOpen=true,tool=0,phase=0,started=false,cycles=0,pressed=false,qaChoice=null;
 let freq=2,amp=.55,frequency2=4,receiver=3,tx=5,markers=[.2,.4],source=false,waterRings=[],time=0,reading=null;
 const active=()=>typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex()===2:location.hash==='#lab-03';
 function sync(){const want=active()&&document.body.classList.contains('engineering-live');if(!want){if(shown){shown=false;root.hidden=true;document.body.classList.remove('gnss-lesson03-active');cancelAnimationFrame(raf);raf=0}return}
@@ -115,13 +115,22 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
  else if(n===4){for(const [x,f] of [[430,freq],[790,frequency2]]){const spread=50*(1/(1+(f-frequency2)*(f-frequency2)*2));const offset=started?Math.sin(time*f*4)*spread:0;shapes+='<path d="M'+(x-24+offset)+' 200L'+x+' 430L'+(x+24+offset)+' 200" fill="none" stroke="#d8e6e2" stroke-width="9"/><rect x="'+(x-70)+'" y="433" width="140" height="18" fill="#7e9ba4"/>'}}
  else{shapes+='<rect x="245" y="225" width="180" height="205" rx="18" fill="#153d50" stroke="#a6cbd2" stroke-width="3"/><rect x="785" y="225" width="180" height="205" rx="18" fill="#153d50" stroke="#a6cbd2" stroke-width="3"/><path d="M335 225V130M875 225V130" stroke="#d1ece8" stroke-width="5"/>';for(let i=0;i<3;i++)shapes+='<path d="M'+(420+i*95)+' 180q55 -45 95 0" fill="none" stroke="'+(Math.abs(tx-receiver)<.15?'#b8f487':'#6b93a2')+'" stroke-width="3"/>'}
  return shapes}
-function draw(){if(shown)svg.innerHTML=graphics()}
-function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000):0;last=t;if(started||source)time+=dt;if(source)markDone();if(mode==='demo'&&(started||source))markDone();waterRings=waterRings.map(o=>({r:o.r+dt*145})).filter(o=>o.r<500);draw();raf=requestAnimationFrame(tick)}
+function draw(){
+ if(!shown)return;
+ const physical=stage()===1&&mode!=='quest';
+ const canvas=$('m03WaterCanvas');
+ if(physical&&typeof window.GNSSWaveTank==='function'&&!tank)tank=window.GNSSWaveTank(canvas);
+ const useWebGL=physical&&!!tank;
+ canvas.hidden=!useWebGL;svg.style.visibility=useWebGL?'hidden':'visible';
+ if(useWebGL){tank.render(time,freq,source,waterRings);return}
+ svg.innerHTML=graphics();
+}
+function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000):0;last=t;if(started||source)time+=dt;if(source)markDone();if(mode==='demo'&&(started||source))markDone();waterRings=waterRings.map(o=>({...o,r:o.r+dt*145})).filter(o=>o.r<650);draw();raf=requestAnimationFrame(tick)}
 root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;if(act==='dock'){dockOpen=!dockOpen;render();return}if(act==='tool'){tool=Number(b.dataset.tool);dockOpen=false;reset(false);render();return}
  if(act==='restart'){if(mode==='demo'){save.stage=0;save.done=[];persist()}reset();render();return}
  if(act==='next'&&mode==='demo'&&save.done.includes(save.stage)){save.stage=Math.min(5,save.stage+1);persist();reset();render();return}
  if(act==='toggle'){if(stage()===1){source=!source}else started=!started;markDone();render();return}
- if(act==='drop'){waterRings.push({r:1});markDone();return}
+ if(act==='drop'){waterRings.push({x:590,y:348,r:1});markDone();return}
  if(act==='measure'){markDone();reading=Math.abs(markers[1]-markers[0]);render();return}
  if(act==='chooseA'||act==='chooseB'){grade(act==='chooseA'?20:0);return}
  if(act==='retake'){save.q=0;save.marks=[null,null,null,null];save.attempt++;persist();reset();render();return}
@@ -129,7 +138,7 @@ root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)r
 });
 panel.addEventListener('input',e=>{const key=e.target.dataset.key;if(!key)return;const val=Number(e.target.value);if(!Number.isFinite(val))return;({freq:()=>freq=val,amp:()=>amp=val,f2:()=>frequency2=val,receiver:()=>receiver=val,tx:()=>tx=val}[key]||(()=>{}))();const o=e.target.closest('label')?.querySelector('output');if(o)o.textContent=fmt(val,key==='freq'&&val%1===0?0:1)+(key==='freq'||key==='f2'?' Гц':key==='tx'||key==='receiver'?' МГц':'');if(mode==='demo')markDone();draw()});
 svg.addEventListener('pointerdown',e=>{if(!shown||mode==='quest'||stage()!==3)return;const r=svg.getBoundingClientRect();const t=clamp(((e.clientX-r.left)/r.width*1200-90)/1030,0,1);const i=Math.abs(markers[0]-t)<Math.abs(markers[1]-t)?0:1;markers[i]=t;render();});
-svg.addEventListener('pointerdown',e=>{if(!shown||stage()!==1||mode==='quest')return;const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*1200,y=(e.clientY-r.top)/r.height*660;if(x>125&&x<1055&&y>145&&y<550){waterRings.push({r:1});markDone()}});
+svg.addEventListener('pointerdown',e=>{if(!shown||stage()!==1||mode==='quest')return;const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*1200,y=(e.clientY-r.top)/r.height*660;if(x>125&&x<1055&&y>145&&y<550){waterRings.push({x,y,r:1});markDone()}});
 window.addEventListener('hashchange',sync);window.addEventListener('gnss:lab-change',sync);document.getElementById('sidebarNav')?.addEventListener('click',()=>setTimeout(sync,0));new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
 sync();
 })();
