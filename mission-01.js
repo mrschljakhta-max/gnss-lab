@@ -464,6 +464,61 @@ function shapeDescription(task){
  return task.kind==='line'?task.width+' мм':task.kind==='rect'?
   task.width+' × '+task.height+' мм':'R '+task.radius+' мм';
 }
+// The exam removes the ANSWER outline, not the physical measuring instruments.
+// One cell is exactly 1 mm. Rulers are independent of the requested dimensions.
+function examDrawingGrid(){
+ const x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+ let marks='<g class="m01-exam-mm-grid" data-mm-grid="true" pointer-events="none">';
+ for(let i=-25;i<=65;i++){
+  const major=i%10===0,mid=i%5===0;
+  marks+='<line x1="'+(x+i*MM)+'" x2="'+(x+i*MM)+'" y1="'+(y-25*MM)+'" y2="'+(y+55*MM)+
+   '" stroke="#9fc9cb" stroke-width="'+(major?1.3:mid?.95:.65)+'" opacity="'+(major?.38:mid?.22:.11)+'"/>';
+ }
+ for(let i=-25;i<=55;i++){
+  const major=i%10===0,mid=i%5===0;
+  marks+='<line x1="'+(x-25*MM)+'" x2="'+(x+65*MM)+'" y1="'+(y+i*MM)+'" y2="'+(y+i*MM)+
+   '" stroke="#9fc9cb" stroke-width="'+(major?1.3:mid?.95:.65)+'" opacity="'+(major?.38:mid?.22:.11)+'"/>';
+ }
+ const rulerY=y+59*MM,rulerX=x-30*MM;
+ marks+='<path d="M'+x+' '+rulerY+'h'+(65*MM)+' M'+rulerX+' '+y+'v'+(55*MM)+
+  '" stroke="#c9e9e4" stroke-width="2" opacity=".85"/>';
+ for(let i=0;i<=65;i++){
+  const major=i%10===0,mid=i%5===0,px=x+i*MM;
+  marks+='<line x1="'+px+'" y1="'+rulerY+'" x2="'+px+'" y2="'+(rulerY+(major?15:mid?11:6))+
+   '" stroke="#d5f5e7" stroke-width="'+(major?1.5:.85)+'"/>';
+  if(major)marks+='<text x="'+px+'" y="'+(rulerY+30)+
+   '" text-anchor="middle" font-size="13" fill="#d5f3e9">'+i+'</text>';
+ }
+ for(let i=0;i<=55;i++){
+  const major=i%10===0,mid=i%5===0,py=y+i*MM;
+  marks+='<line x1="'+rulerX+'" y1="'+py+'" x2="'+(rulerX-(major?15:mid?11:6))+'" y2="'+py+
+   '" stroke="#d5f5e7" stroke-width="'+(major?1.5:.85)+'"/>';
+  if(major)marks+='<text x="'+(rulerX-24)+'" y="'+(py+5)+
+   '" text-anchor="end" font-size="13" fill="#d5f3e9">'+i+'</text>';
+ }
+ return marks+'<text x="'+(x+65*MM+27)+'" y="'+(rulerY+6)+
+  '" font-size="13" fill="#d5f3e9">мм</text></g>';
+}
+// A self-measured readout: it reports what the learner ACTUALLY drew,
+// never the answer stored in the technical job card.
+function examLiveReadout(task,draft){
+ const p=shapeParameters(task,draft),v=geometryDimensions(task,draft);
+ const x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+ const label=task.kind==='rect'?'Ширина '+fmt(v.width,0)+' мм · Висота '+fmt(v.height,0)+' мм':
+  task.kind==='circle'?'Радіус '+fmt(v.radius,0)+' мм · Ø '+fmt(v.radius*2,0)+' мм':
+  'Довжина '+fmt(v.length,0)+' мм';
+ let guides='';
+ if(task.kind==='rect'&&p.dx>0&&p.dy>0){
+  guides='<path d="M'+(x+p.dx)+' '+(y-5)+'V'+(y+p.dy)+
+   ' M'+(x-5)+' '+(y+p.dy)+'H'+(x+p.dx)+
+   '" stroke="#d7f6ad" stroke-width="1.1" opacity=".5" stroke-dasharray="4 5"/>';
+ }
+ return '<g data-exam-live-measure="true" pointer-events="none">'+guides+
+  '<text x="560" y="275" text-anchor="middle" font-size="19" font-weight="760"'+
+  ' fill="#d6fbb1" stroke="#073046" stroke-width="5" stroke-linejoin="round"'+
+  ' paint-order="stroke">'+label+'</text></g>';
+}
+
 function drawnShape(task,draft){
  if(!task||!draft)return '';
  const p=shapeParameters(task,draft),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y,ex=x+p.dx,ey=y+p.dy;
@@ -484,7 +539,8 @@ function drawnShape(task,draft){
  const v=geometryDimensions(task,draft);
  const label=task.kind==='line'?fmt(v.length,1)+' мм':task.kind==='rect'?
   fmt(v.width,1)+' × '+fmt(v.height,1)+' мм':'R '+fmt(v.radius,1)+' мм';
- return shape+(mode==='quest'?'':'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>');
+ return shape+(mode==='quest'?examLiveReadout(task,draft):
+  '<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>');
 }
 
 // Lesson 01 uses the EXACT sandbox drawing engine; no duplicate tool models.
@@ -569,13 +625,16 @@ function geometryScene(){
   else if(task.kind==='rect')
    scene+='<rect x="'+x+'" y="'+y+'" width="'+goal.dx+'" height="'+goal.dy+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
   else scene+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
- }else scene+='<text x="600" y="214" text-anchor="middle" fill="#d5efeb" font-size="22">ВИКОНАЙ КРЕСЛЕННЯ</text>';
+ }else{
+  scene+=examDrawingGrid();
+  scene+='<text x="600" y="214" text-anchor="middle" fill="#d5efeb" font-size="22">ВИКОНАЙ КРЕСЛЕННЯ</text>';
+ }
  const current=geomAnimating?null:(geomDraft||(geomDone?shapeGoal(task):null));
  scene+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
  scene+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
   '<circle cx="'+x+'" cy="'+y+'" r="29" class="m01-geom-handle" data-geom-start="true"'+
   ' fill="transparent" stroke="#c7ffa7" stroke-width="2" stroke-dasharray="5 6" tabindex="0"'+
-  ' role="button" aria-label="Початок побудови. Утримуй та переміщуй курсор, або використай стрілки й Enter"/>';
+  ' role="button" aria-label="Початок побудови. Утримуй та переміщуй курсор. Звертай увагу на міліметрові лінійки та поточні розміри. Також доступні стрілки й Enter"/>';
  if(!quest)scene+='<text x="'+x+'" y="'+(y-43)+'" text-anchor="middle" fill="#d6f6da" font-size="15">ПОЧАТОК</text>';
  if(geomDone&&!quest)scene+='<text x="600" y="578" text-anchor="middle" fill="#b5fa8f" font-size="17">✓ Побудову виконано · Далі →</text>';
  return scene;
@@ -596,7 +655,10 @@ function finishGeometry(draft){
    'R '+fmt(values.radius,1)+' мм';
   if(mode==='quest')questMistake('Неточна побудова. Перевір свої розміри та повтори.');
   else announce('Поки '+value+'. Потрібно '+shapeDescription(task)+'. Спробуй ще раз.');
-  geomDraft=null;updateGeometryPreview();
+  // Keep the unsuccessful shape + its real measurements visible for review.
+  // A new drag from the anchor begins a fresh attempt.
+  if(mode==='quest')geomDraft=draft;else geomDraft=null;
+  updateGeometryPreview();
   return;
  }
  startDraftingAnimation(task);
@@ -613,7 +675,10 @@ function geometryMove(e){
  if(geomPointer!==e.pointerId)return false;
  const p=clientToSvg(e),task=geometryTask();
  if(p&&task){
-  geomDraft=shapeParameters(task,{dx:p.x-DRAW_ORIGIN.x,dy:p.y-DRAW_ORIGIN.y});
+  const dx=p.x-DRAW_ORIGIN.x,dy=p.y-DRAW_ORIGIN.y;
+  // Uniform 1 mm snapping, NOT snapping to the secret correct dimension.
+  geomDraft=shapeParameters(task,{dx:mode==='quest'?Math.round(dx/MM)*MM:dx,
+   dy:mode==='quest'?Math.round(dy/MM)*MM:dy});
   updateGeometryPreview();
  }
  return true;
