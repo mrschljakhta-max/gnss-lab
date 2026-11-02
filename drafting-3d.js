@@ -25,7 +25,7 @@ stageEl.append(canvas,fallback);board.append(stageEl);
 const hint=document.createElement('div');hint.className='gnss-draft-feedback';board.append(hint);
 let mode='demo',tool='line',step=0,complete=false,first=null,cursor=null,motion=null;
 let animationHandle=0,demoInit=false,three=null,renderer=null,scene=null,camera=null,light=null,ruler=null,pencil=null,compass=null,eraser=null,eraserMotion=null;
-let ctx=null,ratio=1,w=0,h=0;
+let ctx=null,ratio=1,w=0,h=0,threeInitPromise=null;
 let shapePlayback=null,lessonPlayback=null;
 const COMPASS_INITIAL=20;
 // Orthographic calibration: 1 mm = 3 SVG units, exactly 150 mm on one ruler.
@@ -255,10 +255,23 @@ document.addEventListener('keydown',e=>{
 },true);
 function resize(){
  const b=board.getBoundingClientRect();
- w=Math.max(1,Math.round(b.width));h=Math.max(1,Math.round(b.height));
- ratio=Math.min(2,window.devicePixelRatio||1);
- fallback.width=Math.round(w*ratio);fallback.height=Math.round(h*ratio);
- if(renderer){renderer.setPixelRatio(ratio);renderer.setSize(w,h,false);camera.left=0;camera.right=w;camera.top=0;camera.bottom=h;camera.updateProjectionMatrix()}
+ const nextW=Math.max(1,Math.round(b.width)),nextH=Math.max(1,Math.round(b.height));
+ const nextRatio=Math.min(2,window.devicePixelRatio||1);
+ // Avoid reallocating large Canvas and WebGL backing buffers on spurious
+ // ResizeObserver callbacks (DevTools and browser-side panels trigger many).
+ const same=nextW===w&&nextH===h&&nextRatio===ratio;
+ if(same)return;
+ const ratioChanged=nextRatio!==ratio;
+ w=nextW;h=nextH;ratio=nextRatio;
+ const bufferW=Math.round(w*ratio),bufferH=Math.round(h*ratio);
+ if(fallback.width!==bufferW)fallback.width=bufferW;
+ if(fallback.height!==bufferH)fallback.height=bufferH;
+ if(renderer){
+  if(ratioChanged)renderer.setPixelRatio(ratio);
+  renderer.setSize(w,h,false);
+  camera.left=0;camera.right=w;camera.top=0;camera.bottom=h;
+  camera.updateProjectionMatrix();
+ }
 }
 window.addEventListener('resize',resize);
 if(typeof ResizeObserver!=='undefined')new ResizeObserver(resize).observe(board);
@@ -282,7 +295,11 @@ async function init3D(){
   light.position.set(-300,-320,700);scene.add(light);
   ruler=buildRuler();pencil=buildPencil();compass=buildCompass();eraser=buildEraser();
   scene.add(ruler,pencil,compass,eraser);ruler.visible=pencil.visible=compass.visible=eraser.visible=false;
-  fallback.style.display='none';canvas.style.display='block';resize();
+  // Loading can finish after a short animation has already ended. Don't
+  // display idle 3D layers when the mission is on a completion screen.
+  if(motion||eraserMotion){fallback.style.display='none';canvas.style.display='block'}
+  else{fallback.style.display='none';canvas.style.display='none'}
+  resize();
  }catch(err){
   renderer=null;three=null;
   canvas.style.display='none';fallback.style.display='block';
@@ -655,6 +672,10 @@ function buildEraser(){
  return g;
 }
 function showStage(){
+ // Only load Three.js and allocate a GPU context when the user actually
+ // animates an instrument. Previously every open GNSS LAB tab allocated it,
+ // including completed tests and dozens of background tabs.
+ if(!threeInitPromise)threeInitPromise=init3D();
  stageEl.classList.add('is-playing');
  if(renderer){canvas.style.display='block';fallback.style.display='none'}
  else{canvas.style.display='none';fallback.style.display='block'}
@@ -1259,7 +1280,7 @@ document.addEventListener('gnss:draft-state',e=>{
  if(e.detail?.mode==='demo'&&!demoInit)setTimeout(startDemo,160);
  if(e.detail?.mode!=='demo')demoInit=false;
 });
-init3D();
+// WebGL initializes lazily on the first actual tool animation.
 // On reload, read the already-selected mode/tool even if its initial event fired earlier.
 document.dispatchEvent(new CustomEvent('gnss:request-draft-state'));
 document.body.classList.toggle('gnss-draft-working',interactive());
