@@ -169,7 +169,7 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?1:raw=
     '<rect x="'+(x-82)+'" y="'+(y+27)+'" width="164" height="164" rx="15" fill="#061821" stroke="#5e777e" stroke-width="5"/>'+
     '<rect x="'+(x-73)+'" y="'+(y+37)+'" width="146" height="145" rx="9" fill="url(#m03RadioScreen)" stroke="#284c58" stroke-width="2"/>'+
     '<path d="M'+(x-67)+' '+(y+47)+'Q'+(x-12)+' '+(y+33)+' '+(x+62)+' '+(y+47)+'" fill="none" stroke="#8cc6d1" opacity=".18" stroke-width="3"/>'+
-    '<g fill="#e0f7fb" text-anchor="middle" font-family="Inter,system-ui,sans-serif"><text x="'+x+'" y="'+(y+65)+'" font-size="13" font-weight="800">'+(i===0?'ПЕРЕДАВАЧ':'ПРИЙМАЧ')+'</text><text x="'+x+'" y="'+(y+142)+'" font-size="19" font-weight="800">'+fmt(value,1)+' МГц</text></g>';
+    '<g fill="#e0f7fb" text-anchor="middle" font-family="Inter,system-ui,sans-serif"><text x="'+x+'" y="'+(y+65)+'" font-size="13" font-weight="800">'+(i===0?'ПЕРЕДАВАЧ':'ПРИЙМАЧ')+'</text><text x="'+x+'" y="'+(y+142)+'" font-size="19" font-weight="800">'+(mode==='quest'&&save.q===4&&i===0?'•••':fmt(value,1))+' МГц</text></g>';
    if(i===0)shapes+='<path d="M'+x+' '+(y+87)+'v29m-10-22q-12 9 0 17m20-17q12 9 0 17m-29-26q-21 20 0 39m38-39q21 20 0 39" stroke="#80dafa" stroke-width="2.4" fill="none"/>';
    else{
     const wave=Array.from({length:75},(_,j)=>{const px=x-60+j*1.62,py=y+107-(2+radioLock*13)*Math.sin(j*.48+radioClock*10);return (j?'L':'M')+px.toFixed(1)+' '+py.toFixed(1)}).join(' ');
@@ -254,11 +254,11 @@ root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)r
  if(act==='sandbox'){if(typeof window.GNSSLabSwitchMode==='function')window.GNSSLabSwitchMode('explore');else document.querySelector('#expModes [data-mode="explore"]')?.click();return}
  if(act==='check'&&mode==='quest'){
   const n=save.q;
-  if(n===0){if(Math.abs(freq-4)<.01&&started)grade(20);return}
-  if(n===1){if(waterTouches.length>=2&&waterActivated)grade(20);return}
-  if(n===2){if(Math.abs(amp-.6)<.01&&Math.abs(freq-3)<.01&&ampAdjusted&&started)grade(20);return}
-  if(n===3){const v=Number(($('m03Answer')?.value||'').replace(',','.'));const dt=Math.abs(markers[1]-markers[0])*5;if(dt>.05&&Math.abs(dt-.5)<.12&&Math.abs(v-2)<.15)grade(20);return}
-  if(n===4){if(Math.abs(tx-receiver)<.051&&radioWasOff)grade(20);return}
+  if(n===0){grade((Math.abs(freq-4)<.01?10:0)+(started?10:0));return}
+  if(n===1){grade((waterTouches.length>=2?10:waterTouches.length?5:0)+(waterActivated?10:0));return}
+  if(n===2){grade((Math.abs(amp-.6)<.01&&ampAdjusted?10:0)+(Math.abs(freq-3)<.01?5:0)+(started?5:0));return}
+  if(n===3){const raw=($('m03Answer')?.value||'').trim();const v=Number(raw.replace(',','.'));const dt=Math.abs(markers[1]-markers[0])*5;grade((dt>.05&&Math.abs(dt-.5)<.12?10:0)+(raw!==''&&Math.abs(v-2)<.15?10:0));return}
+  if(n===4){grade((Math.abs(tx-receiver)<.051?20:0));return}
  }
 });
 panel.addEventListener('input',e=>{const key=e.target.dataset.key;if(!key)return;const val=Number(e.target.value);if(!Number.isFinite(val))return;({freq:()=>freq=val,amp:()=>amp=val,f2:()=>frequency2=val,receiver:()=>receiver=val,tx:()=>tx=val}[key]||(()=>{}))();const o=e.target.closest('label')?.querySelector('output');if(o)o.textContent=fmt(val,key==='freq'&&val%1===0?0:1)+(key==='freq'||key==='f2'?' Гц':key==='tx'||key==='receiver'?' МГц':'');if(mode==='demo')markDone();if(mode==='quest'&&key==='amp')ampAdjusted=true;if(mode==='quest'&&key==='receiver'&&Math.abs(tx-receiver)>.15)radioWasOff=true;draw()});
