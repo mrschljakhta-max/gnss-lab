@@ -845,6 +845,7 @@ function render(){
 // A compact, dedicated answer dock shared by training, final block and assessment.
 function measurementAnswerView(){
  if(!caliperStep()||calibration()||!canMeasure())return '';
+ if(mode==='quest'&&Number.isFinite(memory.quest?.readings?.[part]))return '';
  if(mode==='demo'&&memory.scene===2&&answers[part]===target())return '';
  if(mode==='demo'&&memory.scene===6&&dimensionReadings[DIMENSIONS[dimensionIndex].id]===target())return '';
  return '<input id="m01Value" type="text" inputmode="decimal" autocomplete="off"'+
@@ -874,24 +875,13 @@ function setAssessment(index){
  cancelAdvanceTimer();
  memory.assessment=clamp(index,0,4);persist();resetStep();render();
 }
-function onSuccess(){
- if(mode==='quest'){
-  const next=memory.assessment+1;
-  setAssessment(next);
-  if(next===4){
-   memory.passed=true;persist();
-   document.dispatchEvent(new CustomEvent('gnss:mission-one-complete',{detail:{mission:1,completed:true,attempts:memory.assessmentAttempts}}));
-   announce('✓ Практичний залік завершено. Усі чотири навички підтверджено.',true);
-  }else announce('✓ Правильно! Наступна практична задача.',true);
- }else success();
-}
 function check(){
  const text=el('m01Value'),value=text?parse(text.value):NaN;
  if(!Number.isFinite(value)){announce('Введи відлік штангенциркуля в міліметрах.');return}
  let expected=null;
  if(mode==='quest'){
-  expected=memory.assessment===0?assessmentTarget:null;
-  if(memory.assessment===0&&!canMeasure()){announce('Спочатку правильно встанови та зведи губки до контакту.');return}
+  expected=memory.assessment===1?target():null;
+  if(memory.assessment===1&&!canMeasure()){announce('Спочатку підведи губку до деталі й відпусти каретку.');return}
  }else if(memory.scene===2){
   if(!canMeasure()){announce('Вимірювання зараховується лише після контакту губок.');return}
   expected=target();
@@ -902,11 +892,23 @@ function check(){
  }
  const tolerance=Math.abs(expected)>=30?(mode==='quest'&&memory.assessment===0?0.5:0.5):0.00001;
  if(expected===null||Math.abs(value-expected)>tolerance){
-  roundAttempts++;if(mode==='quest'){memory.assessmentAttempts++;persist()}
-  announce('Поки не збігається. Перевір шкалу й зчитай довжину в мм.');
+  roundAttempts++;
+  if(mode==='quest')questMistake('Неточний відлік. Звір шкалу й повтори вимірювання.');
+  else announce('Поки не збігається. Перевір шкалу й зчитай довжину в мм.');
   return;
  }
- if(mode==='quest'){onSuccess();return}
+ if(mode==='quest'){
+  if(memory.assessment!==1)return;
+  memory.quest.readings[part]=value;
+  if(!Number.isFinite(memory.quest.readings.b)){
+   part='b';gap=target()+24;caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';
+  }else caliperPhase='success';
+  persist();render();
+  announce(Number.isFinite(memory.quest.readings.b)?
+   'Обидві деталі виміряно. Обери придатну за замовленням.':
+   'Відлік деталі A записано. Тепер виміряй B.',true);
+  return;
+ }
  if(memory.scene===2){
   answers[part]=target();
   const doneA=answers.a===50,doneB=answers.b===54;
@@ -942,6 +944,7 @@ function finishCaliperMotion(){
  if(settledContact){
   caliperPhase=calibration()?'success':'answer';
   if(calibration()){
+   if(mode==='quest'){finishQuestStation('Штангенциркуль зведено до нуля.');return}
    success('✓ Нуль установлено.');
    // Calibration is preparation, not a destination. Show the specimen automatically.
    cancelAdvanceTimer();
@@ -1033,7 +1036,7 @@ function endManualTurn(event,cancelled=false){
 function resetMissionToStart(){
  // Reset Mission 01 only. Keep the sandbox and other lessons untouched.
  cancelChoiceTimer();cancelAdvanceTimer();stopTurnAnimation();cancelDraftingAnimation();
- memory={...initial,completed:[],skipped:[],dimensionProgress:{},geometryProgress:{}};
+ memory={...initial,completed:[],skipped:[],dimensionProgress:{},geometryProgress:{},quest:newQuest(Math.floor(Math.random()*QUEST_VARIANTS.length))};
  persist();
  // Completed assessments stay in Quest mode unless we switch the active tab.
  if(mode!=='demo'||document.body.dataset.expMode!=='demo'){
@@ -1046,11 +1049,29 @@ function resetMissionToStart(){
 }
 function respond(act){
  if(act==='restart-all'){resetMissionToStart();return}
+ if(act==='quest-retry'&&mode==='quest'){startFreshQuest();return}
+ if(mode==='quest'&&memory.assessment===1&&(act==='pick-a'||act==='pick-b')){
+  const q=memory.quest,v=questVariant(),partSelected=act.slice(-1);
+  if(!Number.isFinite(q.readings.a)||!Number.isFinite(q.readings.b))return;
+  if(Math.abs(q.readings[partSelected]-v.length)>0.5){
+   questMistake('Деталь не відповідає допуску. Звір два вимірювання та спробуй ще раз.');return;
+  }
+  q.identified=partSelected;finishQuestStation('Виміряно обидві деталі та обрано придатну.');return;
+ }
+ if(mode==='quest'&&memory.assessment===4&&act.startsWith('flaw-')){
+  const axis=act.slice(5);
+  if(axis!==questVariant().flaw){
+   questMistake('Перевір розміри креслення за шкалою ще раз.');return;
+  }
+  memory.quest.diagnosis=axis;persist();resetStep();render();
+  announce('Знайдено неправильну сторону. Побудуй виправлений прямокутник.',true);
+  return;
+ }
  if(act==='hint'){hintLevel=Math.min(3,hintLevel+1);render();return}
  if(act==='show'){hintLevel=3;render();return}
  if(act==='skip'&&mode==='demo'){if(!memory.skipped.includes(memory.scene))memory.skipped.push(memory.scene);setScene(memory.scene+1);return}
  if(act==='next'){
-  if(mode==='quest'&&memory.assessment===4){document.querySelector('#expModes [data-mode="explore"]')?.click();return}
+  if(mode==='quest'&&memory.assessment===5){document.querySelector('#expModes [data-mode="explore"]')?.click();return}
   if(mode==='demo'&&sceneComplete()){
    if(memory.scene===7){
     if(firstUnfinished()<7){setScene(firstUnfinished());return}
