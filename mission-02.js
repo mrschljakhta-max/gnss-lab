@@ -370,7 +370,11 @@ function handle(action){
  case 'help':notify(mode==='quest'?'Виміряй сам. Не потрібно вгадувати момент кліку.':'Спочатку дія — потім спостереження.');break;
  case 'drag-hint':notify('Відтягни кульку маятника курсором і відпусти.');break;
  case 'restart-demo':saved.stage=0;saved.lessonDone=[];store();resetPhysics();render();break;
- case 'new-exam':saved=fresh((saved.seed+1)%variants.length);store();resetPhysics();render();break;
+ case 'new-exam':{
+  const old=saved;saved=fresh((old.seed+1)%variants.length);
+  saved.stage=old.stage;saved.lessonDone=[...old.lessonDone];
+  store();resetPhysics();render();break;
+ }
  case 'sandbox':sandbox();break;
  }
 }
