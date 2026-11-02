@@ -140,7 +140,7 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
 
  else{
   const tuned=Math.abs(tx-receiver)<.15;
-  shapes+='<defs><linearGradient id="m03RadioCase" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#53636a"/><stop offset=".15" stop-color="#1e303b"/><stop offset=".58" stop-color="#172730"/><stop offset="1" stop-color="#081820"/></linearGradient><linearGradient id="m03RadioRim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#899a9f"/><stop offset=".4" stop-color="#243c47"/><stop offset="1" stop-color="#6e7e7d"/></linearGradient><linearGradient id="m03RadioScreen" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#001624"/><stop offset="1" stop-color="#073448"/></linearGradient></defs>';
+  shapes+='<defs><linearGradient id="m03RadioCase" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#53636a"/><stop offset=".15" stop-color="#1e303b"/><stop offset=".58" stop-color="#172730"/><stop offset="1" stop-color="#081820"/></linearGradient><linearGradient id="m03RadioRim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#899a9f"/><stop offset=".4" stop-color="#243c47"/><stop offset="1" stop-color="#6e7e7d"/></linearGradient><linearGradient id="m03RadioOrange" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffb04d"/><stop offset=".45" stop-color="#f27c21"/><stop offset="1" stop-color="#9c3c0c"/></linearGradient><linearGradient id="m03RadioScreen" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#001624"/><stop offset="1" stop-color="#073448"/></linearGradient></defs>';
   for(const [i,x,value] of [[0,335,tx],[1,870,receiver]]){
    const y=244,w=205,h=352,receiving=i===1&&tuned;
    shapes+='<g class="m03-radio">'+
@@ -150,8 +150,15 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
     '<rect x="'+(x-22)+'" y="213" width="27" height="30" rx="6" fill="#111d26" stroke="#687981" stroke-width="2"/>'+
     '<rect x="'+(x+29)+'" y="212" width="28" height="31" rx="7" fill="#111c24" stroke="#6c7b80" stroke-width="2"/>'+
     '<path d="M'+(x-91)+' '+y+'H'+(x+90)+'Q'+(x+102)+' '+y+' '+(x+102)+' '+(y+22)+'V'+(y+h-23)+'Q'+(x+102)+' '+(y+h)+' '+(x+78)+' '+(y+h)+'H'+(x-79)+'Q'+(x-102)+' '+(y+h)+' '+(x-102)+' '+(y+h-23)+'V'+(y+22)+'Q'+(x-102)+' '+y+' '+(x-91)+' '+y+'Z" fill="url(#m03RadioCase)" stroke="url(#m03RadioRim)" stroke-width="7"/>'+
+    '<path d="M'+(x-96)+' '+(y+22)+'L'+(x-79)+' '+(y+6)+'H'+(x+79)+'L'+(x+96)+' '+(y+22)+'V'+(y+91)+'L'+(x+87)+' '+(y+84)+'V'+(y+28)+'H'+(x-87)+'V'+(y+84)+'L'+(x-96)+' '+(y+91)+'Z" fill="#50616a" opacity=".42"/>'+
+    '<path d="M'+(x-100)+' '+(y+83)+'L'+(x-83)+' '+(y+94)+'V'+(y+273)+'L'+(x-101)+' '+(y+293)+'Z" fill="#0b151c" stroke="#3c4a50" stroke-width="1.5"/>'+
+    '<rect x="'+(x-113)+'" y="'+(y+96)+'" width="17" height="70" rx="5" fill="url(#m03RadioOrange)" stroke="#ab4b18" stroke-width="2"/>'+
+    '<path d="M'+(x-108)+' '+(y+104)+'V'+(y+151)+'" stroke="#ffd18b" stroke-width="2" opacity=".68"/>'+
+    '<rect x="'+(x+96)+'" y="'+(y+100)+'" width="11" height="54" rx="4" fill="url(#m03RadioOrange)" stroke="#a64e19" stroke-width="1.5"/>'+
+    '<path d="M'+(x-90)+' '+(y+12)+'L'+(x-78)+' '+(y+2)+'M'+(x+79)+' '+(y+2)+'L'+(x+92)+' '+(y+16)+'" stroke="#9db0b2" stroke-width="3" opacity=".7"/>'+
     '<rect x="'+(x-82)+'" y="'+(y+27)+'" width="164" height="164" rx="15" fill="#061821" stroke="#5e777e" stroke-width="5"/>'+
     '<rect x="'+(x-73)+'" y="'+(y+37)+'" width="146" height="145" rx="9" fill="url(#m03RadioScreen)" stroke="#284c58" stroke-width="2"/>'+
+    '<path d="M'+(x-67)+' '+(y+47)+'Q'+(x-12)+' '+(y+33)+' '+(x+62)+' '+(y+47)+'" fill="none" stroke="#8cc6d1" opacity=".18" stroke-width="3"/>'+
     '<g fill="#e0f7fb" text-anchor="middle" font-family="Inter,system-ui,sans-serif"><text x="'+x+'" y="'+(y+65)+'" font-size="13" font-weight="800">'+(i===0?'ПЕРЕДАВАЧ':'ПРИЙМАЧ')+'</text><text x="'+x+'" y="'+(y+142)+'" font-size="19" font-weight="800">'+fmt(value,1)+' МГц</text></g>';
    if(i===0)shapes+='<path d="M'+x+' '+(y+87)+'v29m-10-22q-12 9 0 17m20-17q12 9 0 17m-29-26q-21 20 0 39m38-39q21 20 0 39" stroke="#80dafa" stroke-width="2.4" fill="none"/>';
    else{
@@ -162,7 +169,9 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
     '<rect x="'+(x-65)+'" y="'+(y+157)+'" width="'+(i===0?110:receiving?125:15)+'" height="8" rx="4" fill="'+(i===0||receiving?'#9bf07d':'#526f7d')+'"/>';
    for(let j=0;j<3;j++)shapes+='<rect x="'+(x-63+j*47)+'" y="'+(y+209)+'" width="39" height="30" rx="8" fill="#283c46" stroke="#7d9298" stroke-width="1.5"/>';
    shapes+='<g fill="#e7eff0" font-size="10" font-family="Inter,system-ui,sans-serif" text-anchor="middle"><text x="'+(x-43)+'" y="'+(y+228)+'">MENU</text><text x="'+(x+4)+'" y="'+(y+228)+'">◆</text><text x="'+(x+52)+'" y="'+(y+228)+'">OK</text></g>';
-   for(let j=0;j<4;j++)shapes+='<rect x="'+(x-68)+'" y="'+(y+265+j*15)+'" width="136" height="7" rx="3.5" fill="#071820" stroke="#52636b" stroke-width="1"/>';
+   for(let j=0;j<5;j++)shapes+='<rect x="'+(x-68)+'" y="'+(y+260+j*15)+'" width="136" height="8" rx="4" fill="#050e15" stroke="#475c65" stroke-width="1.4"/>'+
+      '<path d="M'+(x-64)+' '+(y+262+j*15)+'H'+(x+63)+'" stroke="#9fb2b4" stroke-width=".8" opacity=".28"/>';
+   for(let j=0;j<7;j++)shapes+='<path d="M'+(x-93)+' '+(y+198+j*13)+'h8M'+(x+85)+' '+(y+198+j*13)+'h8" stroke="#849498" stroke-width="1.2" opacity=".45"/>';
    shapes+='</g>';
   }
   for(let j=0;j<4;j++){
