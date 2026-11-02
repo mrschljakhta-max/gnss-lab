@@ -460,11 +460,17 @@ function resultMarkup(){
 // Reuse detailed physical-scene models for faithful high-fidelity thumbnails.
 // All SVG IDs are prefixed to avoid collisions with the active laboratory instruments.
 function sandboxToolArt(id){
- const art=id==='watch'?stopwatchSvg():id==='cart'?cartSvg():pendulumSvg();
- const box=id==='watch'?'110 206 185 213':id==='cart'?'333 333 116 91':'534 177 256 326';
- return '<svg viewBox="'+box+'" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet">'+
-  art.replaceAll('m02','m02Dock').replace(/ data-drag="[^"]*"/g,'').replace(/ tabindex="[^"]*"/g,'').replace(/ role="button"/g,'')+
-  '</svg>';
+ const scene=id==='watch'?stopwatchSvg():id==='cart'?cartSvg():pendulumSvg();
+ let art=scene;
+ if(id==='cart'){
+  const start=scene.indexOf('<g id="m02MovingCart"');
+  const end=scene.indexOf('</g>',start);
+  const defsEnd=scene.indexOf('</defs>');
+  art=(defsEnd>=0?scene.slice(0,defsEnd+7):'')+(start>=0&&end>start?scene.slice(start,end+4):'');
+ }
+ const box=id==='watch'?'110 206 185 213':id==='cart'?'330 310 112 84':'534 177 256 326';
+ return '<svg viewBox="'+box+'" aria-hidden="true" focusable="false">'+
+  art.replaceAll('m02','m02Dock').replace(/ data-drag="[^"]*"/g,'')+'</svg>';
 }
 
 function renderSandboxDock(){
