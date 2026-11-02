@@ -187,16 +187,43 @@ function resetTrial(){
  state.pendulum.elapsed=0;state.pendulum.cycles=0;state.pendulum.running=false;state.pendulum.theta=.55;
  state.finishTimes=[];state.trial=0;state.questReady=false;state.demoComplete=false;render();
 }
+// Premium vector interpretation of the GNSS LAB mechanical stopwatch artwork.
+// One static SVG body; the second hand remains the sole animated dial element.
 const stopwatchSvg=()=>{
- const v=time(),hand=(v%60)/60*TAU,xx=203+Math.sin(hand)*59,yy=325-Math.cos(hand)*59;
- let tick='';for(let i=0;i<60;i++){let a=i/60*TAU,s=i%5===0?7:3;
- tick+='<line x1="'+(203+Math.sin(a)*(73-s))+'" y1="'+(325-Math.cos(a)*(73-s))+'" x2="'+(203+Math.sin(a)*74)+'" y2="'+(325-Math.cos(a)*74)+'" stroke="#436375" stroke-width="'+(i%5===0?2:1)+'"/>'}
- return '<ellipse cx="206" cy="416" rx="83" ry="12" fill="#001c30" opacity=".35"/>'+
- '<circle cx="203" cy="325" r="84" fill="#c7d5d5" stroke="#436d79" stroke-width="5"/>'+
- '<circle cx="203" cy="325" r="75" fill="#f4f8f3" stroke="#a7c3c3" stroke-width="2"/>'+tick+
- '<path d="M195 237h16v-12h-16z" fill="#a5b9bd" stroke="#607d8b"/>'+
- '<line id="m02Hand" x1="203" y1="325" x2="'+xx+'" y2="'+yy+'" stroke="#bb455a" stroke-width="3.7" stroke-linecap="round"/>'+
- '<circle cx="203" cy="325" r="6" fill="#385767"/>'+
+ const v=time(),hand=(v%60)/60*TAU,cx=203,cy=325;
+ const xx=cx+Math.sin(hand)*59,yy=cy-Math.cos(hand)*59;
+ let tick='';
+ for(let i=0;i<60;i++){
+  const a=i/60*TAU,major=i%15===0,medium=i%5===0;
+  const inner=major?61:medium?65:69,outer=74;
+  tick+='<line x1="'+(cx+Math.sin(a)*inner).toFixed(2)+'" y1="'+(cy-Math.cos(a)*inner).toFixed(2)+'" x2="'+(cx+Math.sin(a)*outer).toFixed(2)+'" y2="'+(cy-Math.cos(a)*outer).toFixed(2)+'" stroke="'+(major?'#26363c':'#39484d')+'" stroke-width="'+(major?2.8:medium?1.9:1.05)+'" stroke-linecap="round"/>';
+ }
+ return '<defs>'+
+ '<linearGradient id="m02Chrome" x1="0" y1="0" x2="1" y2=".9"><stop offset="0" stop-color="#4b5c64"/><stop offset=".13" stop-color="#e8f0f2"/><stop offset=".28" stop-color="#879aa1"/><stop offset=".47" stop-color="#fff"/><stop offset=".63" stop-color="#9eacb0"/><stop offset=".8" stop-color="#3b505a"/><stop offset="1" stop-color="#c3d1d2"/></linearGradient>'+
+ '<linearGradient id="m02Bezel" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f5ffff"/><stop offset=".24" stop-color="#607984"/><stop offset=".48" stop-color="#e0e9e8"/><stop offset=".7" stop-color="#5a7079"/><stop offset="1" stop-color="#f2fcfb"/></linearGradient>'+
+ '<radialGradient id="m02Dial" cx=".35" cy=".26" r=".85"><stop offset="0" stop-color="#fff"/><stop offset=".68" stop-color="#f5f5f2"/><stop offset="1" stop-color="#dae2e1"/></radialGradient>'+
+ '<linearGradient id="m02Crown" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#4e6068"/><stop offset=".2" stop-color="#f1f8f7"/><stop offset=".52" stop-color="#798d94"/><stop offset=".8" stop-color="#f7ffff"/><stop offset="1" stop-color="#455962"/></linearGradient>'+
+ '<radialGradient id="m02Pin"><stop offset="0" stop-color="#ffffff"/><stop offset=".45" stop-color="#acb6ba"/><stop offset="1" stop-color="#34444b"/></radialGradient>'+
+ '</defs>'+
+ '<ellipse cx="205" cy="413" rx="87" ry="12" fill="#001b2a" opacity=".33"/>'+
+ // Steel hanging ring, crown, and side push button.
+ '<path d="M187 231V218a16 16 0 0 1 32 0v13" fill="none" stroke="#263c45" stroke-width="7"/>'+
+ '<path d="M187 231V218a16 16 0 0 1 32 0v13" fill="none" stroke="url(#m02Chrome)" stroke-width="4"/>'+
+ '<rect x="194" y="225" width="18" height="17" rx="3" fill="url(#m02Crown)" stroke="#3c535d" stroke-width="1.3"/>'+
+ Array.from({length:8},(_,i)=>'<line x1="'+(196+i*2)+'" y1="227" x2="'+(196+i*2)+'" y2="238" stroke="#526771" stroke-opacity=".8" stroke-width=".7"/>').join('')+
+ '<g transform="translate(264 255) rotate(38)"><rect x="-7" y="-18" width="14" height="26" rx="4" fill="url(#m02Crown)" stroke="#374f59"/><rect x="-10" y="-21" width="20" height="9" rx="2" fill="url(#m02Chrome)" stroke="#40535a"/></g>'+
+ // Multiple concentric machined rings make the case dimensional.
+ '<circle cx="203" cy="325" r="87" fill="#16394b" opacity=".55"/>'+
+ '<circle cx="203" cy="325" r="86" fill="url(#m02Chrome)" stroke="#344e59" stroke-width="1.7"/>'+
+ '<circle cx="203" cy="325" r="81.5" fill="none" stroke="#e9f3f2" stroke-opacity=".8" stroke-width="1.2"/>'+
+ '<circle cx="203" cy="325" r="79" fill="url(#m02Bezel)" stroke="#455d66" stroke-width="1.2"/>'+
+ '<circle cx="203" cy="325" r="75.5" fill="url(#m02Dial)" stroke="#85989d" stroke-width="1.4"/>'+
+ '<circle cx="203" cy="325" r="73.7" fill="none" stroke="#ffffff" stroke-opacity=".7" stroke-width=".9"/>'+
+ tick+
+ '<path d="M154 272Q175 252 212 253" stroke="#fff" stroke-opacity=".4" stroke-width="3" fill="none" stroke-linecap="round"/>'+
+ '<line id="m02Hand" x1="203" y1="325" x2="'+xx+'" y2="'+yy+'" stroke="#c72e45" stroke-width="2.7" stroke-linecap="round"/>'+
+ '<circle cx="203" cy="325" r="6.2" fill="#344d57" stroke="#d7e4e2" stroke-width=".8"/>'+
+ '<circle cx="203" cy="325" r="4.6" fill="url(#m02Pin)" stroke="#58666a" stroke-width=".65"/>'+
  '<text x="203" y="452" fill="#d6f0eb" font-size="16" text-anchor="middle">СЕКУНДОМІР</text>'+
  '<text id="m02FaceTime" x="203" y="479" fill="#bcf39c" font-weight="800" font-size="27" text-anchor="middle">'+round(v,1)+' с</text>';
 };
