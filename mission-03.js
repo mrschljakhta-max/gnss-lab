@@ -112,7 +112,31 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
    shapes+='<circle cx="'+x+'" cy="'+y+'" r="8" fill="url(#m03Chrome)" stroke="#bde8ef" stroke-width="1.2"/><circle cx="'+x+'" cy="'+y+'" r="2.2" fill="#537888"/>';
  }
  else if(wave){shapes+='<path d="'+line(freq,amp*95,320,time*freq*2)+'" stroke="#b8f687" stroke-width="4" fill="none"/>';if(mode==='quest'&&raw===1)shapes+='<path d="'+line(freq,amp*40,460,time*freq*2)+'" stroke="#7cc5e0" stroke-width="4" fill="none"/>';if(n===3){shapes+='<path d="M90 180V520H1120" fill="none" stroke="#92b6bf" stroke-width="2"/>';for(const [i,m] of markers.entries())shapes+='<line data-marker="'+i+'" x1="'+(90+m*1030)+'" x2="'+(90+m*1030)+'" y1="180" y2="520" stroke="'+(i===0?'#f1c681':'#8dd3eb')+'" stroke-width="3" stroke-dasharray="6 5" style="cursor:ew-resize"/>'}}
- else if(n===4){for(const [x,f] of [[430,freq],[790,frequency2]]){const spread=50*(1/(1+(f-frequency2)*(f-frequency2)*2));const offset=started?Math.sin(time*f*4)*spread:0;shapes+='<path d="M'+(x-24+offset)+' 200L'+x+' 430L'+(x+24+offset)+' 200" fill="none" stroke="#d8e6e2" stroke-width="9"/><rect x="'+(x-70)+'" y="433" width="140" height="18" fill="#7e9ba4"/>'}}
+ else if(n===4){
+  // Two independently animated, machined-steel tuning forks on weighted feet.
+  shapes+='<defs>'+
+   '<linearGradient id="m03ForkSteel" x1="0" x2="1"><stop stop-color="#71858f"/><stop offset=".17" stop-color="#f2faf9"/><stop offset=".34" stop-color="#aabdc4"/><stop offset=".56" stop-color="#fff"/><stop offset=".77" stop-color="#879ca7"/><stop offset="1" stop-color="#e3f0f1"/></linearGradient>'+
+   '<linearGradient id="m03ForkFoot" x1="0" y1="0" x2=".16" y2="1"><stop stop-color="#e2eff0"/><stop offset=".16" stop-color="#899da7"/><stop offset=".75" stop-color="#455968"/><stop offset="1" stop-color="#1c3443"/></linearGradient>'+
+   '<filter id="m03ForkShadow" x="-30%" y="-40%" width="160%" height="190%"><feGaussianBlur stdDeviation="8"/></filter>'+
+   '</defs>';
+  for(const [i,x,f] of [[0,430,freq],[1,790,frequency2]]){
+   const response=i===0?1:1/(1+Math.pow(frequency2-freq,2)*9);
+   const vibration=started?Math.sin(time*(i===0?freq:frequency2)*TAU)*Math.max(.4,4.5*response):0;
+   const left=(x-34-vibration).toFixed(2),right=(x+34+vibration).toFixed(2);
+   shapes+='<g class="m03-tuning-fork" aria-label="Камертон '+(i+1)+'">'+
+    '<ellipse cx="'+x+'" cy="561" rx="137" ry="19" fill="#001625" opacity=".38" filter="url(#m03ForkShadow)"/>'+
+    '<rect x="'+(x-102)+'" y="524" width="204" height="42" rx="9" fill="url(#m03ForkFoot)" stroke="#bbcdd2" stroke-width="2"/>'+
+    '<path d="M'+(x-90)+' 529H'+(x+90)+'" stroke="#f6ffff" stroke-width="2.5" opacity=".68"/>'+
+    '<rect x="'+(x-72)+'" y="563" width="18" height="8" rx="2" fill="#132a37"/>'+
+    '<rect x="'+(x+54)+'" y="563" width="18" height="8" rx="2" fill="#132a37"/>'+
+    '<rect x="'+(x-13)+'" y="505" width="26" height="20" rx="5" fill="url(#m03ForkSteel)" stroke="#d8e9e9"/>'+
+    '<rect x="'+(x-6)+'" y="396" width="12" height="111" rx="5" fill="url(#m03ForkSteel)" stroke="#c6d8da" stroke-width="1.3"/>'+
+    '<path d="M'+left+' 214L'+(x-30-vibration).toFixed(2)+' 365Q'+(x-29)+' 403 '+x+' 404Q'+(x+29)+' 403 '+(x+30+vibration).toFixed(2)+' 365L'+right+' 214" fill="none" stroke="#344c59" stroke-width="24" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<path d="M'+left+' 214L'+(x-30-vibration).toFixed(2)+' 365Q'+(x-29)+' 403 '+x+' 404Q'+(x+29)+' 403 '+(x+30+vibration).toFixed(2)+' 365L'+right+' 214" fill="none" stroke="url(#m03ForkSteel)" stroke-width="20" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<path d="M'+(x-40-vibration).toFixed(2)+' 215L'+(x-36-vibration).toFixed(2)+' 365M'+(x+26+vibration).toFixed(2)+' 365L'+(x+30+vibration).toFixed(2)+' 215" fill="none" stroke="#fff" opacity=".52" stroke-width="2.4"/>'+
+    '</g>';
+  }
+ }
  else{shapes+='<rect x="245" y="225" width="180" height="205" rx="18" fill="#153d50" stroke="#a6cbd2" stroke-width="3"/><rect x="785" y="225" width="180" height="205" rx="18" fill="#153d50" stroke="#a6cbd2" stroke-width="3"/><path d="M335 225V130M875 225V130" stroke="#d1ece8" stroke-width="5"/>';for(let i=0;i<3;i++)shapes+='<path d="M'+(420+i*95)+' 180q55 -45 95 0" fill="none" stroke="'+(Math.abs(tx-receiver)<.15?'#b8f487':'#6b93a2')+'" stroke-width="3"/>'}
  return shapes}
 function draw(){
