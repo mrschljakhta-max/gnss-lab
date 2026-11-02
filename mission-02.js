@@ -336,8 +336,7 @@ const pendulumSvg=()=>{
  '<path id="m02PendStringHighlight" d="M730 218L'+tx+' '+ty+'" stroke="#806c54" stroke-width=".7" opacity=".6"/>'+
  '<circle id="m02PendBall" data-drag="pendulum" cx="'+tx+'" cy="'+ty+'" r="23" fill="url(#m02PendBrass)" stroke="#ffefc8" stroke-width="2" tabindex="0" role="button" aria-label="Відтягни маятник та відпусти" style="cursor:grab"/>'+
  '<ellipse id="m02PendGlint" cx="'+(tx-7)+'" cy="'+(ty-9)+'" rx="6" ry="3.5" fill="#fff7d9" opacity=".4" pointer-events="none"/>'+
- '<text id="m02PendLength" x="760" y="472" font-size="15" fill="#e1f2f4" text-anchor="middle">Довжина '+round(L,1)+' м</text>'+
- '<text id="m02PendCount" x="730" y="516" font-size="18" fill="#b6f28f" font-weight="750" text-anchor="middle">'+p.cycles+' повних циклів</text></g>';
+ '</g>';
 };
 // Static SVG is built once per step. Never replace the draggable ball and
 // 60 stopwatch ticks on every frame: only update the moving coordinates.
@@ -388,7 +387,7 @@ function paint(){
   if(highlight)highlight.setAttribute('d','M730 218L'+x.toFixed(3)+' '+y.toFixed(3));
   if(glint){glint.setAttribute('cx',(x-7).toFixed(3));glint.setAttribute('cy',(y-9).toFixed(3))}
  }
- setReadout('m02PendCount',state.pendulum.cycles+' повних циклів');
+
 
  setReadout('m02Cycles',state.pendulum.cycles+' циклів');
 }
@@ -423,11 +422,10 @@ function controlMarkup(){
   if(n===5||n===6)return '<div class="m02-panel-title">Коливання маятника</div>'+
    '<div class="m02-stat">Відтягни кульку курсором та відпусти.</div>'+
    '<div class="m02-stat" id="m02Cycles">'+state.pendulum.cycles+' циклів</div>'+
-   (n===5?'<div class="m02-stat">Зміни довжину та повтори 5 коливань. Порівняй період.</div>'+
-    state.pendulumSamples.slice(-2).map((v,i)=>'<div class="m02-stat">Вимір '+(state.pendulumSamples.length>1?state.pendulumSamples.length-Math.min(2,state.pendulumSamples.length)+i+1:i+1)+': '+round(v.length,1)+' м · 5 циклів '+round(v.total,1)+' с · 1 цикл '+round(v.period,2)+' с</div>').join(''):'')+
+   (n===5?state.pendulumSamples.slice(-2).map((v,i)=>'<div class="m02-stat">Вимір '+(state.pendulumSamples.length>1?state.pendulumSamples.length-Math.min(2,state.pendulumSamples.length)+i+1:i+1)+': '+round(v.length,1)+' м · 5 циклів '+round(v.total,1)+' с · 1 цикл '+round(v.period,2)+' с</div>').join(''):'')+
    '<label>Довжина <input data-setting="length" type="range" min=".5" max="1.3" step=".1" value="'+state.pendulum.length+'"></label>'+
    button('slow',slow?'Повернути ×1':'Уповільнення ×0,22')+
-   '<div class="m02-stat">Виміряний час: '+round(state.stopwatch.elapsed,1)+' с</div>'+
+
    (n===6?input('m02Period','Час одного циклу','с')+button('check-period','Перевірити'):'');
   return '<div class="m02-panel-title">Дослід завершено</div>'+button('restart-demo','Пройти урок заново')+button('sandbox','Відкрити пісочницю');
  }
