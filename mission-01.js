@@ -548,7 +548,11 @@ function drawnShape(task,draft){
 function cancelDraftingAnimation(){
  const active=geomPlayback;
  geomPlayback=null;geomAnimating=false;
- document.body.classList.remove('gnss-mission-tool-playback');
+ // Avoid scheduling a body-class mutation while already idle. The mission
+ // observes body.class, so redundant writes can starve the browser.
+ if(document.body.classList.contains('gnss-mission-tool-playback')){
+  document.body.classList.remove('gnss-mission-tool-playback');
+ }
  active?.cancel?.();
 }
 function lessonShape(task){
@@ -1325,8 +1329,11 @@ function show(nextMode){
  resetStep();render();
 }
 function hide(){
- stopTurnAnimation();cancelDraftingAnimation();
+ // Crucial: this function is called from a MutationObserver on body.class.
+ // If the overlay is already hidden, do not write to body.class again:
+ // Chrome may queue another observer microtask even for an absent token.
  if(!visible)return;
+ stopTurnAnimation();cancelDraftingAnimation();
  cancelChoiceTimer();cancelAdvanceTimer();visible=false;root.hidden=true;document.body.classList.remove('gnss-mission-active');
  const legacy=document.getElementById('jRestoreRoute');
  if(legacy&&document.body.dataset.expMode==='explore')legacy.hidden=false;
