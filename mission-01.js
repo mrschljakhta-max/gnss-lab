@@ -663,6 +663,23 @@ function mainScene(){
 function controlView(){
  const quest=mode==='quest',step=quest?memory.assessment:memory.scene;
  if(quest&&step>=5)return questResultMarkup();
+ if(quest&&step===1){
+  const q=memory.quest,job=questVariant();
+  const ready=Number.isFinite(q.readings.a)&&Number.isFinite(q.readings.b);
+  return '<div class="m01-control-title">ТЕХНІЧНЕ ЗАМОВЛЕННЯ</div>'+
+   '<div class="m01-quest-target">Довжина '+job.length+' ± 0,5 мм</div>'+
+   '<div class="m01-quest-caption">'+(ready?'Яка деталь придатна?':'Виміряй спочатку A, потім B.')+'</div>'+
+   (ready?'<div class="m01-buttons"><button type="button" data-act="pick-a">Обрати A</button>'+
+    '<button type="button" data-act="pick-b">Обрати B</button></div>':'');
+ }
+ if(quest&&step===4&&!geometryTask()){
+  const job=questVariant();
+  return '<div class="m01-control-title">ТЕХНІЧНА КАРТКА</div>'+
+   '<div class="m01-quest-target">'+job.rect[0]+' × '+job.rect[1]+' мм</div>'+
+   '<div class="m01-quest-caption">Порівняй креслення із замовленням. Яка сторона неправильна?</div>'+
+   '<div class="m01-buttons"><button type="button" data-act="flaw-width">Ширина</button>'+
+   '<button type="button" data-act="flaw-height">Висота</button></div>';
+ }
  if(!quest&&step===7)return '';
  if(!quest&&step===0)return '';
  if(!quest&&step===6){
@@ -682,6 +699,14 @@ function controlView(){
  if((!quest&&(step===1||step===2))||(quest&&(step===0||step===1)))return '';
  if(geometryTask()){
   const task=geometryTask();
+  if(quest){
+   const job=questVariant(),description=step===3?'Ø '+job.diameter+' мм':job.rect[0]+' × '+job.rect[1]+' мм';
+   return '<div class="m01-control-title">'+(step===4?'ВИПРАВЛЕННЯ':'ТЕХНІЧНА КАРТКА')+'</div>'+
+    '<div class="m01-quest-target">'+description+'</div>'+
+    '<div class="m01-quest-caption">'+(step===3?'Самостійно визнач розхил циркуля.':
+      step===4?'Побудуй правильний прямокутник замість помилкового.':
+      'Побудуй прямокутник, дотримуючись розмірів.')+'</div>';
+  }
   const kind=task.kind==='line'?'ЛІНІЙКА + ОЛІВЕЦЬ':task.kind==='rect'?'КУТНИК + ОЛІВЕЦЬ':'ЦИРКУЛЬ';
   return '<div class="m01-geometry-panel">'+
    '<div class="m01-control-title">'+kind+'</div>'+
@@ -693,6 +718,19 @@ function controlView(){
    '</div>';
  }
  return '';
+}
+function questResultMarkup(){
+ const scores=questScores(),passed=questPasses();
+ const names=['Підготовка','Вимірювання','Прямокутник','Коло','Контроль креслення'];
+ return '<div class="m01-quest-report"><div class="m01-report-score">'+questTotal()+
+  '<span> / 100 балів</span></div>'+
+  '<div class="m01-report-status">'+(passed?'Залік складено':'Потрібне доопрацювання')+'</div>'+
+  names.map((n,i)=>'<div class="m01-report-row"><span>'+n+'</span><strong>'+
+    (scores[i]??0)+' / '+QUEST_WEIGHTS[i]+'</strong></div>').join('')+
+  '<div class="m01-report-note">'+
+  (scores[0]>=7&&scores[1]>=15?'Обов’язкові вимірювання підтверджено.':
+   'Підготовка інструмента та вимірювання — обов’язкові навички.')+
+  '</div><button type="button" data-act="quest-retry" class="m01-submit">Новий варіант заліку ↻</button></div>';
 }
 function guidance(){
  if(mode==='quest')return '';
