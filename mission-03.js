@@ -50,7 +50,7 @@ function render(){if(!shown)return;
  $('m03Title').textContent=mode==='explore'?'Лабораторія хвиль':end?'Результат іспиту':mode==='quest'?qa[n]:names[n];
  $('m03Subtitle').textContent=mode==='explore'?'Обери інструмент і експериментуй.':end?'':mode==='quest'?'Практичне випробування':desc[n];
  panel.innerHTML=panelContent();$('m03Progress').textContent=mode==='quest'?Math.min(n,4)+'/4':mode==='demo'?Math.min(n+1,6)+'/6':'Пісочниця';
- next.hidden=mode!=='demo';next.disabled=mode==='demo'&&!save.done.includes(n);
+ next.hidden=mode!=='demo';next.disabled=mode==='demo'&&!save.done.includes(n);next.textContent=mode==='demo'&&n>=5?'Пісочниця →':'Далі →';
  $('m03Toggle').hidden=mode!=='explore';$('m03Toggle').setAttribute('aria-expanded',String(dockOpen));dock.hidden=mode!=='explore'||!dockOpen;
  dock.innerHTML=['Генератор','Хвильова ванна','Мотузка','Осцилограф','Камертони','Радіосигнал'].map((name,i)=>'<button data-act="tool" data-tool="'+i+'" class="'+(tool===i?'selected':'')+'"><span class="m03-tool-icon">'+['◉','≈','〰','▤','♬','⌁'][i]+'</span>'+name+'</button>').join('');
  draw();
@@ -235,7 +235,7 @@ function draw(){
 function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000):0;last=t;if(started||source)time+=dt;radioClock+=dt;radioLock+=(Math.abs(tx-receiver)<.051?1:-1)*dt*2.8;radioLock=clamp(radioLock,0,1);if(source)markDone();if(mode==='demo'&&(started||source))markDone();waterRings=waterRings.map(o=>({...o,r:o.r+dt*145})).filter(o=>o.r<650);draw();raf=requestAnimationFrame(tick)}
 root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;if(act==='dock'){dockOpen=!dockOpen;render();return}if(act==='tool'){tool=Number(b.dataset.tool);dockOpen=false;reset(false);render();return}
  if(act==='restart'){if(mode==='demo'){save.stage=0;save.done=[];persist()}reset();render();return}
- if(act==='next'&&mode==='demo'&&save.done.includes(save.stage)){save.stage=Math.min(5,save.stage+1);persist();reset();render();return}
+ if(act==='next'&&mode==='demo'&&save.done.includes(save.stage)){if(save.stage>=5){if(typeof window.GNSSLabSwitchMode==='function')window.GNSSLabSwitchMode('explore');else document.querySelector('#expModes [data-mode="explore"]')?.click();return}save.stage++;persist();reset();render();return}
  if(act==='toggle'){if(stage()===1){source=!source}else started=!started;markDone();render();return}
  if(act==='drop'){waterRings.push({x:590,y:348,r:1});markDone();return}
  if(act==='measure'){markDone();reading=Math.abs(markers[1]-markers[0]);render();return}
