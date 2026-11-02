@@ -30,3 +30,25 @@ body.gnss-lesson03-active #engSvg,body.gnss-lesson03-active #engCommand,body.gns
 #gnssMission03 .m03-tool-icon{font-size:45px;font-weight:400;line-height:1}
 #gnssMission03 .m03-toggle{position:absolute;right:20px;bottom:20px;z-index:10;width:49px;height:49px;border-radius:50%;font-size:25px;background:#092b40ef;pointer-events:auto}
 @media(max-width:700px){#gnssMission03 .m03-panel{top:auto;bottom:140px;right:12px;width:min(275px,52vw);max-height:38vh;padding:10px}#gnssMission03 .m03-dock{bottom:75px;max-width:95%;padding:7px;gap:4px}#gnssMission03 .m03-dock button{width:75px;flex-basis:75px;height:78px;font-size:9px}#gnssMission03 .m03-tool-icon{font-size:26px}#gnssMission03 .m03-toggle{right:10px;bottom:15px}}
+
+/* Lesson 03 uses the exact same full-screen drafting surface as Lesson 02.
+   Hide legacy expedition cards and control panels while its immersive overlay is active. */
+body.gnss-lesson03-active #expPanel,
+body.gnss-lesson03-active #experimentTabs,
+body.gnss-lesson03-active .intro,
+body.gnss-lesson03-active .lab-head,
+body.gnss-lesson03-active .canvas-meta,
+body.gnss-lesson03-active .scene-footer,
+body.gnss-lesson03-active .control-column,
+body.gnss-lesson03-active .mission,
+body.gnss-lesson03-active .lab-shell,
+body.gnss-lesson03-active #engStepNote,
+body.gnss-lesson03-active #engConfirm,
+body.gnss-lesson03-active #engFloats,
+body.gnss-lesson03-active #engStatus,
+body.gnss-lesson03-active #gnssMission01,
+body.gnss-lesson03-active #gnssMission00 {display:none!important}
+body.gnss-lesson03-active #engBoard{isolation:isolate}
+#gnssMission03 .m03-header{top:clamp(95px,12vh,125px)}
+#gnssMission03 .m03-stage{inset:0}
+#gnssMission03 .m03-panel{right:clamp(18px,2.1vw,35px);top:clamp(183px,27vh,240px);background:linear-gradient(140deg,#092939ed,#062335f3)}
