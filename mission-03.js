@@ -242,7 +242,7 @@ function draw(){
  svg.innerHTML=graphics();
 }
 function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000):0;last=t;if(started||source)time+=dt;radioClock+=dt;radioLock+=(Math.abs(tx-receiver)<.051?1:-1)*dt*2.8;radioLock=clamp(radioLock,0,1);if(source)markDone();if(mode==='demo'&&(started||source))markDone();waterRings=waterRings.map(o=>({...o,r:o.r+dt*145})).filter(o=>o.r<650);draw();raf=requestAnimationFrame(tick)}
-root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;if(act==='dock'){dockOpen=!dockOpen;render();return}if(act==='tool'){tool=Number(b.dataset.tool);dockOpen=false;reset(false);render();return}
+root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;if(act==='dock'){dockOpen=!dockOpen;render();return}if(act==='tool'){tool=Number(b.dataset.tool);reset(false);dockOpen=false;render();return}
  if(act==='restart'){if(mode==='demo'){save.stage=0;save.done=[];persist()}reset();render();return}
  if(act==='next'&&mode==='demo'&&save.done.includes(save.stage)){if(save.stage>=5){if(typeof window.GNSSLabSwitchMode==='function')window.GNSSLabSwitchMode('explore');else document.querySelector('#expModes [data-mode="explore"]')?.click();return}save.stage++;persist();reset();render();return}
  if(act==='toggle'){if(stage()===1){source=!source}else started=!started;markDone();render();return}
