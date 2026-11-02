@@ -27,15 +27,15 @@ body.engineering-live .eng-command{opacity:0;pointer-events:none;transition:opac
 body.engineering-live .eng-board:hover .eng-command,body.engineering-live .eng-command:focus-within{opacity:1;pointer-events:auto}
 body.engineering-live .eng-topline{top:20px;left:auto;right:170px}
 body.engineering-live .eng-topline:empty{display:none!important}
-/* One unobtrusive mode trigger, three tabs only when hovering/focusing/clicking. */
+/* An explicit click-controlled mode menu: hover/focus must NOT reopen it after selection. */
 #modeTabsAnchor{position:fixed!important;left:calc(50% + var(--lab-rail)/2);top:9px;transform:translateX(-50%);z-index:78!important;width:195px;min-height:41px;pointer-events:none}
 .mode-peek{display:flex;align-items:center;justify-content:center;gap:9px;margin:0 auto;width:185px;height:39px;padding:7px 12px;background:#081e2ddb;border:1px solid #3b6171;border-radius:10px;color:#d9f6e4;font:700 12px ui-sans-serif,Arial,sans-serif;box-shadow:0 8px 22px #0004;backdrop-filter:blur(12px);pointer-events:auto;cursor:pointer}
 .mode-peek:hover,.mode-peek:focus-visible,.mode-open .mode-peek{border-color:#a2eb79;background:#13342b}
 .mode-peek svg{width:15px;height:15px;stroke:#b5f78b}
 .mode-peek .mode-chevron{font-size:10px;color:#b5e4d2;transition:transform .2s}
-.mode-open .mode-chevron,#modeTabsAnchor:hover .mode-chevron{transform:rotate(180deg)}
+.mode-open .mode-chevron{transform:rotate(180deg)}
 #modeTabsAnchor #expModes{position:absolute!important;top:39px;left:50%;width:min(580px,calc(100vw - 120px))!important;max-width:580px;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:7px!important;margin:0!important;opacity:0;visibility:hidden;pointer-events:none;transform:translate(-50%,-8px);transition:transform .18s ease,opacity .18s ease,visibility .18s;filter:drop-shadow(0 12px 25px #0008)}
-#modeTabsAnchor:is(:hover,:focus-within,.mode-open) #expModes{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
+#modeTabsAnchor.mode-open #expModes{opacity:1;visibility:visible;pointer-events:auto;transform:translate(-50%,0)}
 #modeTabsAnchor .exp-mode{min-height:62px!important;height:auto!important;padding:9px!important;border-radius:9px!important;box-shadow:0 8px 22px #0005!important;background:#0b2330f2!important}
 #modeTabsAnchor .exp-mode strong{font-size:13px!important}
 #modeTabsAnchor .exp-mode b,#modeTabsAnchor .exp-mode small{display:none!important}
