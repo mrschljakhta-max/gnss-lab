@@ -305,33 +305,39 @@ const cartSvg=()=>{
 const pendulumSvg=()=>{
  const p=state.pendulum,L=clamp(p.length,.45,1.35),r=L*148;
  const tx=730+r*Math.sin(p.theta),ty=218+r*Math.cos(p.theta);
- const ticks=Array.from({length:11},(_,i)=>{
-  const y=218+i*148/10;
-  return '<line x1="889" y1="'+y.toFixed(1)+'" x2="'+(i%5===0?907:899)+'" y2="'+y.toFixed(1)+'" stroke="#d5ebec" stroke-width="'+(i%5===0?1.5:.8)+'"/>'+
-   (i%5===0?'<text x="913" y="'+(y+4).toFixed(1)+'" fill="#d7eff0" font-size="11">'+round(i/10,1)+' м</text>':'');
- }).join('');
- return '<g aria-label="Лабораторний маятник зі змінною довжиною">'+
- '<defs><linearGradient id="m02PendSteel" x1="0" y1="0" x2="1" y2=".8"><stop stop-color="#eaf4f4"/><stop offset=".32" stop-color="#5c7a87"/><stop offset=".62" stop-color="#f9fcf8"/><stop offset="1" stop-color="#657985"/></linearGradient>'+
- '<radialGradient id="m02PendBrass" cx=".28" cy=".2" r=".9"><stop stop-color="#fff4c9"/><stop offset=".3" stop-color="#e8c47e"/><stop offset=".73" stop-color="#ac7741"/><stop offset="1" stop-color="#67482e"/></radialGradient></defs>'+
- '<ellipse cx="730" cy="480" rx="124" ry="11" fill="#051c2c" opacity=".25"/>'+
- '<rect x="653" y="472" width="154" height="14" rx="4" fill="url(#m02PendSteel)" stroke="#d2e0e2"/>'+
- '<rect x="718" y="194" width="17" height="278" rx="4" fill="url(#m02PendSteel)" stroke="#647f8b" opacity=".75"/>'+
- '<rect x="681" y="200" width="100" height="17" rx="5" fill="url(#m02PendSteel)" stroke="#c9dce0" stroke-width="1.5"/>'+
- '<path d="M698 205H766" stroke="#ffffff" stroke-opacity=".7" stroke-width="2"/>'+
- '<line x1="730" y1="218" x2="730" y2="439" stroke="#b6cbd4" stroke-dasharray="5 8" opacity=".36"/>'+
- '<path d="M'+(730-r*Math.sin(.8)).toFixed(2)+' '+(218+r*Math.cos(.8)).toFixed(2)+' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 1 '+(730+r*Math.sin(.8)).toFixed(2)+' '+(218+r*Math.cos(.8)).toFixed(2)+'" fill="none" stroke="#a3c7d1" stroke-width="1.5" stroke-dasharray="4 7" opacity=".42"/>'+
- '<rect x="882" y="207" width="58" height="221" rx="4" fill="#0a364c" fill-opacity=".5" stroke="#7297a5"/>'+
- ticks+
- '<line x1="872" y1="218" x2="872" y2="'+(218+r).toFixed(2)+'" stroke="#b2f38f" stroke-width="2.5"/>'+
- '<path d="M867 218h10M867 '+(218+r).toFixed(2)+'h10" stroke="#b2f38f" stroke-width="2"/>'+
- '<path id="m02PendString" d="M730 218L'+tx+' '+ty+'" stroke="#eef3f1" stroke-width="3.5" stroke-linecap="round"/>'+
- '<path id="m02PendStringHighlight" d="M730 218L'+tx+' '+ty+'" stroke="#819da6" stroke-width=".85" opacity=".6"/>'+
- '<circle cx="730" cy="218" r="9" fill="url(#m02PendSteel)" stroke="#eef5f2" stroke-width="1"/>'+
- '<circle cx="730" cy="218" r="3.2" fill="#344e58"/>'+
- '<circle id="m02PendBall" data-drag="pendulum" cx="'+tx+'" cy="'+ty+'" r="23" fill="url(#m02PendBrass)" stroke="#ffe9bf" stroke-width="2.5" tabindex="0" role="button" aria-label="Відтягни тягарець маятника та відпусти" style="cursor:grab"/>'+
- '<ellipse id="m02PendGlint" cx="'+(tx-7)+'" cy="'+(ty-9)+'" rx="6" ry="3.5" fill="#fff7d9" opacity=".44" pointer-events="none"/>'+
- '<text id="m02PendLength" x="819" y="465" font-size="15" fill="#d5ebef" text-anchor="middle">Довжина '+round(L,1)+' м</text>'+
- '<text id="m02PendCount" x="730" y="515" font-size="18" fill="#b6f28f" font-weight="750" text-anchor="middle">'+p.cycles+' повних циклів</text></g>';
+ const ghost=(angle)=>{const x=730+r*Math.sin(angle),y=218+r*Math.cos(angle);
+  return '<path d="M730 218L'+x.toFixed(2)+' '+y.toFixed(2)+'" stroke="#a5d9ea" stroke-width="2.5" opacity=".22"/>'+
+   '<circle cx="'+x.toFixed(2)+'" cy="'+y.toFixed(2)+'" r="23" fill="#8ab5c5" opacity=".17" stroke="#b9e8f4" stroke-width="1.5"/>';
+ };
+ return '<g aria-label="Лабораторний маятник на металевому штативі">'+
+ '<defs><linearGradient id="m02PendSteel" x1="0" y1="0" x2=".9" y2=".2"><stop stop-color="#354954"/><stop offset=".22" stop-color="#f8ffff"/><stop offset=".48" stop-color="#869da4"/><stop offset=".75" stop-color="#e4f0f2"/><stop offset="1" stop-color="#415861"/></linearGradient>'+
+ '<radialGradient id="m02PendBrass" cx=".3" cy=".25" r=".83"><stop stop-color="#fff4c9"/><stop offset=".25" stop-color="#f2d58a"/><stop offset=".62" stop-color="#bb8744"/><stop offset="1" stop-color="#77512a"/></radialGradient></defs>'+
+ // Stable physical base and separate support pillar: the swinging string is not a stand.
+ '<ellipse cx="659" cy="488" rx="148" ry="13" fill="#001b2b" opacity=".3"/>'+
+ '<rect x="543" y="464" width="239" height="28" rx="7" fill="url(#m02PendSteel)" stroke="#d6e6e7" stroke-width="1.6"/>'+
+ '<path d="M552 468H771" stroke="#f5ffff" stroke-opacity=".65" stroke-width="1.7"/>'+
+ '<rect x="558" y="491" width="24" height="7" rx="3" fill="#20333d"/><rect x="741" y="491" width="24" height="7" rx="3" fill="#20333d"/>'+
+ '<rect x="586" y="188" width="14" height="279" rx="4" fill="url(#m02PendSteel)" stroke="#c5dbdf" stroke-width="1.2"/>'+
+ '<rect x="575" y="195" width="34" height="31" rx="6" fill="#263943" stroke="#a0b5bc" stroke-width="1.5"/>'+
+ '<circle cx="581" cy="209" r="8" fill="url(#m02PendSteel)" stroke="#253b46"/>'+
+ '<rect x="602" y="200" width="185" height="12" rx="5" fill="url(#m02PendSteel)" stroke="#d8e9ea" stroke-width="1.1"/>'+
+ '<rect x="712" y="192" width="36" height="29" rx="6" fill="url(#m02PendSteel)" stroke="#8ca7b0"/>'+
+ '<rect x="723" y="184" width="14" height="10" rx="3" fill="#73878e" stroke="#e8f2f2"/>'+
+ '<circle cx="730" cy="211" r="6.5" fill="url(#m02PendSteel)" stroke="#405965"/>'+
+ // Length reference measures pivot to the centre of the brass bob.
+ '<line x1="520" y1="218" x2="573" y2="218" stroke="#d2eaf1" stroke-width="1" stroke-dasharray="5 5"/>'+
+ '<line x1="520" y1="'+(218+r).toFixed(2)+'" x2="573" y2="'+(218+r).toFixed(2)+'" stroke="#d2eaf1" stroke-width="1" stroke-dasharray="5 5"/>'+
+ '<path d="M531 218V'+(218+r).toFixed(2)+'m-5 -'+(r-8).toFixed(2)+'l5 -8 5 8M526 '+(218+r-8).toFixed(2)+'l5 8 5 -8" fill="none" stroke="#e6f6f7" stroke-width="1.4"/>'+
+ '<text x="516" y="'+(218+r/2).toFixed(2)+'" fill="#f3fafb" font-style="italic" font-size="20" text-anchor="end">L</text>'+
+ '<line x1="730" y1="218" x2="730" y2="433" stroke="#bbd8e2" opacity=".35" stroke-dasharray="5 8"/>'+
+ ghost(-.65)+ghost(.65)+
+ '<path d="M'+(730-r*Math.sin(.7)).toFixed(2)+' '+(218+r*Math.cos(.7)).toFixed(2)+' A'+r.toFixed(2)+' '+r.toFixed(2)+' 0 0 0 '+(730+r*Math.sin(.7)).toFixed(2)+' '+(218+r*Math.cos(.7)).toFixed(2)+'" stroke="#e6f5f7" opacity=".62" stroke-width="1.5" stroke-dasharray="7 7" fill="none"/>'+
+ '<path id="m02PendString" d="M730 218L'+tx+' '+ty+'" stroke="#f8e4bd" stroke-width="3" stroke-linecap="round"/>'+
+ '<path id="m02PendStringHighlight" d="M730 218L'+tx+' '+ty+'" stroke="#806c54" stroke-width=".7" opacity=".6"/>'+
+ '<circle id="m02PendBall" data-drag="pendulum" cx="'+tx+'" cy="'+ty+'" r="23" fill="url(#m02PendBrass)" stroke="#ffefc8" stroke-width="2" tabindex="0" role="button" aria-label="Відтягни маятник та відпусти" style="cursor:grab"/>'+
+ '<ellipse id="m02PendGlint" cx="'+(tx-7)+'" cy="'+(ty-9)+'" rx="6" ry="3.5" fill="#fff7d9" opacity=".4" pointer-events="none"/>'+
+ '<text id="m02PendLength" x="760" y="472" font-size="15" fill="#e1f2f4" text-anchor="middle">Довжина '+round(L,1)+' м</text>'+
+ '<text id="m02PendCount" x="730" y="516" font-size="18" fill="#b6f28f" font-weight="750" text-anchor="middle">'+p.cycles+' повних циклів</text></g>';
 };
 // Static SVG is built once per step. Never replace the draggable ball and
 // 60 stopwatch ticks on every frame: only update the moving coordinates.
