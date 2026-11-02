@@ -222,3 +222,9 @@ body.gnss-lesson02-active .eng-paper{
  #gnssMission02 .m02-tool-card{flex:1 1 0;width:90px;height:86px;font-size:10px}
  #gnssMission02 .m02-tool-card svg{width:76px;height:57px}
 }
+
+/* Match the refined original instrument models in the lower tool shelf. */
+#gnssMission02 .m02-tool-card{width:124px;flex-basis:124px;height:122px;padding:5px 7px 7px}
+#gnssMission02 .m02-tool-card svg{width:108px;height:91px;max-width:100%;overflow:visible;filter:drop-shadow(0 5px 6px rgba(0,8,16,.52))}
+#gnssMission02 .m02-tool-card span{font-size:11px;line-height:1.2}
+@media(max-width:650px){#gnssMission02 .m02-tool-card{height:95px;flex:1 1 0;width:94px;padding:4px}#gnssMission02 .m02-tool-card svg{width:78px;height:65px}}
