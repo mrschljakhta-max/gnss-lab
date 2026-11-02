@@ -809,12 +809,38 @@ window.addEventListener('keyup',e=>{
   draw();
  }
 });
-let last=0;
-function frame(now){requestAnimationFrame(frame);
- const showing=lesson()===0;container.style.display=showing?'grid':'none';document.body.classList.toggle('engineering-live',showing);
- if(!showing)return;
- const m=mode();if(m!==state.lastMode)setMode(m);
- if(m==='demo'&&now-last>34){demo(now);last=now}
+// Keep a single frame scheduled; idle/hidden tabs must not redraw the entire
+// blueprint continuously. Most users keep this lesson open while reading.
+let last=0,displayed=null,framePending=false,idleTimer=null;
+function scheduleFrame(delay=0){
+ if(framePending||idleTimer!==null||document.hidden)return;
+ if(delay){
+  idleTimer=setTimeout(()=>{idleTimer=null;scheduleFrame()},delay);
+  return;
+ }
+ framePending=true;
+ requestAnimationFrame(now=>{framePending=false;frame(now)});
 }
-setMode(mode());requestAnimationFrame(frame);
+function frame(now){
+ const showing=lesson()===0;
+ if(showing!==displayed){
+  container.style.display=showing?'grid':'none';
+  document.body.classList.toggle('engineering-live',showing);
+  displayed=showing;
+ }
+ if(showing){
+  const m=mode();if(m!==state.lastMode)setMode(m);
+  // Mission 01 has its own foreground scene. The underlying engineering
+  // demo must not rebuild hundreds of SVG nodes behind completed results.
+  if(m==='demo'&&!document.body.classList.contains('gnss-mission-active')
+     &&state.demoPlaying&&now-last>34){demo(now);last=now}
+ }
+ const idle=!showing||document.body.classList.contains('gnss-mission-active')||
+   mode()!=='demo'||!state.demoPlaying;
+ scheduleFrame(idle?350:0);
+}
+document.addEventListener('visibilitychange',()=>{
+ if(!document.hidden)scheduleFrame();
+});
+setMode(mode());scheduleFrame();
 })();
