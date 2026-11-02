@@ -102,7 +102,8 @@ function hide(){
  shown=false;root.hidden=true;document.body.classList.remove('gnss-lesson02-active');
  if(raf){cancelAnimationFrame(raf);raf=0}drag=null;
 }
-function isLessonTwo(){try{return typeof active==='number'&&active===1}catch{return location.hash==='#lab-02'}}
+function isLessonTwo(){return typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex()===1:
+ typeof active==='number'?active===1:location.hash==='#lab-02'}
 function sync(){
  const wanted=isLessonTwo()&&document.body.classList.contains('engineering-live');
  if(!wanted){if(shown)hide();return}
