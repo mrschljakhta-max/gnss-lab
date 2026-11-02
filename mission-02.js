@@ -8,7 +8,7 @@ if(!board)return;
 const KEY='gnss-lab-mission-02-v1',TAU=Math.PI*2,G=9.81;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const round=(v,n=1)=>Number(v).toLocaleString('uk-UA',{maximumFractionDigits:n,minimumFractionDigits:n});
-const parse=v=>Number(String(v).replace(',','.').trim());
+const parse=v=>{const raw=String(v??'').trim().replace(',','.');return raw?Number(raw):NaN};
 const titles=['Відчуй секунду','Виміряй час руху','Хто швидший?','Відстань, швидкість і час','Спрогнозуй результат','Рух, який повторюється','Час одного коливання'];
 const hints=['Запусти секундомір. Зупини його після однієї секунди.',
  'Запусти візок і виміряй час до фінішу.',
