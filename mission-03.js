@@ -137,7 +137,39 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
     '</g>';
   }
  }
- else{shapes+='<rect x="245" y="225" width="180" height="205" rx="18" fill="#153d50" stroke="#a6cbd2" stroke-width="3"/><rect x="785" y="225" width="180" height="205" rx="18" fill="#153d50" stroke="#a6cbd2" stroke-width="3"/><path d="M335 225V130M875 225V130" stroke="#d1ece8" stroke-width="5"/>';for(let i=0;i<3;i++)shapes+='<path d="M'+(420+i*95)+' 180q55 -45 95 0" fill="none" stroke="'+(Math.abs(tx-receiver)<.15?'#b8f487':'#6b93a2')+'" stroke-width="3"/>'}
+
+ else{
+  const tuned=Math.abs(tx-receiver)<.15;
+  shapes+='<defs><linearGradient id="m03RadioCase" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#53636a"/><stop offset=".15" stop-color="#1e303b"/><stop offset=".58" stop-color="#172730"/><stop offset="1" stop-color="#081820"/></linearGradient><linearGradient id="m03RadioRim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#899a9f"/><stop offset=".4" stop-color="#243c47"/><stop offset="1" stop-color="#6e7e7d"/></linearGradient><linearGradient id="m03RadioScreen" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#001624"/><stop offset="1" stop-color="#073448"/></linearGradient></defs>';
+  for(const [i,x,value] of [[0,335,tx],[1,870,receiver]]){
+   const y=244,w=205,h=352,receiving=i===1&&tuned;
+   shapes+='<g class="m03-radio">'+
+    '<ellipse cx="'+x+'" cy="603" rx="111" ry="15" fill="#001521" opacity=".4"/>'+
+    '<rect x="'+(x-73)+'" y="91" width="20" height="148" rx="8" fill="#0a1820" stroke="#66747d" stroke-width="2"/>'+
+    '<rect x="'+(x-67)+'" y="101" width="8" height="128" rx="3" fill="#253e49"/>'+
+    '<rect x="'+(x-22)+'" y="213" width="27" height="30" rx="6" fill="#111d26" stroke="#687981" stroke-width="2"/>'+
+    '<rect x="'+(x+29)+'" y="212" width="28" height="31" rx="7" fill="#111c24" stroke="#6c7b80" stroke-width="2"/>'+
+    '<path d="M'+(x-91)+' '+y+'H'+(x+90)+'Q'+(x+102)+' '+y+' '+(x+102)+' '+(y+22)+'V'+(y+h-23)+'Q'+(x+102)+' '+(y+h)+' '+(x+78)+' '+(y+h)+'H'+(x-79)+'Q'+(x-102)+' '+(y+h)+' '+(x-102)+' '+(y+h-23)+'V'+(y+22)+'Q'+(x-102)+' '+y+' '+(x-91)+' '+y+'Z" fill="url(#m03RadioCase)" stroke="url(#m03RadioRim)" stroke-width="7"/>'+
+    '<rect x="'+(x-82)+'" y="'+(y+27)+'" width="164" height="164" rx="15" fill="#061821" stroke="#5e777e" stroke-width="5"/>'+
+    '<rect x="'+(x-73)+'" y="'+(y+37)+'" width="146" height="145" rx="9" fill="url(#m03RadioScreen)" stroke="#284c58" stroke-width="2"/>'+
+    '<g fill="#e0f7fb" text-anchor="middle" font-family="Inter,system-ui,sans-serif"><text x="'+x+'" y="'+(y+65)+'" font-size="13" font-weight="800">'+(i===0?'ПЕРЕДАВАЧ':'ПРИЙМАЧ')+'</text><text x="'+x+'" y="'+(y+142)+'" font-size="19" font-weight="800">'+fmt(value,1)+' МГц</text></g>';
+   if(i===0)shapes+='<path d="M'+x+' '+(y+87)+'v29m-10-22q-12 9 0 17m20-17q12 9 0 17m-29-26q-21 20 0 39m38-39q21 20 0 39" stroke="#80dafa" stroke-width="2.4" fill="none"/>';
+   else{
+    const wave=Array.from({length:75},(_,j)=>{const px=x-60+j*1.62,py=y+107-(receiving?15:2)*Math.sin(j*.48+time*4);return (j?'L':'M')+px.toFixed(1)+' '+py.toFixed(1)}).join(' ');
+    shapes+='<path d="'+wave+'" fill="none" stroke="'+(receiving?'#b8fa83':'#587680')+'" stroke-width="2.5"/><circle cx="'+(x+60)+'" cy="'+(y+65)+'" r="5" fill="'+(receiving?'#a5f477':'#496273')+'"/>';
+   }
+   shapes+='<rect x="'+(x-65)+'" y="'+(y+157)+'" width="130" height="8" rx="4" fill="#1a3c48"/>'+
+    '<rect x="'+(x-65)+'" y="'+(y+157)+'" width="'+(i===0?110:receiving?125:15)+'" height="8" rx="4" fill="'+(i===0||receiving?'#9bf07d':'#526f7d')+'"/>';
+   for(let j=0;j<3;j++)shapes+='<rect x="'+(x-63+j*47)+'" y="'+(y+209)+'" width="39" height="30" rx="8" fill="#283c46" stroke="#7d9298" stroke-width="1.5"/>';
+   shapes+='<g fill="#e7eff0" font-size="10" font-family="Inter,system-ui,sans-serif" text-anchor="middle"><text x="'+(x-43)+'" y="'+(y+228)+'">MENU</text><text x="'+(x+4)+'" y="'+(y+228)+'">◆</text><text x="'+(x+52)+'" y="'+(y+228)+'">OK</text></g>';
+   for(let j=0;j<4;j++)shapes+='<rect x="'+(x-68)+'" y="'+(y+265+j*15)+'" width="136" height="7" rx="3.5" fill="#071820" stroke="#52636b" stroke-width="1"/>';
+   shapes+='</g>';
+  }
+  for(let j=0;j<4;j++){
+   const x=520+j*79;
+   shapes+='<path d="M'+x+' '+(365-j*10)+'q38 -42 76 0" fill="none" stroke="'+(tuned?'#72e6fa':'#59899c')+'" stroke-width="'+(tuned?3:2)+'" opacity="'+(tuned?.6:.3)+'"/>';
+  }
+ }
  return shapes}
 function draw(){
  if(!shown)return;
