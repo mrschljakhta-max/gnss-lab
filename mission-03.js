@@ -18,7 +18,7 @@ const root=document.createElement('section');root.id='gnssMission03';root.hidden
  '<footer class="m03-footer"><button data-act="restart" title="На початок уроку">↻</button><span id="m03Progress"></span><button id="m03Next" data-act="next">Далі →</button></footer>';
 board.append(root);
 const $=id=>root.querySelector('#'+id),svg=$('m03Svg'),panel=$('m03Panel'),dock=$('m03Dock'),next=$('m03Next');
-let tank=null,mode='demo',shown=false,raf=0,last=0,dockOpen=true,tool=0,phase=0,started=false,cycles=0,pressed=false,qaChoice=null;
+let tank=null,tankLoading=false,mode='demo',shown=false,raf=0,last=0,dockOpen=true,tool=0,phase=0,started=false,cycles=0,pressed=false,qaChoice=null;
 let freq=2,amp=.55,frequency2=4,receiver=3,tx=5,markers=[.2,.4],source=false,waterRings=[],time=0,reading=null;
 const active=()=>typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex()===2:location.hash==='#lab-03';
 function sync(){const want=active()&&document.body.classList.contains('engineering-live');if(!want){if(shown){shown=false;root.hidden=true;document.body.classList.remove('gnss-lesson03-active');cancelAnimationFrame(raf);raf=0}return}
@@ -117,12 +117,20 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
  return shapes}
 function draw(){
  if(!shown)return;
- const physical=stage()===1&&mode!=='quest';
- const canvas=$('m03WaterCanvas');
- if(physical&&typeof window.GNSSWaveTank==='function'&&!tank)tank=window.GNSSWaveTank(canvas);
- const useWebGL=physical&&!!tank;
- canvas.hidden=!useWebGL;svg.style.opacity=useWebGL?'0':'1';
- if(useWebGL){tank.render(time,freq,source,waterRings);return}
+ const physical=stage()===1&&mode!=='quest',canvas=$('m03WaterCanvas');
+ if(physical&&!tank&&!tankLoading&&typeof window.GNSSWaveTank3D==='function'){
+  tankLoading=true;
+  window.GNSSWaveTank3D(canvas).then(instance=>{tank=instance;tankLoading=false;if(shown)draw()}).catch(()=>{tankLoading=false});
+ }
+ // Use the 3D model only after the renderer has initialized successfully.
+ const use3D=physical&&!!tank;
+ canvas.hidden=!physical;
+ svg.style.opacity=use3D?'0':'1';
+ if(use3D){tank.render(time,freq,source,waterRings);return}
+ if(physical&&tankLoading){svg.innerHTML=graphics();return}
+ if(physical&&typeof window.GNSSWaveTank==='function'&&!tankLoading){
+  // Keep the SVG simulation as a safe fallback, not the old flat shader.
+ }
  svg.innerHTML=graphics();
 }
 function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000):0;last=t;if(started||source)time+=dt;if(source)markDone();if(mode==='demo'&&(started||source))markDone();waterRings=waterRings.map(o=>({...o,r:o.r+dt*145})).filter(o=>o.r<650);draw();raf=requestAnimationFrame(tick)}
