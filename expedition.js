@@ -176,6 +176,9 @@ if(mode==='demo'){demoPos=0;demoDone=false;expt=0}
 render();
 if(mode==='demo')play()
 }
+// Public mode transition for mission overlays. Using the same switchMode
+// path as a real tab click keeps expedition state, drawing engine and UI in sync.
+window.GNSSLabSwitchMode=next=>{if(!['demo','explore','quest'].includes(next))return false;switchMode(next);return true};
 function onInteraction(){
 if(mode!=='quest'||passed||count(active)===3)return;
 interacted=true;

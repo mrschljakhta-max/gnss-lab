@@ -1147,6 +1147,15 @@ function resetMissionToStart(){
  document.body.classList.add('gnss-mission-active');
  resetStep();render();
 }
+// Use the same expedition controller that powers the main mode picker.
+// It restores the sandbox and syncs the active tab instead of relying on
+// clicking a menu item that may currently be hidden.
+function switchFromMission(nextMode){
+ if(typeof window.GNSSLabSwitchMode==='function'&&window.GNSSLabSwitchMode(nextMode))return true;
+ const tab=document.querySelector('#expModes [data-mode="'+nextMode+'"]');
+ if(tab){tab.click();return document.body.dataset.expMode===nextMode}
+ return false;
+}
 function respond(act){
  if(act==='restart-all'){resetMissionToStart();return}
  if(act==='quest-retry'&&mode==='quest'){startFreshQuest();return}
@@ -1171,11 +1180,14 @@ function respond(act){
  if(act==='show'){hintLevel=3;render();return}
  if(act==='skip'&&mode==='demo'){if(!memory.skipped.includes(memory.scene))memory.skipped.push(memory.scene);setScene(memory.scene+1);return}
  if(act==='next'){
-  if(mode==='quest'&&memory.assessment===5){document.querySelector('#expModes [data-mode="explore"]')?.click();return}
+  if(mode==='quest'&&memory.assessment===5){
+    if(!switchFromMission('explore'))announce('Не вдалося відкрити пісочницю. Спробуй перемикач режимів.');
+    return;
+   }
   if(mode==='demo'&&sceneComplete()){
    if(memory.scene===7){
     if(firstUnfinished()<7){setScene(firstUnfinished());return}
-    document.querySelector('#expModes [data-mode="quest"]')?.click();return;
+    switchFromMission('quest');return;
    }
    setScene(memory.scene+1);
   }
@@ -1204,9 +1216,13 @@ function respond(act){
  if(act==='part-a'||act==='part-b'){part=act.slice(-1);gap=target()+20;moved=false;feedback='';render();return}
  if(act==='check'){check();return}
 }
+// Capture actionable clicks before inner widgets or the animated workbench
+// can interrupt event bubbling. This includes the finish report and footer.
 root.addEventListener('click',e=>{
- const button=e.target.closest('button[data-act]');if(button)respond(button.dataset.act);
-});
+ const button=e.target.closest?.('button[data-act]');
+ if(!button||!root.contains(button)||button.disabled||button.hidden)return;
+ respond(button.dataset.act);
+},true);
 canvas.addEventListener('click',e=>{
  if(!visible||mode!=='demo')return;
  if(memory.scene===6&&e.target.closest('[data-rotate-block]'))return; // Clicking alone does not rotate.
