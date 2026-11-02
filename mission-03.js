@@ -121,7 +121,7 @@ function draw(){
  const canvas=$('m03WaterCanvas');
  if(physical&&typeof window.GNSSWaveTank==='function'&&!tank)tank=window.GNSSWaveTank(canvas);
  const useWebGL=physical&&!!tank;
- canvas.hidden=!useWebGL;svg.style.visibility=useWebGL?'hidden':'visible';
+ canvas.hidden=!useWebGL;svg.style.opacity=useWebGL?'0':'1';
  if(useWebGL){tank.render(time,freq,source,waterRings);return}
  svg.innerHTML=graphics();
 }
