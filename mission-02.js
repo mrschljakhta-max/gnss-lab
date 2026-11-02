@@ -149,6 +149,10 @@ function onFinish(){
  const s=station();
  if(mode==='demo'){
   if(s===1||s===3||s===4)demoDone();
+  if(s===2&&state.finishTimes.length===1){
+   // The first run is finished: park A at the finish, keep B at the start.
+   state.cart={elapsed:0,running:false,done:false};
+  }
   if(s===2&&state.finishTimes.length===2)render();
  }else if(mode==='quest'){
   if(s===1||s===2)state.questReady=true;
@@ -457,6 +461,7 @@ function handle(action){
   if(mode==='quest'&&saved.questStage===0&&state.stopwatch.stopped&&state.stopwatch.elapsed>=.5){doneQuest('Секундомір запущено, зупинено й обнулено.');break}
   state.stopwatch={elapsed:0,running:false,ever:false,stopped:false};render();break;
  case 'launch-cart':
+  if(comparingCarts()&&state.finishTimes.length>=2){notify('Обидва візки вже фінішували. Порівняй результати.');break}
   if(mode==='demo'&&saved.stage===4&&state.predicted===null){
    notify('Спочатку введи прогноз часу.');break;
   }
