@@ -5,10 +5,10 @@ const board=document.getElementById('engBoard');if(!board)return;
 const NS='http://www.w3.org/2000/svg',TAU=2*Math.PI,KEY='gnss-lab-m03-v1';
 const names=['Створи коливання','Народження хвилі','Керуй хвилею','Виміряй невидиме','Знайди резонанс','Від хвилі до сигналу'];
 const desc=['Змінюй частоту генератора та спостерігай за циклами.','Торкнися води й увімкни джерело хвиль.','Зміни частоту й амплітуду окремо.','Встанови два маркери на сусідніх вершинах сигналу.','Налаштуй другий камертон до резонансу.','Налаштуй приймач на частоту передавача.'];
-const qa=['Створи хвилю 3 Гц','Порівняй амплітуди','Виміряй частоту','Налаштуй приймач'];
-const values=[20,20,30,30],clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),fmt=(v,n=1)=>Number(v).toLocaleString('uk-UA',{minimumFractionDigits:n,maximumFractionDigits:n});
+const qa=['Створи коливання 4 Гц','Дві хвилі та вібратор','Подвой амплітуду','Виміряй період','Встанови радіозв’язок'];
+const values=[20,20,20,20,20],clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),fmt=(v,n=1)=>Number(v).toLocaleString('uk-UA',{minimumFractionDigits:n,maximumFractionDigits:n});
 let save;try{save=JSON.parse(localStorage.getItem(KEY)||'null')}catch{}
-if(!save||save.version!==1)save={version:1,stage:0,done:[],q:0,marks:[null,null,null,null],attempt:0};
+if(!save||save.version!==2)save={version:2,stage:0,done:[],q:0,marks:[null,null,null,null,null],attempt:0};
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save))}catch{}};
 const root=document.createElement('section');root.id='gnssMission03';root.hidden=true;root.innerHTML=
  '<header class="m03-header"><h2 id="m03Title"></h2><p id="m03Subtitle"></p></header>'+
@@ -19,11 +19,11 @@ const root=document.createElement('section');root.id='gnssMission03';root.hidden
 board.append(root);
 const $=id=>root.querySelector('#'+id),svg=$('m03Svg'),panel=$('m03Panel'),dock=$('m03Dock'),next=$('m03Next');
 let radioClock=0,radioLock=0,tank=null,tankLoading=false,mode='demo',shown=false,raf=0,last=0,dockOpen=true,tool=0,phase=0,started=false,cycles=0,pressed=false,qaChoice=null;
-let freq=2,amp=.55,frequency2=4,receiver=3,tx=5,markers=[.2,.4],source=false,waterRings=[],time=0,reading=null;
+let freq=2,amp=.55,frequency2=4,receiver=3,tx=5,markers=[.2,.4],source=false,waterRings=[],time=0,reading=null,waterTouches=[],waterActivated=false,initialAmplitude=.3,ampAdjusted=false,radioWasOff=false,radioTarget=6.4;
 const active=()=>typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex()===2:location.hash==='#lab-03';
 function sync(){const want=active()&&document.body.classList.contains('engineering-live');if(!want){if(shown){shown=false;root.hidden=true;document.body.classList.remove('gnss-lesson03-active');cancelAnimationFrame(raf);raf=0}return}
  const m=document.body.dataset.expMode||'demo';if(!shown){shown=true;root.hidden=false;document.body.classList.add('gnss-lesson03-active');mode=m;reset(false);render();tick(performance.now())}else if(m!==mode){mode=m;reset(false);render()}}
-function reset(resetSettings=true){started=false;cycles=0;source=false;waterRings=[];time=0;reading=null;qaChoice=null;phase=0;if(resetSettings){freq=2;amp=.55;frequency2=4;receiver=3;tx=5;markers=[.2,.4]}dockOpen=true}
+function reset(resetSettings=true){started=false;cycles=0;source=false;waterRings=[];waterTouches=[];waterActivated=false;time=0;reading=null;qaChoice=null;phase=0;ampAdjusted=false;radioWasOff=false;if(resetSettings){freq=2;amp=.55;frequency2=4;receiver=3;tx=5;markers=[.2,.4]}if(mode==='quest'){if(save.q===0){freq=2}if(save.q===2){freq=3;amp=initialAmplitude}if(save.q===3){freq=2;markers=[.23,.43]}if(save.q===4){tx=radioTarget;receiver=3;radioWasOff=true}}dockOpen=true}
 const stage=()=>mode==='demo'?save.stage:mode==='quest'?save.q:tool;
 const btn=(id,label,disabled=false)=>'<button type="button" data-act="'+id+'"'+(disabled?' disabled':'')+'>'+label+'</button>';
 const slider=(key,label,val,min,max,step,unit='')=>'<label>'+label+' <output>'+fmt(val,step<1?1:0)+unit+'</output><input data-key="'+key+'" type="range" min="'+min+'" max="'+max+'" step="'+step+'" value="'+val+'"></label>';
@@ -41,15 +41,16 @@ function toolThumb(i){
  return start+images[i]+'</svg>';
 }
 const pass=()=>save.marks.reduce((a,b)=>a+(b||0),0)>=80;
-function grade(points){if(mode!=='quest'||save.q>=4)return;save.marks[save.q]=clamp(points,0,values[save.q]);save.q++;persist();reset();render();
- if(save.q===4&&pass())document.dispatchEvent(new CustomEvent('gnss:mission-three-complete',{detail:{mission:3,completed:true,score:save.marks.reduce((a,b)=>a+(b||0),0)}}))}
+function grade(points){if(mode!=='quest'||save.q>=5)return;save.marks[save.q]=clamp(points,0,values[save.q]);save.q++;persist();reset();render();
+ if(save.q===5&&pass())document.dispatchEvent(new CustomEvent('gnss:mission-three-complete',{detail:{mission:3,completed:true,score:save.marks.reduce((a,b)=>a+(b||0),0)}}))}
 function panelContent(){const n=stage();
  if(mode==='quest'){
-  if(n===4)return '<h3>Практичний залік</h3><div class="m03-grade">'+save.marks.reduce((a,b)=>a+(b||0),0)+' / 100</div><strong>'+(pass()?'Залік складено':'Потрібно 80 балів')+'</strong>'+qa.map((v,i)=>'<p>'+v+' · '+save.marks[i]+'/'+values[i]+'</p>').join('')+btn('retake','Повторити залік');
-  if(n===0)return '<h3>Генератор</h3>'+slider('freq','Частота',freq,1,8,1,' Гц')+btn('check','Перевірити частоту');
-  if(n===1)return '<h3>Амплітуда</h3><p>Обери хвилю з більшою амплітудою.</p>'+btn('chooseA','Хвиля A')+btn('chooseB','Хвиля B');
-  if(n===2)return '<h3>Осцилограф</h3><p>Період сигналу: '+fmt(1/freq,2)+' с. Введи частоту в Гц.</p><input id="m03Answer" inputmode="decimal" placeholder="Частота, Гц" aria-label="Частота в герцах">'+btn('check','Перевірити');
-  return '<h3>Радіоприймач</h3><p>Передавач працює на '+fmt(tx,1)+' МГц.</p>'+slider('receiver','Частота приймача',receiver,1,10,.1,' МГц')+btn('check','Перевірити');
+  if(n===5)return '<h3>Результат</h3><div class="m03-grade">'+save.marks.reduce((a,b)=>a+(b||0),0)+' / 100</div><strong>'+(pass()?'Залік складено':'Потрібно 80 балів')+'</strong>'+qa.map((v,i)=>'<p>'+v+' · '+(save.marks[i]||0)+'/20</p>').join('')+btn('retake','Повторити іспит')+btn('sandbox','Пісочниця');
+  if(n===0)return '<h3>Генератор</h3><p>Установи 4 Гц і запусти генератор.</p>'+slider('freq','Частота',freq,1,8,.5,' Гц')+btn('toggle',started?'Зупинити':'Запустити')+btn('check','Підтвердити');
+  if(n===1)return '<h3>Хвильова ванна</h3><p>Торкнися води у двох різних точках і ввімкни вібратор.</p><p>Дотиків: '+waterTouches.length+'/2 · Вібратор: '+(waterActivated?'✓':'—')+'</p>'+btn('toggle',source?'Вимкнути вібратор':'Увімкнути вібратор')+btn('check','Підтвердити');
+  if(n===2)return '<h3>Мотузка</h3><p>Збільш амплітуду з 0,3 до 0,6, не змінюючи 3 Гц.</p>'+slider('amp','Амплітуда',amp,.1,1,.1)+slider('freq','Частота',freq,1,8,.5,' Гц')+btn('toggle',started?'Зупинити':'Запустити')+btn('check','Підтвердити');
+  if(n===3)return '<h3>Осцилограф</h3><p>Розмісти маркери на двох сусідніх вершинах та визнач частоту.</p><p>Δt: '+fmt(Math.abs(markers[1]-markers[0])*5,2)+' с</p><input id="m03Answer" inputmode="decimal" placeholder="Частота, Гц" aria-label="Частота в герцах">'+btn('check','Виміряти');
+  return '<h3>Радіозв’язок</h3><p>Знайди частоту передавача за індикатором сигналу.</p>'+slider('receiver','Приймач',receiver,1,10,.1,' МГц')+'<p>'+(Math.abs(tx-receiver)<.051?'✓ Сигнал виявлено':'Немає сигналу')+'</p>'+btn('check','Встановити зв’язок');
  }
  if(n===0)return '<h3>Генератор коливань</h3>'+slider('freq','Частота',freq,1,10,.5,' Гц')+btn('toggle',started?'Зупинити':'Запустити')+'<p>'+fmt(freq,1)+' циклів за секунду</p>';
  if(n===1)return '<h3>Хвильова ванна</h3>'+btn('drop','Створити хвилю')+btn('toggle',source?'Зупинити вібратор':'Увімкнути вібратор')+slider('freq','Частота',freq,1,8,.5,' Гц');
@@ -59,17 +60,17 @@ function panelContent(){const n=stage();
  return '<h3>Передавач і приймач</h3>'+slider('tx','Передавач',tx,1,10,.1,' МГц')+slider('receiver','Приймач',receiver,1,10,.1,' МГц')+'<p>'+(Math.abs(tx-receiver)<.15?'Сигнал прийнято':'Налаштуй приймач на сигнал')+'</p>';
 }
 function render(){if(!shown)return;
- const n=stage(),end=mode==='quest'&&n>=4;
+ const n=stage(),end=mode==='quest'&&n>=5;
  $('m03Title').textContent=mode==='explore'?'Лабораторія хвиль':end?'Результат іспиту':mode==='quest'?qa[n]:names[n];
  $('m03Subtitle').textContent=mode==='explore'?'Обери інструмент і експериментуй.':end?'':mode==='quest'?'Практичне випробування':desc[n];
- panel.innerHTML=panelContent();$('m03Progress').textContent=mode==='quest'?Math.min(n,4)+'/4':mode==='demo'?Math.min(n+1,6)+'/6':'Пісочниця';
+ panel.innerHTML=panelContent();$('m03Progress').textContent=mode==='quest'?Math.min(n,5)+'/5':mode==='demo'?Math.min(n+1,6)+'/6':'Пісочниця';
  next.hidden=mode!=='demo';next.disabled=mode==='demo'&&!save.done.includes(n);next.textContent=mode==='demo'&&n>=5?'Пісочниця →':'Далі →';
  $('m03Toggle').hidden=mode!=='explore';$('m03Toggle').setAttribute('aria-expanded',String(dockOpen));dock.hidden=mode!=='explore'||!dockOpen;
  dock.innerHTML=['Генератор','Хвильова ванна','Мотузка','Осцилограф','Камертони','Радіозв’язок'].map((name,i)=>'<button type="button" data-act="tool" data-tool="'+i+'" class="'+(tool===i?'selected':'')+'" aria-label="'+name+'" aria-pressed="'+(tool===i)+'">'+toolThumb(i)+'<span class="m03-tool-name">'+name+'</span></button>').join('');
  draw();
 }
 function markDone(){if(mode==='demo'&&!save.done.includes(save.stage)){save.done.push(save.stage);persist();next.disabled=false}}
-function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw===2?3:raw===3?5:0):raw,wave=n===1||n===2||n===3;
+function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?1:raw===2?2:raw===3?3:raw===4?5:0):raw,wave=n===1||n===2||n===3;
  const line=(f,a,y,shift=0)=>Array.from({length:210},(_,i)=>{const x=90+i*4.9;return(i?'L':'M')+x.toFixed(1)+' '+(y-Math.sin(x/105*f+shift)*a).toFixed(1)}).join(' ');
  let shapes='<defs><linearGradient id="m03glow"><stop stop-color="#b7f48c"/><stop offset="1" stop-color="#63bcd8"/></linearGradient></defs><path d="M70 335H1120" stroke="#7498a5" stroke-dasharray="5 8"/>';
  if(n===0){
@@ -245,16 +246,24 @@ function tick(t){raf=0;if(!shown)return;const dt=last?Math.min(.07,(t-last)/1000
 root.addEventListener('click',e=>{const b=e.target.closest('[data-act]');if(!b)return;const act=b.dataset.act;if(act==='dock'){dockOpen=!dockOpen;render();return}if(act==='tool'){tool=Number(b.dataset.tool);reset(false);dockOpen=false;render();return}
  if(act==='restart'){if(mode==='demo'){save.stage=0;save.done=[];persist()}reset();render();return}
  if(act==='next'&&mode==='demo'&&save.done.includes(save.stage)){if(save.stage>=5){if(typeof window.GNSSLabSwitchMode==='function')window.GNSSLabSwitchMode('explore');else document.querySelector('#expModes [data-mode="explore"]')?.click();return}save.stage++;persist();reset();render();return}
- if(act==='toggle'){if(stage()===1){source=!source}else started=!started;markDone();render();return}
+ if(act==='toggle'){if((mode==='quest'&&save.q===1)||(mode!=='quest'&&stage()===1)){source=!source;if(mode==='quest'&&source)waterActivated=true}else started=!started;markDone();render();return}
  if(act==='drop'){waterRings.push({x:590,y:348,r:1});markDone();return}
  if(act==='measure'){markDone();reading=Math.abs(markers[1]-markers[0]);render();return}
  if(act==='chooseA'||act==='chooseB'){grade(act==='chooseA'?20:0);return}
- if(act==='retake'){save.q=0;save.marks=[null,null,null,null];save.attempt++;persist();reset();render();return}
- if(act==='check'){const n=save.q;if(n===0)grade(Math.abs(freq-3)<.01?20:0);else if(n===2){const v=Number(($('m03Answer')?.value||'').replace(',','.'));grade(Math.abs(v-freq)<.15?30:0)}else if(n===3)grade(Math.abs(tx-receiver)<.15?30:0);return}
+ if(act==='retake'){save.q=0;save.marks=[null,null,null,null,null];save.attempt++;persist();reset();render();return}
+ if(act==='sandbox'){if(typeof window.GNSSLabSwitchMode==='function')window.GNSSLabSwitchMode('explore');else document.querySelector('#expModes [data-mode="explore"]')?.click();return}
+ if(act==='check'&&mode==='quest'){
+  const n=save.q;
+  if(n===0){if(Math.abs(freq-4)<.01&&started)grade(20);return}
+  if(n===1){if(waterTouches.length>=2&&waterActivated)grade(20);return}
+  if(n===2){if(Math.abs(amp-.6)<.01&&Math.abs(freq-3)<.01&&ampAdjusted&&started)grade(20);return}
+  if(n===3){const v=Number(($('m03Answer')?.value||'').replace(',','.'));const dt=Math.abs(markers[1]-markers[0])*5;if(dt>.05&&Math.abs(dt-.5)<.12&&Math.abs(v-2)<.15)grade(20);return}
+  if(n===4){if(Math.abs(tx-receiver)<.051&&radioWasOff)grade(20);return}
+ }
 });
-panel.addEventListener('input',e=>{const key=e.target.dataset.key;if(!key)return;const val=Number(e.target.value);if(!Number.isFinite(val))return;({freq:()=>freq=val,amp:()=>amp=val,f2:()=>frequency2=val,receiver:()=>receiver=val,tx:()=>tx=val}[key]||(()=>{}))();const o=e.target.closest('label')?.querySelector('output');if(o)o.textContent=fmt(val,key==='freq'&&val%1===0?0:1)+(key==='freq'||key==='f2'?' Гц':key==='tx'||key==='receiver'?' МГц':'');if(mode==='demo')markDone();draw()});
-svg.addEventListener('pointerdown',e=>{if(!shown||mode==='quest'||stage()!==3)return;const r=svg.getBoundingClientRect();const t=clamp(((e.clientX-r.left)/r.width*1200-90)/1030,0,1);const i=Math.abs(markers[0]-t)<Math.abs(markers[1]-t)?0:1;markers[i]=t;render();});
-svg.addEventListener('pointerdown',e=>{if(!shown||stage()!==1||mode==='quest')return;const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*1200,y=(e.clientY-r.top)/r.height*660;if(x>125&&x<1055&&y>145&&y<550){waterRings.push({x,y,r:1});markDone()}});
+panel.addEventListener('input',e=>{const key=e.target.dataset.key;if(!key)return;const val=Number(e.target.value);if(!Number.isFinite(val))return;({freq:()=>freq=val,amp:()=>amp=val,f2:()=>frequency2=val,receiver:()=>receiver=val,tx:()=>tx=val}[key]||(()=>{}))();const o=e.target.closest('label')?.querySelector('output');if(o)o.textContent=fmt(val,key==='freq'&&val%1===0?0:1)+(key==='freq'||key==='f2'?' Гц':key==='tx'||key==='receiver'?' МГц':'');if(mode==='demo')markDone();if(mode==='quest'&&key==='amp')ampAdjusted=true;if(mode==='quest'&&key==='receiver'&&Math.abs(tx-receiver)>.15)radioWasOff=true;draw()});
+svg.addEventListener('pointerdown',e=>{if(!shown||stage()!==3||(mode==='quest'&&save.q!==3))return;const r=svg.getBoundingClientRect();const t=clamp(((e.clientX-r.left)/r.width*1200-90)/1030,0,1);const i=Math.abs(markers[0]-t)<Math.abs(markers[1]-t)?0:1;markers[i]=t;render();});
+svg.addEventListener('pointerdown',e=>{if(!shown||stage()!==1||(mode==='quest'&&save.q!==1))return;const r=svg.getBoundingClientRect();const x=(e.clientX-r.left)/r.width*1200,y=(e.clientY-r.top)/r.height*660;if(x>125&&x<1055&&y>145&&y<550){waterRings.push({x,y,r:1});if(mode==='quest'&&save.q===1&&waterTouches.every(p=>Math.hypot(p.x-x,p.y-y)>100))waterTouches.push({x,y});markDone()}});
 window.addEventListener('hashchange',sync);window.addEventListener('gnss:lab-change',sync);document.getElementById('sidebarNav')?.addEventListener('click',()=>setTimeout(sync,0));new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
 sync();
 })();
