@@ -70,38 +70,46 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
  }
 
  else if(n===1){
-  const cx=590,cy=347;
+  // Perspective acrylic tank and water caustics; SVG remains interactive and resolution-independent.
+  const cx=590,cy=354,speed=145,maxR=690,spacing=speed/Math.max(.25,freq);
   shapes+='<defs>'+
-   '<linearGradient id="m03GlassRim" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#e6fbff"/><stop offset=".22" stop-color="#4e899f"/><stop offset=".48" stop-color="#d6f3f8"/><stop offset=".76" stop-color="#31738d"/><stop offset="1" stop-color="#c7e9f2"/></linearGradient>'+
-   '<radialGradient id="m03Water" cx=".48" cy=".44" r=".78"><stop stop-color="#076b82"/><stop offset=".46" stop-color="#07526a"/><stop offset="1" stop-color="#052c45"/></radialGradient>'+
-   '<radialGradient id="m03Emitter" cx=".32" cy=".21" r=".85"><stop stop-color="#ffffff"/><stop offset=".42" stop-color="#cededf"/><stop offset="1" stop-color="#506e7a"/></radialGradient>'+
-   '<filter id="m03WaveGlow" x="-55%" y="-55%" width="210%" height="210%"><feGaussianBlur stdDeviation="5"/></filter>'+
-   '<clipPath id="m03TankClip"><rect x="131" y="161" width="918" height="391" rx="28"/></clipPath></defs>'+
-   '<rect x="109" y="135" width="964" height="433" rx="39" fill="#031f32" stroke="#548fa6" stroke-width="4"/>'+
-   '<rect x="119" y="143" width="945" height="414" rx="36" fill="#073e56" stroke="url(#m03GlassRim)" stroke-width="9"/>'+
-   '<rect x="132" y="160" width="917" height="392" rx="26" fill="url(#m03Water)" stroke="#126783" stroke-width="3"/>'+
-   '<g clip-path="url(#m03TankClip)">'+
-   '<path d="M146 198Q340 176 556 192T1040 188M140 526Q370 510 596 530T1040 523" fill="none" stroke="#85edf1" stroke-opacity=".22" stroke-width="3"/>';
-  // Water wavefronts share a constant outward propagation speed; frequency changes spacing.
-  const speed=145,maxR=560;
-  const spacing=speed/Math.max(freq,.25);
-  const count=Math.ceil(maxR/spacing)+2;
-  const rings=source?Array.from({length:count},(_,i)=>((time*speed-i*spacing)%maxR+maxR)%maxR):waterRings.map(v=>v.r);
+  '<linearGradient id="m03TankEdge" x1="0" y1="0" x2="1" y2=".85"><stop stop-color="#f3ffff"/><stop offset=".16" stop-color="#397b91"/><stop offset=".35" stop-color="#d6fbff"/><stop offset=".59" stop-color="#35738c"/><stop offset=".83" stop-color="#c1f1fa"/><stop offset="1" stop-color="#24546e"/></linearGradient>'+
+  '<linearGradient id="m03TankFace" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a9eaf5" stop-opacity=".77"/><stop offset=".45" stop-color="#2e8ea7" stop-opacity=".68"/><stop offset="1" stop-color="#11526d" stop-opacity=".83"/></linearGradient>'+
+  '<radialGradient id="m03Surface" cx=".5" cy=".4" r=".78"><stop stop-color="#006d80"/><stop offset=".62" stop-color="#074d65"/><stop offset="1" stop-color="#06334d"/></radialGradient>'+
+  '<radialGradient id="m03Chrome" cx=".28" cy=".2" r=".85"><stop stop-color="#ffffff"/><stop offset=".38" stop-color="#d7e5e8"/><stop offset="1" stop-color="#50727d"/></radialGradient>'+
+  '<filter id="m03SoftGlow" x="-80%" y="-80%" width="260%" height="260%"><feGaussianBlur stdDeviation="6"/></filter>'+
+  '<filter id="m03WaterNoise" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".018 .032" numOctaves="2" seed="13" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="7"/></filter>'+
+  '<clipPath id="m03WaterClip"><path d="M171 200L993 200Q1018 201 1024 225L1051 502Q1055 527 1021 527H163Q130 527 134 502L157 225Q159 202 171 200Z"/></clipPath>'+
+  '</defs>'+
+  '<ellipse cx="596" cy="566" rx="466" ry="24" fill="#001725" opacity=".28"/>'+
+  '<path d="M157 166H1017Q1051 166 1060 197L1093 536Q1096 559 1057 571H126Q88 559 92 533L126 197Q130 166 157 166Z" fill="#06344c" stroke="#295b73" stroke-width="4"/>'+
+  '<path d="M143 183H1034L1079 536Q1084 552 1054 553H132Q103 552 106 536Z" fill="url(#m03TankFace)" stroke="url(#m03TankEdge)" stroke-width="9"/>'+
+  '<path d="M171 200H993Q1018 201 1024 225L1051 502Q1055 527 1021 527H163Q130 527 134 502L157 225Q159 202 171 200Z" fill="url(#m03Surface)"/>'+
+  '<g clip-path="url(#m03WaterClip)">';
+  // Procedural water reflections drift slowly; they do not carry explanatory text.
+  for(let i=0;i<22;i++){
+   const y=215+i*16.2;
+   const offset=Math.sin(i*2.31+time*.65)*18;
+   shapes+='<path d="M'+(150+offset).toFixed(1)+' '+y.toFixed(1)+' Q'+(330+offset).toFixed(1)+' '+(y-19).toFixed(1)+' '+(516+offset).toFixed(1)+' '+(y+5).toFixed(1)+' T'+(1030+offset).toFixed(1)+' '+(y-3).toFixed(1)+'" stroke="#4bd9e7" stroke-width="'+(i%4===0?2:1)+'" opacity="'+(i%4===0?.15:.065)+'" fill="none"/>';
+  }
+  const rings=source?Array.from({length:Math.ceil(maxR/spacing)+2},(_,i)=>((time*speed-i*spacing)%maxR+maxR)%maxR):waterRings.map(o=>o.r);
   for(const r of rings){
-   if(r<=3||r>=maxR)continue;
-   const opacity=Math.pow(Math.max(0,1-r/maxR),.78);
-   shapes+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r.toFixed(2)+'" fill="none" stroke="#2deafb" stroke-width="13" opacity="'+(.21*opacity).toFixed(3)+'" filter="url(#m03WaveGlow)"/>'+
-    '<circle cx="'+cx+'" cy="'+cy+'" r="'+r.toFixed(2)+'" fill="none" stroke="#55edfb" stroke-width="2.4" opacity="'+(.85*opacity).toFixed(3)+'"/>'+
-    '<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+4).toFixed(2)+'" fill="none" stroke="#90ffff" stroke-width="1" opacity="'+(.2*opacity).toFixed(3)+'"/>';
+   if(r<7||r>maxR)continue;
+   const fade=Math.pow(1-r/maxR,1.25),ry=r*.68;
+   shapes+='<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+r.toFixed(1)+'" ry="'+ry.toFixed(1)+'" fill="none" stroke="#35eaff" stroke-width="13" opacity="'+(.22*fade).toFixed(3)+'" filter="url(#m03SoftGlow)"/>'+
+   '<ellipse cx="'+cx+'" cy="'+cy+'" rx="'+r.toFixed(1)+'" ry="'+ry.toFixed(1)+'" fill="none" stroke="#4df2ff" stroke-width="2.3" opacity="'+(.95*fade).toFixed(3)+'"/>';
   }
   shapes+='</g>'+
-   '<path d="M145 169Q390 148 1042 169" fill="none" stroke="#e6fcff" stroke-opacity=".48" stroke-width="3"/>'+
-   '<path d="M148 547Q500 566 1037 543" fill="none" stroke="#8be7f5" stroke-opacity=".32" stroke-width="3"/>'+
-   '<rect x="143" y="169" width="893" height="375" rx="22" fill="none" stroke="#b6f5fa" stroke-opacity=".16" stroke-width="2"/>'+
-   '<ellipse cx="'+cx+'" cy="'+(cy+14)+'" rx="27" ry="10" fill="#001e2b" opacity=".65"/>'+
-   '<rect x="'+(cx-19)+'" y="'+(cy-2)+'" width="38" height="24" rx="6" fill="#5a8492" stroke="#c8eff0" stroke-width="1.5"/>'+
-   '<ellipse cx="'+cx+'" cy="'+cy+'" rx="21" ry="13" fill="url(#m03Emitter)" stroke="#e5f9f8" stroke-width="1.8"/>'+
-   '<ellipse cx="'+(cx-5)+'" cy="'+(cy-4)+'" rx="9" ry="3.5" fill="#ffffff" opacity=".32"/>';
+  '<path d="M148 196Q158 178 179 179H1003Q1039 179 1047 198" fill="none" stroke="#d6fbff" stroke-width="6" opacity=".8"/>'+
+  '<path d="M112 532Q117 551 140 551H1048Q1074 550 1077 530" fill="none" stroke="#b7faff" stroke-width="7" opacity=".78"/>'+
+  '<path d="M146 205L117 526M1034 205L1069 526" stroke="#a5f0fc" stroke-width="6" opacity=".48"/>'+
+  '<path d="M138 535H1047" stroke="#e6ffff" stroke-width="2.5" opacity=".68"/>'+
+  '<ellipse cx="'+cx+'" cy="'+(cy+12)+'" rx="28" ry="13" fill="#001b27" opacity=".65"/>'+
+  '<rect x="'+(cx-18)+'" y="'+(cy-3)+'" width="36" height="24" rx="5" fill="#3c8b9a" stroke="#b5faff" stroke-width="1.8"/>'+
+  '<ellipse cx="'+cx+'" cy="'+cy+'" rx="21" ry="13" fill="url(#m03Chrome)" stroke="#f7ffff" stroke-width="1.9"/>'+
+  '<path d="M'+(cx-12)+' '+(cy-4)+'Q'+cx+' '+(cy-13)+' '+(cx+13)+' '+(cy-4)+'" stroke="#fff" stroke-opacity=".56" fill="none"/>';
+  for(const [x,y] of [[154,191],[1023,191],[139,547],[1049,547]])
+   shapes+='<circle cx="'+x+'" cy="'+y+'" r="8" fill="url(#m03Chrome)" stroke="#bde8ef" stroke-width="1.2"/><circle cx="'+x+'" cy="'+y+'" r="2.2" fill="#537888"/>';
  }
  else if(wave){shapes+='<path d="'+line(freq,amp*95,320,time*freq*2)+'" stroke="#b8f687" stroke-width="4" fill="none"/>';if(mode==='quest'&&raw===1)shapes+='<path d="'+line(freq,amp*40,460,time*freq*2)+'" stroke="#7cc5e0" stroke-width="4" fill="none"/>';if(n===3){shapes+='<path d="M90 180V520H1120" stroke="#92b6bf" stroke-width="2"/>';for(const [i,m] of markers.entries())shapes+='<line data-marker="'+i+'" x1="'+(90+m*1030)+'" x2="'+(90+m*1030)+'" y1="180" y2="520" stroke="'+(i===0?'#f1c681':'#8dd3eb')+'" stroke-width="3" stroke-dasharray="6 5" style="cursor:ew-resize"/>'}}
  else if(n===4){for(const [x,f] of [[430,freq],[790,frequency2]]){const spread=50*(1/(1+(f-frequency2)*(f-frequency2)*2));const offset=started?Math.sin(time*f*4)*spread:0;shapes+='<path d="M'+(x-24+offset)+' 200L'+x+' 430L'+(x+24+offset)+' 200" fill="none" stroke="#d8e6e2" stroke-width="9"/><rect x="'+(x-70)+'" y="433" width="140" height="18" fill="#7e9ba4"/>'}}
