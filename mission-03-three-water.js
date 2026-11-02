@@ -52,17 +52,30 @@ float d=length(vPos.xz);float rip=on=0.;
  varying vec2 vUv;varying vec3 vPos;
  uniform float uTime,uFreq,uOn,uCount;uniform vec3 uHits[8];
  void main(){
- float d=length(vPos.xz);
- float wave=uOn>.5?sin(d*5.5-uTime*uFreq*6.28318)*exp(-d*.27):0.;
- float pulses=0.;
- for(int i=0;i<8;i++){if(float(i)<uCount){vec3 hit=uHits[i];float q=length(vPos.xz-hit.xy);pulses+=exp(-pow((q-hit.z)/.13,2.));}}
- float caust=pow(max(0.,sin(vUv.x*44.+sin(vUv.y*26.+uTime*.28)*1.2)*sin(vUv.y*39.-uTime*.23)),9.);
- vec3 col=mix(vec3(.002,.13,.19),vec3(.007,.32,.39),vUv.y*.65+.19);
- col+=vec3(.018,.10,.12)*caust;
- col+=vec3(.026,.33,.39)*(pow(max(wave,0.),5.)*.42+pulses*.65);
- float sheen=pow(max(0.,sin(vUv.x*40.+uTime*.27)),24.);
- col+=vec3(.03,.16,.19)*sheen;
- gl_FragColor=vec4(col,1.);
+  float d=length(vPos.xz);
+  float theta=d*5.5-uTime*uFreq*6.2831853;
+  float envelope=exp(-d*.18);
+  float wave=uOn>.5?sin(theta)*envelope:0.;
+  float pulses=0.;
+  for(int i=0;i<8;i++){
+   if(float(i)<uCount){
+    vec3 hit=uHits[i];float q=length(vPos.xz-hit.xy);
+    pulses+=exp(-pow((q-hit.z)/.11,2.))*.9;
+   }
+  }
+  // Irregular soft caustics instead of ruler-straight lines.
+  float a=sin(vUv.x*17.+2.*sin(vUv.y*13.+uTime*.24));
+  float b=sin(vUv.y*19.+1.6*sin(vUv.x*14.-uTime*.21));
+  float caust=pow(max(0.,a*b),8.);
+  float ambient=.12*sin(vUv.x*8.+vUv.y*5.+uTime*.17);
+  vec3 col=mix(vec3(.012,.17,.24),vec3(.015,.31,.38),clamp(.34+vUv.y*.27+ambient,0.,1.));
+  col+=vec3(.025,.13,.15)*caust;
+  float crests=pow(max(0.,wave),4.);
+  col+=vec3(.05,.52,.63)*(crests*.72+pulses*.9);
+  // Soft broad surface reflection, not a repeating linear grid.
+  float reflection=exp(-pow((vUv.y-.78-.045*sin(vUv.x*7.))/.18,2.));
+  col+=vec3(.03,.095,.11)*reflection;
+  gl_FragColor=vec4(clamp(col,0.,1.),1.);
  }`;
  const water=new T.Mesh(waterGeo,shader);water.position.y=.46;group.add(water);
  const chrome=new T.MeshPhysicalMaterial({color:0xd3dfe0,metalness:.93,roughness:.13});
