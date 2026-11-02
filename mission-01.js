@@ -1342,7 +1342,10 @@ function sync(){
  const next=document.body.dataset.expMode||'demo';
  const isFirstLab=(typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex():typeof active!=='undefined'?active:0)===0;
  const eligible=document.body.classList.contains('engineering-live')&&isFirstLab;
- if(!eligible||!['demo','quest'].includes(next)){hide();return}
+ if(!eligible||!['demo','quest'].includes(next)){
+  if(visible)hide(); // a hidden mission is already idle; do not touch body.class
+  return;
+ }
  if(!visible||mode!==next)show(next);
 }
 new MutationObserver(sync).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
