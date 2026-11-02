@@ -539,13 +539,24 @@ function geometryScene(){
  let scene=schematic();
  if(quest&&station===4&&memory.quest?.diagnosis!==questVariant().flaw){
   const q=questVariant(),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
-  const ticks=Array.from({length:7},(_,i)=>i*10).map(n=>
-   '<line x1="'+(x+n*MM)+'" x2="'+(x+n*MM)+'" y1="'+(y+182)+'" y2="'+(y+191)+'" stroke="#b6d7d5"/>'+
-   '<text x="'+(x+n*MM)+'" y="'+(y+209)+'" text-anchor="middle" font-size="11" fill="#c0d7d6">'+n+'</text>').join('');
+  // A true millimetre graduation on both axes: the student must inspect
+  // the unknown error; no numerical width/height label gives it away.
+  let bottomTicks='',leftTicks='';
+  for(let mm=0;mm<=65;mm++){
+   const major=mm%10===0,mid=mm%5===0;
+   const px=x+mm*MM,py=y+mm*MM;
+   bottomTicks+='<line x1="'+px+'" x2="'+px+'" y1="'+(y+186)+'" y2="'+(y+(major?199:mid?194:191))+'" stroke="#b6d7d5" stroke-width="'+(major?1.5:1)+'"/>';
+   leftTicks+='<line x1="'+(x-62)+'" x2="'+(x-(major?76:mid?69:65))+'" y1="'+py+'" y2="'+py+'" stroke="#b6d7d5" stroke-width="'+(major?1.5:1)+'"/>';
+   if(major){
+    bottomTicks+='<text x="'+px+'" y="'+(y+216)+'" text-anchor="middle" font-size="11" fill="#c0d7d6">'+mm+'</text>';
+    leftTicks+='<text x="'+(x-83)+'" y="'+(py+4)+'" text-anchor="end" font-size="11" fill="#c0d7d6">'+mm+'</text>';
+   }
+  }
   scene+='<text x="600" y="210" text-anchor="middle" fill="#d9f4e6" font-size="22">КРЕСЛЕННЯ ДЛЯ ПЕРЕВІРКИ</text>'+
    '<rect x="'+x+'" y="'+y+'" width="'+(q.wrong[0]*MM)+'" height="'+(q.wrong[1]*MM)+'" fill="#f5cb8130" stroke="#ffce87" stroke-width="3"/>'+
-   '<path d="M'+x+' '+(y+182)+'h'+(60*MM)+'" stroke="#dbe4d4" stroke-width="2"/>'+ticks+
-   '<text x="600" y="577" text-anchor="middle" font-size="15" fill="#cae5e6">Шкала під кресленням: 1 поділка = 10 мм</text>';
+   '<path d="M'+x+' '+(y+186)+'h'+(65*MM)+' M'+(x-62)+' '+y+'v'+(65*MM)+'" stroke="#dbe4d4" stroke-width="2"/>'+
+   bottomTicks+leftTicks+
+   '<text x="600" y="577" text-anchor="middle" font-size="15" fill="#cae5e6">Креслення перевіряють за міліметровими поділками</text>';
   return scene;
  }
  if(!task)return scene;
@@ -726,7 +737,7 @@ function questResultMarkup(){
   '<span> / 100 балів</span></div>'+
   '<div class="m01-report-status">'+(passed?'Залік складено':'Потрібне доопрацювання')+'</div>'+
   names.map((n,i)=>'<div class="m01-report-row"><span>'+n+'</span><strong>'+
-    (scores[i]??0)+' / '+QUEST_WEIGHTS[i]+'</strong></div>').join('')+
+    (scores[i]??0)+' / '+QUEST_WEIGHTS[i]+'</strong><small>Помилок: '+(memory.quest?.mistakes[i]||0)+'</small></div>').join('')+
   '<div class="m01-report-note">'+
   (scores[0]>=7&&scores[1]>=15?'Обов’язкові вимірювання підтверджено.':
    'Підготовка інструмента та вимірювання — обов’язкові навички.')+
