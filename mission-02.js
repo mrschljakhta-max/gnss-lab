@@ -457,17 +457,22 @@ function resultMarkup(){
   button('new-exam','Новий варіант заліку ↻','class="m02-primary"')+button('sandbox','Пісочниця →');
 }
 // A compact laboratory shelf, matching the large illustrated tool cards of Lesson 01.
-const sandboxToolArt={
- watch:'<svg viewBox="0 0 110 78" aria-hidden="true"><defs><linearGradient id="dockSteelW" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#eef6f7"/><stop offset=".4" stop-color="#6c8993"/><stop offset=".7" stop-color="#e7f0ef"/><stop offset="1" stop-color="#526d79"/></linearGradient></defs><path d="M48 17V8h14v9M65 9q0-12 13-2" fill="none" stroke="url(#dockSteelW)" stroke-width="5"/><circle cx="55" cy="47" r="29" fill="url(#dockSteelW)" stroke="#ccdee0" stroke-width="2"/><circle cx="55" cy="47" r="24.5" fill="#f6f8f4"/><path d="M55 24v5M78 47h-5M55 70v-5M32 47h5" stroke="#314b58" stroke-width="2"/><path d="M55 47l7-18" stroke="#bf4050" stroke-width="2.6" stroke-linecap="round"/><circle cx="55" cy="47" r="3" fill="#40545c"/></svg>',
- cart:'<svg viewBox="0 0 110 78" aria-hidden="true"><defs><linearGradient id="dockMetalC" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5f8f4"/><stop offset=".55" stop-color="#9daeb2"/><stop offset="1" stop-color="#e5e9e4"/></linearGradient></defs><rect x="7" y="65" width="96" height="5" rx="2" fill="#bacbd0"/><path d="M15 29H95l-4 29H19Z" fill="url(#dockMetalC)" stroke="#e4eef0" stroke-width="2"/><path d="M13 27h84l-5 7H18Z" fill="#c5d3d5" stroke="#ecf5f3"/><path d="M68 40l7-6m-2 11 7-6m-2 11 7-6" stroke="#efbb48" stroke-width="3"/><circle cx="32" cy="59" r="12" fill="#152b39" stroke="#627f89" stroke-width="2"/><circle cx="78" cy="59" r="12" fill="#152b39" stroke="#627f89" stroke-width="2"/><circle cx="32" cy="59" r="6" fill="#d8e3e1"/><circle cx="78" cy="59" r="6" fill="#d8e3e1"/></svg>',
- pendulum:'<svg viewBox="0 0 110 78" aria-hidden="true"><defs><radialGradient id="dockBrassP"><stop stop-color="#ffedba"/><stop offset=".65" stop-color="#d1a456"/><stop offset="1" stop-color="#8e5e33"/></radialGradient></defs><rect x="12" y="66" width="88" height="8" rx="3" fill="#b1c3c9" stroke="#e5eef0"/><rect x="25" y="7" width="7" height="60" rx="2" fill="#a5b6bd" stroke="#dce8eb"/><rect x="28" y="10" width="56" height="6" rx="2" fill="#bccdd2"/><rect x="67" y="7" width="17" height="14" rx="3" fill="#748b96" stroke="#deeaec"/><path d="M75 18L89 54" stroke="#f3dfb6" stroke-width="2"/><circle cx="89" cy="54" r="12" fill="url(#dockBrassP)" stroke="#ffebc3" stroke-width="1.5"/></svg>'
-};
+// Reuse detailed physical-scene models for faithful high-fidelity thumbnails.
+// All SVG IDs are prefixed to avoid collisions with the active laboratory instruments.
+function sandboxToolArt(id){
+ const art=id==='watch'?stopwatchSvg():id==='cart'?cartSvg():pendulumSvg();
+ const box=id==='watch'?'110 206 185 213':id==='cart'?'333 333 116 91':'534 177 256 326';
+ return '<svg viewBox="'+box+'" aria-hidden="true" focusable="false" preserveAspectRatio="xMidYMid meet">'+
+  art.replaceAll('m02','m02Dock').replace(/ data-drag="[^"]*"/g,'').replace(/ tabindex="[^"]*"/g,'').replace(/ role="button"/g,'')+
+  '</svg>';
+}
+
 function renderSandboxDock(){
  const active=mode==='explore';
  dock.hidden=!active;
  if(!active){dock.innerHTML='';return}
  const tools=[['watch','Секундомір'],['cart','Вагонетка'],['pendulum','Маятник']];
- dock.innerHTML=tools.map(([id,label])=>'<button type="button" class="m02-tool-card'+(state.sandboxTool===id?' selected':'')+'" data-action="tool-'+id+'" aria-pressed="'+(state.sandboxTool===id)+'" title="'+label+'">'+sandboxToolArt[id]+'<span>'+label+'</span></button>').join('');
+ dock.innerHTML=tools.map(([id,label])=>'<button type="button" class="m02-tool-card'+(state.sandboxTool===id?' selected':'')+'" data-action="tool-'+id+'" aria-pressed="'+(state.sandboxTool===id)+'" title="'+label+'">'+sandboxToolArt(id)+'<span>'+label+'</span></button>').join('');
 }
 function render(){
  if(!shown)return;
