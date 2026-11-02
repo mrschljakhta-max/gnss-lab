@@ -240,7 +240,7 @@ const cartSvg=()=>{
  '<text x="385" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">СТАРТ</text>'+
  '<text x="815" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">ФІНІШ</text>'+
  cart+'<text x="603" y="458" fill="#d8edf0" font-size="18" text-anchor="middle">Шлях '+round(state.distance,1)+' м</text>'+
- '<text id="m02CartTime" x="602" y="486" fill="#b2f38f" font-size="15" text-anchor="middle">Час '+round(state.cart.elapsed,1)+' с</text>';
+ '';
 };
 const pendulumSvg=()=>{
  const p=state.pendulum,L=clamp(p.length,.45,1.35),r=L*148,tx=730+r*Math.sin(p.theta),ty=240+r*Math.cos(p.theta);
@@ -274,7 +274,7 @@ function paint(){
  setReadout('m02FaceTime',round(sw,1)+' с');
  const cart=get('m02MovingCart');
  if(cart)cart.setAttribute('transform','translate('+(385+clamp(state.cart.elapsed/Math.max(duration(),.001),0,1)*430).toFixed(3)+',0)');
- setReadout('m02CartTime','Час '+round(state.cart.elapsed,1)+' с');
+
  const bob=get('m02PendBall'),cord=get('m02PendString');
  if(bob&&cord){
   const p=state.pendulum,r=clamp(p.length,.45,1.35)*148;
@@ -283,7 +283,7 @@ function paint(){
   cord.setAttribute('d','M730 218L'+x.toFixed(3)+' '+y.toFixed(3));
  }
  setReadout('m02PendCount',state.pendulum.cycles+' повних циклів');
- setReadout('m02Reading',round(sw,1)+' с');
+
  setReadout('m02Cycles',state.pendulum.cycles+' циклів');
 }
 function button(action,label,extra=''){return '<button type="button" data-action="'+action+'" '+extra+'>'+label+'</button>'}
@@ -300,7 +300,7 @@ function controlMarkup(){
   button('slow',slow?'Звичайний час ×1':'Повільний час ×0,22');
  if(!q){
   if(n===0)return '<div class="m02-panel-title">Механічний секундомір</div>'+
-   '<div class="m02-time" id="m02Reading">0,0 с</div>'+
+   
    button('watch',state.stopwatch.running?'Зупинити':'Запустити')+button('watch-reset','Скинути');
   if(n>=1&&n<=4)return '<div class="m02-panel-title">'+(n===2?'Два досліди':'Рухомий візок')+'</div>'+
     '<div class="m02-stat">Шлях '+round(state.distance,1)+' м · Швидкість '+round(state.speed,1)+' м/с</div>'+
@@ -313,7 +313,7 @@ function controlMarkup(){
        (state.finishTimes.length>1?' · B: '+round(state.finishTimes[1],1)+' с':'')+'</div>':''):'')+
     button('launch-cart',state.cart.running?'Візок рухається…':n===2?'Запустити дослід':'Запустити візок',state.cart.running?'disabled':'')+
     (n===2&&state.finishTimes.length>=2?button('choose-compare','Порівняти результати'):'')+
-    '<div class="m02-time" id="m02Reading">'+round(time(),1)+' с</div>';
+    '';
   if(n===5||n===6)return '<div class="m02-panel-title">Коливання маятника</div>'+
    '<div class="m02-stat">Відтягни кульку курсором та відпусти.</div>'+
    '<div class="m02-stat" id="m02Cycles">'+state.pendulum.cycles+' циклів</div>'+
@@ -325,7 +325,7 @@ function controlMarkup(){
  }
  if(n===0)return '<div class="m02-panel-title">Підготуй секундомір</div>'+
   '<div class="m02-stat">Запусти, зупини та обнули відлік.</div>'+
-  '<div class="m02-time" id="m02Reading">'+round(time(),1)+' с</div>'+
+  
   button('watch',state.stopwatch.running?'Зупинити':'Запустити')+button('watch-reset','Обнулити');
  if(n>=1&&n<=3)return '<div class="m02-panel-title">Технічне замовлення</div>'+
   '<div class="m02-target">Шлях '+round(state.distance,1)+' м</div>'+
@@ -339,7 +339,7 @@ function controlMarkup(){
   (state.cart.done?
    n===3?(state.finishTimes.length>=2?button('choose-a','Швидший A')+button('choose-b','Швидший B'):''):
    input('m02Answer',n===1?'Час прибуття':'Швидкість',n===1?'с':'м/с')+button('check-motion','Підтвердити'):'')+
-  '<div class="m02-time" id="m02Reading">'+round(time(),1)+' с</div>';
+  '';
  return '<div class="m02-panel-title">П’ять повних коливань</div>'+
   '<div class="m02-stat">Відтягни кульку. Відпусти й спостерігай за повними циклами.</div>'+
   '<div class="m02-stat" id="m02Cycles">'+state.pendulum.cycles+' циклів</div>'+
