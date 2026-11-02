@@ -174,23 +174,43 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
    for(let j=0;j<7;j++)shapes+='<path d="M'+(x-93)+' '+(y+198+j*13)+'h8M'+(x+85)+' '+(y+198+j*13)+'h8" stroke="#849498" stroke-width="1.2" opacity=".45"/>';
    shapes+='</g>';
   }
-  // Propagating wavefronts, independent of slider input and the older demo timer.
-  const pulsePhase=radioClock*1.15;
-  shapes+='<defs><linearGradient id="m03SignalGlow" x1="0" x2="1"><stop stop-color="#5bd4f4" stop-opacity=".1"/><stop offset=".5" stop-color="#82efff" stop-opacity=".95"/><stop offset="1" stop-color="#acfcb1" stop-opacity=".35"/></linearGradient><filter id="m03SignalBlur"><feGaussianBlur stdDeviation="4"/></filter></defs>';
-  // Ripples start at the TX antenna, travel to RX and fade gracefully.
-  for(let j=0;j<5;j++){
-   const p=((pulsePhase-j*.23)%1+1)%1;
-   const x=493+p*546,y=305+Math.sin(p*Math.PI)*100;
-   const fade=Math.sin(Math.PI*p),w=17+24*p;
-   if(fade<.03)continue;
-   const d='M'+(x-w).toFixed(1)+' '+(y+22).toFixed(1)+'Q'+x.toFixed(1)+' '+(y-27).toFixed(1)+' '+(x+w).toFixed(1)+' '+(y+22).toFixed(1);
-   const opacity=(fade*(.2+.65*radioLock)).toFixed(3);
-   shapes+='<path d="'+d+'" fill="none" stroke="#5bdef8" stroke-width="10" opacity="'+(.17*fade).toFixed(3)+'" filter="url(#m03SignalBlur)"/>'+
-     '<path d="'+d+'" fill="none" stroke="url(#m03SignalGlow)" stroke-width="'+(2+radioLock).toFixed(1)+'" opacity="'+opacity+'"/>';
+  // Cinematic RF visualization: moving luminous signal ribbon, particulate field and antenna wavefronts.
+  // Keep the animation inside the gap between the two radios, without obscuring their screens.
+  const t=radioClock, left=449,right=761,mid=462,span=right-left;
+  shapes+='<defs>'+
+   '<linearGradient id="m03RfBeam" x1="0" y1="0" x2="1" y2="0"><stop stop-color="#268fcb" stop-opacity=".03"/><stop offset=".22" stop-color="#42dbff" stop-opacity=".75"/><stop offset=".56" stop-color="#b0f8ff"/><stop offset=".86" stop-color="#37ccff" stop-opacity=".8"/><stop offset="1" stop-color="#6befff" stop-opacity=".04"/></linearGradient>'+
+   '<filter id="m03RfBloom" x="-80%" y="-300%" width="260%" height="700%"><feGaussianBlur stdDeviation="7"/></filter>'+
+   '<filter id="m03RfFineBloom" x="-50%" y="-120%" width="200%" height="340%"><feGaussianBlur stdDeviation="2.2"/></filter>'+
+   '</defs>';
+  const rfY=(x)=>mid+20*Math.sin((x-left)*.025-t*7.8)+7*Math.sin((x-left)*.048-t*5.1);
+  const envelope=x=>Math.pow(Math.max(0,Math.sin(Math.PI*(x-left)/span)),.55);
+  let path='';
+  for(let x=left;x<=right;x+=4)path+=(x===left?'M':'L')+x+' '+rfY(x).toFixed(1);
+  shapes+='<path d="'+path+'" fill="none" stroke="#1ba9ff" stroke-width="25" opacity=".48" filter="url(#m03RfBloom)"/>'+
+   '<path d="'+path+'" fill="none" stroke="#66e9ff" stroke-width="8" opacity=".65" filter="url(#m03RfFineBloom)"/>'+
+   '<path d="'+path+'" fill="none" stroke="url(#m03RfBeam)" stroke-width="2.6" opacity=".98"/>';
+  // Dense luminous particles are advected horizontally; no random flicker between frames.
+  for(let j=0;j<155;j++){
+   const seed=(j*.61803398875)%1;
+   const p=((seed+t*(.11+(j%7)*.008))%1+1)%1;
+   const x=left+p*span;
+   const offset=Math.sin(j*26.71)*27+Math.cos(j*7.03+t*1.5)*6;
+   const y=rfY(x)+offset*envelope(x);
+   const alpha=(.13+.60*(.5+.5*Math.sin(j*4.8+t*2.7)))*envelope(x);
+   const r=.5+(j%7===0?1.3:j%3===0?.6:.1);
+   shapes+='<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+(j%5===0?'#c9ffff':'#3ac8ff')+'" opacity="'+alpha.toFixed(3)+'"/>';
   }
-  // A tuned receiver brightens gradually instead of instantly toggling.
+  // Transverse energy fronts sweep forward, rather than appearing as isolated arcs.
+  for(let j=0;j<4;j++){
+   const p=((t*.46+j*.25)%1+1)%1,x=left+p*span;
+   const strength=Math.sin(Math.PI*p);
+   const y=rfY(x),height=36+strength*35;
+   const curve='M'+x.toFixed(1)+' '+(y-height).toFixed(1)+'Q'+(x+20).toFixed(1)+' '+y.toFixed(1)+' '+x.toFixed(1)+' '+(y+height).toFixed(1);
+   shapes+='<path d="'+curve+'" stroke="#30bfff" stroke-width="9" fill="none" opacity="'+(.25*strength).toFixed(3)+'" filter="url(#m03RfBloom)"/>'+
+    '<path d="'+curve+'" stroke="#81edff" stroke-width="2.1" fill="none" opacity="'+(.6*strength).toFixed(3)+'"/>';
+  }
   if(radioLock>.01){
-   shapes+='<circle cx="870" cy="309" r="'+(13+radioLock*20).toFixed(1)+'" fill="none" stroke="#b5fc8c" stroke-width="2" opacity="'+(.32*radioLock).toFixed(2)+'"/>';
+   shapes+='<circle cx="870" cy="309" r="'+(12+radioLock*17).toFixed(1)+'" fill="none" stroke="#b5fc8c" stroke-width="2" opacity="'+(.25*radioLock).toFixed(2)+'"/>';
   }
  }
  return shapes}
