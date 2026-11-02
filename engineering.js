@@ -844,5 +844,6 @@ function frame(now){
 document.addEventListener('visibilitychange',()=>{
  if(!document.hidden)scheduleFrame();
 });
-setMode(mode());scheduleFrame();
+if(lesson()===0)setMode(mode());
+scheduleFrame();
 })();
