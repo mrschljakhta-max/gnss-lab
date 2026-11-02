@@ -822,7 +822,7 @@ function scheduleFrame(delay=0){
  requestAnimationFrame(now=>{framePending=false;frame(now)});
 }
 function frame(now){
- const showing=lesson()===0||lesson()===1;
+ const showing=lesson()===0||lesson()===1||lesson()===2;
  if(showing!==displayed){
   container.style.display=showing?'grid':'none';
   document.body.classList.toggle('engineering-live',showing);
