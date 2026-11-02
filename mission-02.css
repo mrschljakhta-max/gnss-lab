@@ -168,3 +168,25 @@ body.gnss-lesson02-active #engBoard{isolation:isolate}
  #gnssMission02.m02-finish .m02-panel{bottom:auto;top:170px;max-height:calc(100% - 244px)}
 }
 @media(prefers-reduced-motion:reduce){#gnssMission02 button{transition:none}}
+
+/* Lesson 02 uses the SAME engineering-paper asset as Lesson 01.
+ * Restore it explicitly: the first lesson's SVG was hidden in this mode. */
+body.gnss-lesson02-active .eng-paper{
+ background-color:#164d77!important;
+ background-image:url('./assets/blueprint-paper.svg')!important;
+ background-size:100% 100%!important;
+ background-position:center!important;
+ background-repeat:no-repeat!important;
+}
+#gnssMission02 .m02-scene::before{
+ content:"";position:absolute;inset:0;pointer-events:none;
+ background-image:
+  linear-gradient(rgba(195,232,240,.13) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(195,232,240,.13) 1px,transparent 1px),
+  linear-gradient(rgba(195,232,240,.07) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(195,232,240,.07) 1px,transparent 1px);
+ background-size:140px 140px,140px 140px,14px 14px,14px 14px;
+ opacity:.57;
+}
+#gnssMission02 .m02-scene svg{position:relative;z-index:1}
+#gnssMission02 .m02-panel input:focus{outline:2px solid #b5fa8b;outline-offset:2px}
