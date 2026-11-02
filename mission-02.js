@@ -464,9 +464,17 @@ function sandboxToolArt(id){
  let art=scene;
  if(id==='cart'){
   const start=scene.indexOf('<g id="m02MovingCart"');
-  const end=scene.indexOf('</g>',start);
   const defsEnd=scene.indexOf('</defs>');
-  art=(defsEnd>=0?scene.slice(0,defsEnd+7):'')+(start>=0&&end>start?scene.slice(start,end+4):'');
+  let end=-1;
+  if(start>=0){
+   let depth=0;
+   const tags=scene.slice(start).matchAll(/<g(?=[\s>])[^>]*>|<\/g>/g);
+   for(const match of tags){
+    depth+=match[0].startsWith('</')?-1:1;
+    if(depth===0){end=start+match.index+match[0].length;break}
+   }
+  }
+  art=(defsEnd>=0?scene.slice(0,defsEnd+7):'')+(start>=0&&end>start?scene.slice(start,end):'');
  }
  const box=id==='watch'?'110 206 185 213':id==='cart'?'330 310 112 84':'534 177 256 326';
  return '<svg viewBox="'+box+'" aria-hidden="true" focusable="false">'+
