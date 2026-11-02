@@ -949,3 +949,20 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
   font-size:18px;
  }
 }
+
+
+/* Finish screen: unlike the interactive drafting board, every action here is
+ * a real button. Restore hit testing at the root and keep the result sheet
+ * and bottom navigation above noninteractive scene layers. */
+#gnssMissionV1.m01-quest-finished{pointer-events:auto}
+#gnssMissionV1.m01-quest-finished .m01-controls:has(.m01-quest-report){
+ pointer-events:auto!important;z-index:9;
+}
+#gnssMissionV1.m01-quest-finished .m01-quest-report,
+#gnssMissionV1.m01-quest-finished .m01-quest-report>button,
+#gnssMissionV1.m01-quest-finished .m01-footer,
+#gnssMissionV1.m01-quest-finished .m01-footer>div,
+#gnssMissionV1.m01-quest-finished #m01Next{
+ pointer-events:auto!important;
+}
+#gnssMissionV1.m01-quest-finished .m01-footer{z-index:10}
