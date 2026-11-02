@@ -330,9 +330,22 @@ new MutationObserver(()=>{
  }
  root.style.pointerEvents=document.body.classList.contains('engineering-live')?'':'none';
 }).observe(document.body,{attributes:true,attributeFilter:['class','data-exp-mode']});
+let journeyRaf=false,journeyIdleTimer=null;
+function scheduleTick(idle=false){
+ if(document.hidden||journeyRaf||journeyIdleTimer!==null)return;
+ if(idle){
+  journeyIdleTimer=setTimeout(()=>{journeyIdleTimer=null;scheduleTick()},400);
+  return;
+ }
+ journeyRaf=true;
+ requestAnimationFrame(now=>{journeyRaf=false;tick(now)});
+}
 function tick(now){
- requestAnimationFrame(tick);
- if(!open||mode!=='demo'||!document.body.classList.contains('engineering-live')||now-lastFrame<60)return;
+ const active=open&&mode==='demo'&&
+  document.body.classList.contains('engineering-live')&&
+  !document.body.classList.contains('gnss-mission-active');
+ if(!active){scheduleTick(true);return}
+ if(now-lastFrame<60){scheduleTick();return}
  lastFrame=now;
  const t=((now-begin)/1000)%5.4,p=clamp(t/3.7,0,1),e=p*p*(3-2*p);
  if(stage===0)length=round(30+150*e);
@@ -347,7 +360,9 @@ function tick(now){
   gap=caliperTarget()+16*(1-smooth);
  }
  render();
+ scheduleTick();
 }
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)scheduleTick()});
 window.GNSSLab01Journey={get active(){return open},get stage(){return stage},
  get progress(){return state.done.filter(Boolean).length},
  open:()=>{restore.hidden=true;activate()},
@@ -364,5 +379,5 @@ if(mode==='explore'){
  restore.hidden=false;
  root.hidden=true;
 }else activate();
-requestAnimationFrame(tick);
+scheduleTick();
 })();
