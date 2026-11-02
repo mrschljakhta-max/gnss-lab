@@ -190,3 +190,35 @@ body.gnss-lesson02-active .eng-paper{
 }
 #gnssMission02 .m02-scene svg{position:relative;z-index:1}
 #gnssMission02 .m02-panel input:focus{outline:2px solid #b5fa8b;outline-offset:2px}
+
+
+/* Lesson 02 — illustrated bottom instrument shelf, matching Lesson 01 */
+#gnssMission02 .m02-instrument-dock{
+ position:absolute;z-index:8;left:50%;bottom:72px;transform:translateX(-50%);
+ display:flex;align-items:center;justify-content:center;gap:10px;
+ width:max-content;max-width:calc(100% - 120px);padding:12px 18px;
+ background:linear-gradient(140deg,rgba(11,35,49,.97),rgba(3,20,31,.97) 65%,rgba(9,38,52,.98));
+ border:1px solid rgba(108,148,167,.65);border-radius:18px;
+ box-shadow:0 18px 48px rgba(0,13,25,.54),inset 0 1px rgba(214,241,252,.14);
+ backdrop-filter:blur(14px);pointer-events:auto;
+}
+#gnssMission02 .m02-instrument-dock[hidden]{display:none!important}
+#gnssMission02 .m02-tool-card{
+ display:flex;flex-direction:column;align-items:center;justify-content:center;
+ flex:0 0 112px;width:112px;height:114px;padding:7px 6px 6px;
+ border:1px solid #365b69;border-radius:12px;cursor:pointer;
+ color:#dbecef;background:radial-gradient(ellipse at 50% 22%,#193847,#071d2c 73%);
+ font:700 11px/1.3 Inter,system-ui,Arial,sans-serif;
+ box-shadow:inset 0 1px rgba(212,243,248,.1),0 4px 11px rgba(0,10,19,.24);
+ transition:border-color .18s,background .18s,transform .2s;
+}
+#gnssMission02 .m02-tool-card svg{display:block;width:100px;height:78px;max-width:100%;filter:drop-shadow(0 5px 5px rgba(0,9,21,.5));transition:transform .2s}
+#gnssMission02 .m02-tool-card:hover svg,#gnssMission02 .m02-tool-card:focus-visible svg{transform:translateY(-4px)}
+#gnssMission02 .m02-tool-card:hover{border-color:#a8e98d;transform:translateY(-2px)}
+#gnssMission02 .m02-tool-card.selected{border:1.5px solid #aef775;color:#bcf68f;background:radial-gradient(ellipse at 50% 24%,#254d35,#0c2a25 76%);box-shadow:inset 0 1px rgba(220,255,194,.2),0 0 20px rgba(129,237,93,.15)}
+#gnssMission02 .m02-tool-card:focus-visible{outline:2px solid #aef775;outline-offset:3px}
+@media(max-width:650px){
+ #gnssMission02 .m02-instrument-dock{bottom:65px;max-width:calc(100% - 30px);gap:6px;padding:7px}
+ #gnssMission02 .m02-tool-card{flex:1 1 0;width:90px;height:86px;font-size:10px}
+ #gnssMission02 .m02-tool-card svg{width:76px;height:57px}
+}
