@@ -741,6 +741,9 @@ function questResultMarkup(){
   '<div class="m01-report-note">'+
   (scores[0]>=7&&scores[1]>=15?'Обов’язкові вимірювання підтверджено.':
    'Підготовка інструмента та вимірювання — обов’язкові навички.')+
+  ((memory.quest?.mistakes||[]).some(n=>n>0)?
+   '<div>Повтори: '+names.filter((n,i)=>(memory.quest.mistakes[i]||0)>0).join(', ')+'.</div>':
+   '<div>Усі станції виконано без помилок.</div>')+
   '</div><button type="button" data-act="quest-retry" class="m01-submit">Новий варіант заліку ↻</button></div>';
 }
 function guidance(){
