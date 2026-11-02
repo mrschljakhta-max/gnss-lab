@@ -359,7 +359,7 @@ function render(){
  if(!shown)return;
  const n=station(),finished=mode==='quest'?n>=5:n>=7;
  root.classList.toggle('m02-finish',finished);
- get('m02Kicker').textContent=mode==='explore'?'ВІЛЬНИЙ ДОСЛІД':mode==='quest'?'ПРАКТИЧНИЙ ЗАЛІК · '+Math.min(n+1,5)+'/5':'НАВЧАННЯ · МІСІЯ 02 · '+Math.min(n+1,7)+'/7';
+ const kicker=get('m02Kicker');if(kicker){kicker.textContent='';kicker.style.display='none'}
  get('m02Title').textContent=mode==='explore'?'Лабораторія часу':mode==='quest'?(finished?(saved.passed?'Залік складено':'Залік завершено'):qTitles[n]):finished?'Місію завершено':titles[n];
  get('m02Prompt').textContent=mode==='explore'?'Візьми інструмент і перевір закономірність сам.':finished?'':mode==='quest'?'Виконай практичний дослід самостійно.':hints[n];
  panel.innerHTML=controlMarkup();
