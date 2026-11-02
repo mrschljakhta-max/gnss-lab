@@ -228,3 +228,21 @@ body.gnss-lesson02-active .eng-paper{
 #gnssMission02 .m02-tool-card svg{width:108px;height:91px;max-width:100%;overflow:visible;filter:drop-shadow(0 5px 6px rgba(0,8,16,.52))}
 #gnssMission02 .m02-tool-card span{font-size:11px;line-height:1.2}
 @media(max-width:650px){#gnssMission02 .m02-tool-card{height:95px;flex:1 1 0;width:94px;padding:4px}#gnssMission02 .m02-tool-card svg{width:78px;height:65px}}
+
+
+/* Right-hand floating tool drawer control — Lesson 02 sandbox only */
+#gnssMission02 .m02-dock-toggle{
+ position:absolute;z-index:11;right:22px;bottom:22px;
+ display:grid;place-items:center;width:48px;height:48px;
+ padding:0;border:1px solid #476f7c;border-radius:50%;
+ color:#d8fff0;background:#06283bdc;cursor:pointer;pointer-events:auto;
+ box-shadow:0 9px 22px #0015258a;transition:transform .2s,border-color .2s,background .2s;
+}
+#gnssMission02 .m02-dock-toggle svg{width:24px;height:24px}
+#gnssMission02 .m02-dock-toggle:hover{transform:translateY(-3px);border-color:#aaf389;background:#17483f}
+#gnssMission02 .m02-dock-toggle:focus-visible{outline:2px solid #b8f990;outline-offset:3px}
+#gnssMission02 .m02-dock-toggle[hidden]{display:none!important}
+#gnssMission02 .m02-instrument-dock{transition:opacity .18s ease,transform .18s ease}
+#gnssMission02 .m02-instrument-dock[hidden]{display:none!important}
+#gnssMission02 .m02-footer{right:83px}
+@media(max-width:650px){#gnssMission02 .m02-dock-toggle{right:12px;bottom:18px;width:44px;height:44px}#gnssMission02 .m02-footer{right:65px}}
