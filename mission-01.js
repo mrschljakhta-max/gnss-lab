@@ -23,29 +23,76 @@ const specs=[
  {name:'Закріплення',title:'Обертай і вимірюй',prompt:'Поверни брусок і виміряй довжину, ширину та товщину.'},
  {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
+const QUEST_VERSION=2;
+const QUEST_WEIGHTS=[10,25,25,20,20];
 const tasks=[
- {name:'Виміряй деталь',prompt:'Зведи губки й зчитай шкалу.'},
- {name:'Відрізок',prompt:'Побудуй відрізок 35 мм.'},
- {name:'Прямокутник',prompt:'Побудуй прямокутник 30 × 20 мм.'},
- {name:'Коло',prompt:'Побудуй коло радіусом 12 мм.'}
+ {name:'Підготуй штангенциркуль',prompt:'Перевір нуль та підготуй інструмент.'},
+ {name:'Знайди придатну деталь',prompt:'Виміряй A та B і визнач, яка деталь відповідає замовленню.'},
+ {name:'Креслення за замовленням',prompt:'Побудуй прямокутник за технічною карткою.'},
+ {name:'Коло за діаметром',prompt:'Побудуй коло за заданим діаметром.'},
+ {name:'Знайди та виправ помилку',prompt:'Перевір готове креслення та виправ помилкову сторону.'}
 ];
+const QUEST_VARIANTS=[
+ {length:42,blocks:[42,49],rect:[36,24],diameter:34,flaw:'height',wrong:[36,30]},
+ {length:45,blocks:[51,45],rect:[32,26],diameter:28,flaw:'width',wrong:[39,26]},
+ {length:38,blocks:[38,44],rect:[39,22],diameter:36,flaw:'height',wrong:[39,27]},
+ {length:47,blocks:[53,47],rect:[34,28],diameter:32,flaw:'width',wrong:[40,28]},
+ {length:41,blocks:[41,48],rect:[37,25],diameter:30,flaw:'height',wrong:[37,19]}
+];
+const questVariant=()=>QUEST_VARIANTS[(memory.quest?.seed||0)%QUEST_VARIANTS.length];
+const newQuest=seed=>({version:QUEST_VERSION,seed,scores:[null,null,null,null,null],
+ mistakes:[0,0,0,0,0],readings:{},identified:null,diagnosis:null,report:[],passed:false});
+const questScores=()=>memory.quest?.scores||[];
+const questTotal=()=>questScores().reduce((sum,n)=>sum+(Number.isFinite(n)?n:0),0);
+const questPasses=()=>questTotal()>=80&&questScores()[0]>=7&&questScores()[1]>=15;
+function questMistake(message){
+ const k=memory.assessment,q=memory.quest;
+ if(q&&k<5){q.mistakes[k]=(q.mistakes[k]||0)+1;memory.assessmentAttempts++;persist()}
+ announce(message);
+}
+function finishQuestStation(note){
+ const k=memory.assessment,q=memory.quest;
+ if(!q||k>=5||q.scores[k]!==null)return;
+ const point=QUEST_WEIGHTS[k],deduction=k===1?5:4;
+ q.scores[k]=Math.max(0,point-(q.mistakes[k]||0)*deduction);
+ q.report[k]=note;
+ memory.assessment=k+1;
+ if(memory.assessment===5){q.passed=questPasses();memory.passed=q.passed}
+ persist();resetStep();render();
+ if(memory.assessment===5){
+  if(q.passed)document.dispatchEvent(new CustomEvent('gnss:mission-one-complete',
+   {detail:{mission:1,completed:true,score:questTotal(),attempts:memory.assessmentAttempts}}));
+  announce(q.passed?'✓ Практичний залік складено.':'Залік завершено. Переглянь результати та повтори слабкі навички.',q.passed);
+ }else announce('✓ Станцію завершено. Наступне завдання.',true);
+}
+function startFreshQuest(){
+ memory.quest=newQuest(((memory.quest?.seed??0)+1)%QUEST_VARIANTS.length);
+ memory.assessment=0;memory.passed=false;memory.assessmentAttempts=0;
+ persist();resetStep();render();
+}
+
 // One wooden specimen (millimetres); the caliper measures each horizontal face.
 const DIMENSIONS=[
  {id:'length',name:'Довжина',mm:42,face:'верхня грань'},
  {id:'width',name:'Ширина',mm:28,face:'поворот на 90°'},
  {id:'thickness',name:'Товщина',mm:18,face:'бічна грань'}
 ];
-const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{},curriculumVersion:3};
+const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{},curriculumVersion:3,quest:null};
 const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
 let memory={...initial};
 try{
  const p=JSON.parse(localStorage.getItem(STORE)||'{}');
  if(p&&typeof p==='object'){
-  memory={...initial,...p,scene:clamp(Number(p.scene)||0,0,7),assessment:clamp(Number(p.assessment)||0,0,4),
+  memory={...initial,...p,scene:clamp(Number(p.scene)||0,0,7),assessment:clamp(Number(p.assessment)||0,0,5),
    completed:Array.isArray(p.completed)?p.completed.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    skipped:Array.isArray(p.skipped)?p.skipped.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    passed:!!p.passed};
-  // Old numeric conversions have been replaced with physical drafting.
+  if(!memory.quest||memory.quest.version!==QUEST_VERSION||
+    !Array.isArray(memory.quest.scores)||memory.quest.scores.length!==5){
+    memory.quest=newQuest(Math.floor(Math.random()*QUEST_VARIANTS.length));
+    memory.assessment=0;memory.passed=false;
+   }
+   // Old numeric conversions have been replaced with physical drafting.
   // Keep verified caliper progress but offer all three new geometry lessons.
   if(p.curriculumVersion!==3){
    memory.completed=memory.completed.filter(n=>n<3||n===6);
@@ -59,9 +106,14 @@ try{
 // All dimensions are mm, physically laid out on the existing drafting board.
 const DRAW_ORIGIN={x:425,y:325};
 function geometryTask(){
- if(mode==='quest')return {
-  1:{kind:'line',width:35},2:{kind:'rect',width:30,height:20},3:{kind:'circle',radius:12}
- }[memory.assessment]||null;
+ if(mode==='quest'){
+  const q=questVariant();
+  if(memory.assessment===2)return {kind:'rect',width:q.rect[0],height:q.rect[1]};
+  if(memory.assessment===3)return {kind:'circle',radius:q.diameter/2};
+  if(memory.assessment===4&&memory.quest?.diagnosis===q.flaw)
+   return {kind:'rect',width:q.rect[0],height:q.rect[1]};
+  return null;
+ }
  return {
   3:{kind:'line',width:50},4:{kind:'rect',width:40,height:25},5:{kind:'circle',radius:20}
  }[memory.scene]||null;
@@ -93,7 +145,7 @@ const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
  stopTurnAnimation();cancelDraftingAnimation();
- part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
+ part=mode==='quest'&&memory.assessment===1&&Number.isFinite(memory.quest?.readings?.a)?'b':'a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
  hintLevel=0;feedback='';feedbackSuccess=false;
  geomPointer=null;geomDraft=null;geomLast=null;geomKeyboard=0;
  geomDone=mode==='demo'&&memory.completed.includes(memory.scene)&&memory.scene>=3&&memory.scene<=5;
@@ -103,24 +155,27 @@ function resetStep(){
   dimensionIndex=mode==='demo'&&memory.scene===6?
    Math.max(0,DIMENSIONS.findIndex(d=>dimensionReadings[d.id]!==d.mm)):0;
   turnPointer=null;solidPose=facePose(dimensionIndex);
- if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
-  assessmentTarget=[42,47,63,38,69][assessmentSeed];gap=assessmentTarget+24;}
+ if(mode==='quest'){assessmentTarget=target();gap=calibration()?12:target()+24;}
  if(mode==='demo'&&memory.scene===2)gap=70;
  if(mode==='demo'&&memory.scene===6)gap=target()+24;
  if(mode==='demo'&&memory.scene===1)gap=12;
- caliperChosen=mode==='quest'&&memory.assessment===0||mode==='demo'&&(
+ caliperChosen=mode==='quest'&&(memory.assessment===0||memory.assessment===1)||mode==='demo'&&(
   memory.scene===1||memory.scene===2||memory.scene===6);
  caliperStartGap=gap;
 }
 function target(){
- if(mode==='quest')return assessmentTarget;
+ if(mode==='quest'){
+  if(memory.assessment===0)return 0;
+  if(memory.assessment===1)return questVariant().blocks[part==='a'?0:1];
+  return 0;
+ }
  if(memory.scene===2)return part==='a'?50:54;
  if(memory.scene===6)return DIMENSIONS[dimensionIndex].mm;
  return 50;
 }
 function canMeasure(){return caliperChosen&&!turnPointer&&!turning&&moved&&settledContact&&Math.abs(gap-target())<.001}
 function sceneComplete(){
- if(mode==='quest')return memory.assessment>=4;
+ if(mode==='quest')return memory.assessment>=5;
  switch(memory.scene){
   case 0:return !!choice;
   case 1:return caliperChosen&&moved&&gap===0;
@@ -290,7 +345,7 @@ function caliperScene(calTarget,calGap,showBlock=true){
  let s=schematic();
  const jawX=X0+calGap*MM,contact=Math.abs(calGap-calTarget)<.001;
  const travelStart=calGap,limit=showBlock?calTarget:0;
- const label=mode==='quest'?'Невідома деталь':memory.scene===6?DIMENSIONS[dimensionIndex].name:part==='a'?'Деталь A':'Деталь B';
+ const label=mode==='quest'?(part==='a'?'Деталь A':'Деталь B'):memory.scene===6?DIMENSIONS[dimensionIndex].name:part==='a'?'Деталь A':'Деталь B';
  if(showBlock){
   s+=mode==='demo'&&memory.scene===6?orientableBlockSvg():blockSvg(X0,265,calTarget*MM,'',false,false);
   s+='<text x="'+(X0+calTarget*MM/2)+'" y="242" fill="#e3efdf" text-anchor="middle" font-size="17">'+label+'</text>';
@@ -429,7 +484,7 @@ function drawnShape(task,draft){
  const v=geometryDimensions(task,draft);
  const label=task.kind==='line'?fmt(v.length,1)+' мм':task.kind==='rect'?
   fmt(v.width,1)+' × '+fmt(v.height,1)+' мм':'R '+fmt(v.radius,1)+' мм';
- return shape+'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>';
+ return shape+(mode==='quest'?'':'<text x="640" y="535" text-anchor="middle" fill="#ecf9f6" font-size="21" font-weight="760">'+label+'</text>');
 }
 
 // Lesson 01 uses the EXACT sandbox drawing engine; no duplicate tool models.
@@ -461,7 +516,7 @@ function startDraftingAnimation(task){
    render();return;
   }
   geomDone=true;geomDraft=shapeGoal(task);
-  if(mode==='quest'){onSuccess();return}
+  if(mode==='quest'){finishQuestStation(memory.assessment===4?'Помилкову сторону виправлено.':'Побудову виконано з правильною точністю.');return}
   success('✓ Побудовано інструментами: '+shapeDescription(task)+'. Натисни «Далі →».');
   render();
  };
@@ -480,30 +535,52 @@ function startDraftingAnimation(task){
 }
 
 function geometryScene(){
- const task=geometryTask();
- if(!task)return schematic();
- const goal=shapeGoal(task),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
- let s=schematic();
- // A pale target makes the first action discoverable without pre-drawing the answer.
- s+='<text x="600" y="216" text-anchor="middle" font-size="24" font-weight="750" fill="#d9f4e6">'+
- (task.kind==='line'?'ВІДРІЗОК':task.kind==='rect'?'ПРЯМОКУТНИК':'КОЛО')+' · '+shapeDescription(task)+'</text>';
- if(task.kind==='line'){
-  s+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+goal.dx)+'" y2="'+y+'" stroke="#9cd3c2" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 8"/>';
- }else if(task.kind==='rect'){
-  s+='<rect x="'+x+'" y="'+y+'" width="'+goal.dx+'" height="'+goal.dy+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
- }else{
-  s+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ const task=geometryTask(),quest=mode==='quest',station=memory.assessment;
+ let scene=schematic();
+ if(quest&&station===4&&memory.quest?.diagnosis!==questVariant().flaw){
+  const q=questVariant(),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+  // A true millimetre graduation on both axes: the student must inspect
+  // the unknown error; no numerical width/height label gives it away.
+  let bottomTicks='',leftTicks='';
+  for(let mm=0;mm<=65;mm++){
+   const major=mm%10===0,mid=mm%5===0;
+   const px=x+mm*MM,py=y+mm*MM;
+   bottomTicks+='<line x1="'+px+'" x2="'+px+'" y1="'+(y+186)+'" y2="'+(y+(major?199:mid?194:191))+'" stroke="#b6d7d5" stroke-width="'+(major?1.5:1)+'"/>';
+   leftTicks+='<line x1="'+(x-62)+'" x2="'+(x-(major?76:mid?69:65))+'" y1="'+py+'" y2="'+py+'" stroke="#b6d7d5" stroke-width="'+(major?1.5:1)+'"/>';
+   if(major){
+    bottomTicks+='<text x="'+px+'" y="'+(y+216)+'" text-anchor="middle" font-size="11" fill="#c0d7d6">'+mm+'</text>';
+    leftTicks+='<text x="'+(x-83)+'" y="'+(py+4)+'" text-anchor="end" font-size="11" fill="#c0d7d6">'+mm+'</text>';
+   }
+  }
+  scene+='<text x="600" y="210" text-anchor="middle" fill="#d9f4e6" font-size="22">КРЕСЛЕННЯ ДЛЯ ПЕРЕВІРКИ</text>'+
+   '<rect x="'+x+'" y="'+y+'" width="'+(q.wrong[0]*MM)+'" height="'+(q.wrong[1]*MM)+'" fill="#f5cb8130" stroke="#ffce87" stroke-width="3"/>'+
+   '<path d="M'+x+' '+(y+186)+'h'+(65*MM)+' M'+(x-62)+' '+y+'v'+(65*MM)+'" stroke="#dbe4d4" stroke-width="2"/>'+
+   bottomTicks+leftTicks+
+   '<text x="600" y="577" text-anchor="middle" font-size="15" fill="#cae5e6">Креслення перевіряють за міліметровими поділками</text>';
+  return scene;
  }
+ if(!task)return scene;
+ const goal=shapeGoal(task),x=DRAW_ORIGIN.x,y=DRAW_ORIGIN.y;
+ if(!quest){
+  scene+='<text x="600" y="216" text-anchor="middle" font-size="24" font-weight="750" fill="#d9f4e6">'+
+   (task.kind==='line'?'ВІДРІЗОК':task.kind==='rect'?'ПРЯМОКУТНИК':'КОЛО')+' · '+shapeDescription(task)+'</text>';
+  if(task.kind==='line')
+   scene+='<line x1="'+x+'" y1="'+y+'" x2="'+(x+goal.dx)+'" y2="'+y+'" stroke="#9cd3c2" stroke-opacity=".35" stroke-width="3" stroke-dasharray="7 8"/>';
+  else if(task.kind==='rect')
+   scene+='<rect x="'+x+'" y="'+y+'" width="'+goal.dx+'" height="'+goal.dy+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+  else scene+='<circle cx="'+x+'" cy="'+y+'" r="'+goal.dx+'" fill="none" stroke="#b8e3dd" stroke-opacity=".28" stroke-width="2" stroke-dasharray="7 8"/>';
+ }else scene+='<text x="600" y="214" text-anchor="middle" fill="#d5efeb" font-size="22">ВИКОНАЙ КРЕСЛЕННЯ</text>';
  const current=geomAnimating?null:(geomDraft||(geomDone?shapeGoal(task):null));
- s+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
- s+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
+ scene+='<g data-geom-preview="true">'+drawnShape(task,current)+'</g>';
+ scene+='<circle cx="'+x+'" cy="'+y+'" r="11" fill="#c9fba8" stroke="#0c3440" stroke-width="4"/>'+
   '<circle cx="'+x+'" cy="'+y+'" r="29" class="m01-geom-handle" data-geom-start="true"'+
   ' fill="transparent" stroke="#c7ffa7" stroke-width="2" stroke-dasharray="5 6" tabindex="0"'+
   ' role="button" aria-label="Початок побудови. Утримуй та переміщуй курсор, або використай стрілки й Enter"/>';
- s+='<text x="'+x+'" y="'+(y-43)+'" text-anchor="middle" fill="#d6f6da" font-size="15">ПОЧАТОК</text>';
- if(geomDone)s+='<text x="600" y="578" text-anchor="middle" fill="#b5fa8f" font-size="17">✓ Побудову виконано · Далі →</text>';
- return s;
+ if(!quest)scene+='<text x="'+x+'" y="'+(y-43)+'" text-anchor="middle" fill="#d6f6da" font-size="15">ПОЧАТОК</text>';
+ if(geomDone&&!quest)scene+='<text x="600" y="578" text-anchor="middle" fill="#b5fa8f" font-size="17">✓ Побудову виконано · Далі →</text>';
+ return scene;
 }
+
 function updateGeometryPreview(){
  const task=geometryTask();if(!task)return;
  const group=canvas.querySelector('[data-geom-preview]');
@@ -517,7 +594,8 @@ function finishGeometry(draft){
   const value=task.kind==='line'?fmt(values.length,1)+' мм':
    task.kind==='rect'?fmt(values.width,1)+' × '+fmt(values.height,1)+' мм':
    'R '+fmt(values.radius,1)+' мм';
-  announce('Поки '+value+'. Потрібно '+shapeDescription(task)+'. Спробуй ще раз.');
+  if(mode==='quest')questMistake('Неточна побудова. Перевір свої розміри та повтори.');
+  else announce('Поки '+value+'. Потрібно '+shapeDescription(task)+'. Спробуй ще раз.');
   geomDraft=null;updateGeometryPreview();
   return;
  }
@@ -568,7 +646,7 @@ function geometryKeyboard(e){
 }
 
 function summaryScene(){
- let s=schematic(),done=mode==='quest'?memory.passed||memory.assessment>=4:memory.completed.length===7;
+ let s=schematic(),done=mode==='quest'?questPasses()&&memory.assessment>=5:memory.completed.length===7;
  if(done){
   s+='<circle class="m01-final-ring" cx="600" cy="335" r="75" fill="#245b45" fill-opacity=".32" stroke="#b4f68f" stroke-width="3"/>'+
    '<path class="m01-final-check" d="M553 340l34 32 65-73" fill="none" stroke="#c1ff9a" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -580,8 +658,9 @@ function summaryScene(){
 }
 function mainScene(){
  if(mode==='quest'){
-  if(memory.assessment===0)return caliperScene(assessmentTarget,gap);
-  if(memory.assessment>=1&&memory.assessment<=3)return geometryScene();
+  if(memory.assessment===0)return caliperScene(0,gap,false);
+  if(memory.assessment===1)return caliperScene(target(),gap);
+  if(memory.assessment>=2&&memory.assessment<=4)return geometryScene();
   return summaryScene();
  }
  const scene=memory.scene;
@@ -594,7 +673,24 @@ function mainScene(){
 }
 function controlView(){
  const quest=mode==='quest',step=quest?memory.assessment:memory.scene;
- if(quest&&step>=4)return '';
+ if(quest&&step>=5)return questResultMarkup();
+ if(quest&&step===1){
+  const q=memory.quest,job=questVariant();
+  const ready=Number.isFinite(q.readings.a)&&Number.isFinite(q.readings.b);
+  return '<div class="m01-control-title">ТЕХНІЧНЕ ЗАМОВЛЕННЯ</div>'+
+   '<div class="m01-quest-target">Довжина '+job.length+' ± 0,5 мм</div>'+
+   '<div class="m01-quest-caption">'+(ready?'Яка деталь придатна?':'Виміряй спочатку A, потім B.')+'</div>'+
+   (ready?'<div class="m01-buttons"><button type="button" data-act="pick-a">Обрати A</button>'+
+    '<button type="button" data-act="pick-b">Обрати B</button></div>':'');
+ }
+ if(quest&&step===4&&!geometryTask()){
+  const job=questVariant();
+  return '<div class="m01-control-title">ТЕХНІЧНА КАРТКА</div>'+
+   '<div class="m01-quest-target">'+job.rect[0]+' × '+job.rect[1]+' мм</div>'+
+   '<div class="m01-quest-caption">Порівняй креслення із замовленням. Яка сторона неправильна?</div>'+
+   '<div class="m01-buttons"><button type="button" data-act="flaw-width">Ширина</button>'+
+   '<button type="button" data-act="flaw-height">Висота</button></div>';
+ }
  if(!quest&&step===7)return '';
  if(!quest&&step===0)return '';
  if(!quest&&step===6){
@@ -611,9 +707,17 @@ function controlView(){
    '<div class="m01-dim-progress">'+done+'/3 виміряно</div></div>';
  }
  // The caliper is already on the table. Its reading entry lives at the bottom.
- if((!quest&&(step===1||step===2))||(quest&&step===0))return '';
+ if((!quest&&(step===1||step===2))||(quest&&(step===0||step===1)))return '';
  if(geometryTask()){
   const task=geometryTask();
+  if(quest){
+   const job=questVariant(),description=step===3?'Ø '+job.diameter+' мм':job.rect[0]+' × '+job.rect[1]+' мм';
+   return '<div class="m01-control-title">'+(step===4?'ВИПРАВЛЕННЯ':'ТЕХНІЧНА КАРТКА')+'</div>'+
+    '<div class="m01-quest-target">'+description+'</div>'+
+    '<div class="m01-quest-caption">'+(step===3?'Самостійно визнач розхил циркуля.':
+      step===4?'Побудуй правильний прямокутник замість помилкового.':
+      'Побудуй прямокутник, дотримуючись розмірів.')+'</div>';
+  }
   const kind=task.kind==='line'?'ЛІНІЙКА + ОЛІВЕЦЬ':task.kind==='rect'?'КУТНИК + ОЛІВЕЦЬ':'ЦИРКУЛЬ';
   return '<div class="m01-geometry-panel">'+
    '<div class="m01-control-title">'+kind+'</div>'+
@@ -625,6 +729,22 @@ function controlView(){
    '</div>';
  }
  return '';
+}
+function questResultMarkup(){
+ const scores=questScores(),passed=questPasses();
+ const names=['Підготовка','Вимірювання','Прямокутник','Коло','Контроль креслення'];
+ return '<div class="m01-quest-report"><div class="m01-report-score">'+questTotal()+
+  '<span> / 100 балів</span></div>'+
+  '<div class="m01-report-status">'+(passed?'Залік складено':'Потрібне доопрацювання')+'</div>'+
+  names.map((n,i)=>'<div class="m01-report-row"><span>'+n+'</span><strong>'+
+    (scores[i]??0)+' / '+QUEST_WEIGHTS[i]+'</strong><small>Помилок: '+(memory.quest?.mistakes[i]||0)+'</small></div>').join('')+
+  '<div class="m01-report-note">'+
+  (scores[0]>=7&&scores[1]>=15?'Обов’язкові вимірювання підтверджено.':
+   'Підготовка інструмента та вимірювання — обов’язкові навички.')+
+  ((memory.quest?.mistakes||[]).some(n=>n>0)?
+   '<div>Повтори: '+names.filter((n,i)=>(memory.quest.mistakes[i]||0)>0).join(', ')+'.</div>':
+   '<div>Усі станції виконано без помилок.</div>')+
+  '</div><button type="button" data-act="quest-retry" class="m01-submit">Новий варіант заліку ↻</button></div>';
 }
 function guidance(){
  if(mode==='quest')return '';
@@ -641,11 +761,11 @@ function guidance(){
  return msgs[memory.scene]||'';
 }
 function caliperStep(){
- return mode==='quest'&&memory.assessment===0||
+ return mode==='quest'&&(memory.assessment===0||memory.assessment===1)||
   mode==='demo'&&(memory.scene===1||memory.scene===2||
     memory.scene===6);
 }
-function calibration(){return mode==='demo'&&memory.scene===1}
+function calibration(){return mode==='quest'&&memory.assessment===0||mode==='demo'&&memory.scene===1}
 function atContact(){return Math.abs(gap-(calibration()?0:target()))<.001}
 function caliperInstruction(){
  if(mode==='demo'&&memory.scene===6){
@@ -704,15 +824,16 @@ function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
  root.classList.toggle('m01-geometry-active',!!geometryTask());
- root.classList.toggle('m01-centered-heading',(!quest&&(current<=2||current===6))||(quest&&current===0));
+ root.classList.toggle('m01-centered-heading',(!quest&&(current<=2||current===6))||(quest&&current<5));
+ root.classList.toggle('m01-quest-finished',quest&&current===5);
  root.classList.toggle('m01-stage7-active',!quest&&current===6);
- const spec=quest?tasks[Math.min(current,3)]:specs[current];
+ const spec=quest?tasks[Math.min(current,4)]:specs[current];
  const trainingFinished=memory.completed.length===7;
- el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,4)+'/4':
+ el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,5)+'/5':
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
- el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
+ el('m01Title').textContent=quest?(current===5?(questPasses()?'Залік складено':'Залік завершено'):spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=caliperStep()?caliperInstruction():geomAnimating?'Інструмент проводить креслення…':quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():geomAnimating?'Інструмент проводить креслення…':quest?(current===5?(questPasses()?'П’ять практичних навичок підтверджено':'Переглянь результати та спробуй новий варіант'):spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  renderScaleLoupe();
@@ -726,19 +847,20 @@ function render(){
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
 
- const allowed=quest?current>=4:!geomAnimating&&(sceneComplete()||memory.completed.includes(current));
- next.hidden=quest&&current<4||mode==='demo'&&current===0;
+ const allowed=quest?current>=5:!geomAnimating&&(sceneComplete()||memory.completed.includes(current));
+ next.hidden=quest&&current<5||mode==='demo'&&current===0;
  next.disabled=!allowed;
  next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current>=3&&current<=5&&allowed?'Наступна побудова →':'Далі →';
  next.classList.toggle('m01-next-ready',mode==='demo'&&current>=3&&current<=6&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
 
- el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
+ el('m01Progress').textContent=quest?'✓ '+Math.min(current,5)+'/5 · '+questTotal()+'/100':
   '✓ '+memory.completed.length+'/7';
 }
 // A compact, dedicated answer dock shared by training, final block and assessment.
 function measurementAnswerView(){
  if(!caliperStep()||calibration()||!canMeasure())return '';
+ if(mode==='quest'&&Number.isFinite(memory.quest?.readings?.[part]))return '';
  if(mode==='demo'&&memory.scene===2&&answers[part]===target())return '';
  if(mode==='demo'&&memory.scene===6&&dimensionReadings[DIMENSIONS[dimensionIndex].id]===target())return '';
  return '<input id="m01Value" type="text" inputmode="decimal" autocomplete="off"'+
@@ -768,24 +890,13 @@ function setAssessment(index){
  cancelAdvanceTimer();
  memory.assessment=clamp(index,0,4);persist();resetStep();render();
 }
-function onSuccess(){
- if(mode==='quest'){
-  const next=memory.assessment+1;
-  setAssessment(next);
-  if(next===4){
-   memory.passed=true;persist();
-   document.dispatchEvent(new CustomEvent('gnss:mission-one-complete',{detail:{mission:1,completed:true,attempts:memory.assessmentAttempts}}));
-   announce('✓ Практичний залік завершено. Усі чотири навички підтверджено.',true);
-  }else announce('✓ Правильно! Наступна практична задача.',true);
- }else success();
-}
 function check(){
  const text=el('m01Value'),value=text?parse(text.value):NaN;
  if(!Number.isFinite(value)){announce('Введи відлік штангенциркуля в міліметрах.');return}
  let expected=null;
  if(mode==='quest'){
-  expected=memory.assessment===0?assessmentTarget:null;
-  if(memory.assessment===0&&!canMeasure()){announce('Спочатку правильно встанови та зведи губки до контакту.');return}
+  expected=memory.assessment===1?target():null;
+  if(memory.assessment===1&&!canMeasure()){announce('Спочатку підведи губку до деталі й відпусти каретку.');return}
  }else if(memory.scene===2){
   if(!canMeasure()){announce('Вимірювання зараховується лише після контакту губок.');return}
   expected=target();
@@ -796,11 +907,23 @@ function check(){
  }
  const tolerance=Math.abs(expected)>=30?(mode==='quest'&&memory.assessment===0?0.5:0.5):0.00001;
  if(expected===null||Math.abs(value-expected)>tolerance){
-  roundAttempts++;if(mode==='quest'){memory.assessmentAttempts++;persist()}
-  announce('Поки не збігається. Перевір шкалу й зчитай довжину в мм.');
+  roundAttempts++;
+  if(mode==='quest')questMistake('Неточний відлік. Звір шкалу й повтори вимірювання.');
+  else announce('Поки не збігається. Перевір шкалу й зчитай довжину в мм.');
   return;
  }
- if(mode==='quest'){onSuccess();return}
+ if(mode==='quest'){
+  if(memory.assessment!==1)return;
+  memory.quest.readings[part]=value;
+  if(!Number.isFinite(memory.quest.readings.b)){
+   part='b';gap=target()+24;caliperChosen=true;moved=false;settledContact=false;caliperPhase='idle';
+  }else caliperPhase='success';
+  persist();render();
+  announce(Number.isFinite(memory.quest.readings.b)?
+   'Обидві деталі виміряно. Обери придатну за замовленням.':
+   'Відлік деталі A записано. Тепер виміряй B.',true);
+  return;
+ }
  if(memory.scene===2){
   answers[part]=target();
   const doneA=answers.a===50,doneB=answers.b===54;
@@ -836,6 +959,7 @@ function finishCaliperMotion(){
  if(settledContact){
   caliperPhase=calibration()?'success':'answer';
   if(calibration()){
+   if(mode==='quest'){finishQuestStation('Штангенциркуль зведено до нуля.');return}
    success('✓ Нуль установлено.');
    // Calibration is preparation, not a destination. Show the specimen automatically.
    cancelAdvanceTimer();
@@ -927,7 +1051,7 @@ function endManualTurn(event,cancelled=false){
 function resetMissionToStart(){
  // Reset Mission 01 only. Keep the sandbox and other lessons untouched.
  cancelChoiceTimer();cancelAdvanceTimer();stopTurnAnimation();cancelDraftingAnimation();
- memory={...initial,completed:[],skipped:[],dimensionProgress:{},geometryProgress:{}};
+ memory={...initial,completed:[],skipped:[],dimensionProgress:{},geometryProgress:{},quest:newQuest(Math.floor(Math.random()*QUEST_VARIANTS.length))};
  persist();
  // Completed assessments stay in Quest mode unless we switch the active tab.
  if(mode!=='demo'||document.body.dataset.expMode!=='demo'){
@@ -940,11 +1064,29 @@ function resetMissionToStart(){
 }
 function respond(act){
  if(act==='restart-all'){resetMissionToStart();return}
+ if(act==='quest-retry'&&mode==='quest'){startFreshQuest();return}
+ if(mode==='quest'&&memory.assessment===1&&(act==='pick-a'||act==='pick-b')){
+  const q=memory.quest,v=questVariant(),partSelected=act.slice(-1);
+  if(!Number.isFinite(q.readings.a)||!Number.isFinite(q.readings.b))return;
+  if(Math.abs(q.readings[partSelected]-v.length)>0.5){
+   questMistake('Деталь не відповідає допуску. Звір два вимірювання та спробуй ще раз.');return;
+  }
+  q.identified=partSelected;finishQuestStation('Виміряно обидві деталі та обрано придатну.');return;
+ }
+ if(mode==='quest'&&memory.assessment===4&&act.startsWith('flaw-')){
+  const axis=act.slice(5);
+  if(axis!==questVariant().flaw){
+   questMistake('Перевір розміри креслення за шкалою ще раз.');return;
+  }
+  memory.quest.diagnosis=axis;persist();resetStep();render();
+  announce('Знайдено неправильну сторону. Побудуй виправлений прямокутник.',true);
+  return;
+ }
  if(act==='hint'){hintLevel=Math.min(3,hintLevel+1);render();return}
  if(act==='show'){hintLevel=3;render();return}
  if(act==='skip'&&mode==='demo'){if(!memory.skipped.includes(memory.scene))memory.skipped.push(memory.scene);setScene(memory.scene+1);return}
  if(act==='next'){
-  if(mode==='quest'&&memory.assessment===4){document.querySelector('#expModes [data-mode="explore"]')?.click();return}
+  if(mode==='quest'&&memory.assessment===5){document.querySelector('#expModes [data-mode="explore"]')?.click();return}
   if(mode==='demo'&&sceneComplete()){
    if(memory.scene===7){
     if(firstUnfinished()<7){setScene(firstUnfinished());return}
