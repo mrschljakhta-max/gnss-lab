@@ -822,7 +822,7 @@ function scheduleFrame(delay=0){
  requestAnimationFrame(now=>{framePending=false;frame(now)});
 }
 function frame(now){
- const showing=lesson()===0;
+ const showing=lesson()===0||lesson()===1;
  if(showing!==displayed){
   container.style.display=showing?'grid':'none';
   document.body.classList.toggle('engineering-live',showing);
@@ -832,10 +832,10 @@ function frame(now){
   const m=mode();if(m!==state.lastMode)setMode(m);
   // Mission 01 has its own foreground scene. The underlying engineering
   // demo must not rebuild hundreds of SVG nodes behind completed results.
-  if(m==='demo'&&!document.body.classList.contains('gnss-mission-active')
+  if(m==='demo'&&lesson()===0&&!document.body.classList.contains('gnss-mission-active')
      &&state.demoPlaying&&now-last>34){demo(now);last=now}
  }
- const idle=!showing||document.body.classList.contains('gnss-mission-active')||
+ const idle=!showing||lesson()!==0||document.body.classList.contains('gnss-mission-active')||
    mode()!=='demo'||!state.demoPlaying;
  scheduleFrame(idle?350:0);
 }
