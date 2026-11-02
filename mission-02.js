@@ -43,7 +43,7 @@ let shown=false,mode='demo',raf=0,last=0,nowTime=0,slow=false,activeLesson=-1,dr
 const state={stopwatch:{elapsed:0,running:false,ever:false,stopped:false},cart:{elapsed:0,running:false,done:false},
  pendulum:{length:.9,theta:.5,amplitude:.5,elapsed:0,running:false,cycles:0},
  distance:3,speed:1.5,other:1,trial:0,finishTimes:[],predicted:null,
- demoComplete:false,questReady:false,readings:{},answers:{}};
+ demoComplete:false,questReady:false,readings:{},answers:{},sandboxTool:'watch'};
 const job=()=>variants[saved.seed%variants.length];
 const time=()=>state.stopwatch.elapsed;
 const duration=()=>state.distance/state.speed;
@@ -341,10 +341,15 @@ const pendulumSvg=()=>{
 // Static SVG is built once per step. Never replace the draggable ball and
 // 60 stopwatch ticks on every frame: only update the moving coordinates.
 function buildScene(){
- const n=station(),pend=(mode==='demo'&&n>=5)||mode==='explore'||(mode==='quest'&&n===3);
- const carts=(mode==='demo'&&n>=1&&n<=4)||mode==='explore'||(mode==='quest'&&(n===1||n===2));
- svg.innerHTML='<g class="m02-physics">'+stopwatchSvg()+
-  (carts?cartSvg():'')+(pend?pendulumSvg():'')+'</g>';
+ const n=station(),sandbox=mode==='explore';
+ const pend=(mode==='demo'&&n>=5)||(sandbox&&state.sandboxTool==='pendulum')||(mode==='quest'&&n===3);
+ const carts=(mode==='demo'&&n>=1&&n<=4)||(sandbox&&state.sandboxTool==='cart')||(mode==='quest'&&(n===1||n===2));
+ const watch=!sandbox||state.sandboxTool==='watch';
+ // In sandbox, center the chosen instrument instead of stacking all three.
+ svg.innerHTML='<g class="m02-physics">'+
+  (watch?(sandbox?'<g transform="translate(400 0)">':'')+stopwatchSvg()+(sandbox?'</g>':''):'')+
+  (carts?cartSvg():'')+
+  (pend?(sandbox?'<g transform="translate(-110 0)">':'')+pendulumSvg()+(sandbox?'</g>':''):'')+'</g>';
  paint();
 }
 function setReadout(id,value){
@@ -396,13 +401,25 @@ function input(id,placeholder,unit){return '<label class="m02-answer"><input id=
 function controlMarkup(){
  const n=station(),q=mode==='quest',v=job();
  if(q&&n===4)return resultMarkup();
- if(mode==='explore')return '<div class="m02-panel-title">Вільний експеримент</div>'+
-  button('watch',state.stopwatch.running?'Зупинити секундомір':'Запустити секундомір')+
-  button('launch-cart','Запустити візок')+button('drag-hint','Відтягни маятник')+
-  '<label>Шлях <output>'+round(state.distance,1)+' м</output><input data-setting="distance" type="range" min="1" max="5" step=".2" value="'+state.distance+'"></label>'+
-  '<label>Швидкість <output>'+round(state.speed,1)+' м/с</output><input data-setting="speed" type="range" min=".5" max="3" step=".1" value="'+state.speed+'"></label>'+
-  '<label>Довжина маятника <output>'+round(state.pendulum.length,1)+' м</output><input data-setting="length" type="range" min=".5" max="1.3" step=".1" value="'+state.pendulum.length+'"></label>'+
-  button('slow',slow?'Звичайний час ×1':'Повільний час ×0,22');
+ if(mode==='explore'){
+  const tool=state.sandboxTool;
+  const selector='<div class="m02-panel-title">Обери прилад</div>'+
+   '<div class="m02-tool-picker" role="group" aria-label="Інструменти лабораторії">'+
+   button('tool-watch','◷ Секундомір',tool==='watch'?'aria-pressed="true"':'aria-pressed="false"')+
+   button('tool-cart','▣ Вагонетка',tool==='cart'?'aria-pressed="true"':'aria-pressed="false"')+
+   button('tool-pendulum','◉ Маятник',tool==='pendulum'?'aria-pressed="true"':'aria-pressed="false"')+'</div>';
+  if(tool==='watch')return selector+'<div class="m02-panel-title">Секундомір</div>'+
+   button('watch',state.stopwatch.running?'Зупинити':'Запустити')+button('watch-reset','Обнулити');
+  if(tool==='cart')return selector+'<div class="m02-panel-title">Рух вагонетки</div>'+
+   '<label>Шлях <output>'+round(state.distance,1)+' м</output><input data-setting="distance" type="range" min="1" max="5" step=".2" value="'+state.distance+'"></label>'+
+   '<label>Швидкість <output>'+round(state.speed,1)+' м/с</output><input data-setting="speed" type="range" min=".5" max="3" step=".1" value="'+state.speed+'"></label>'+
+   button('launch-cart',state.cart.running?'Вагонетка рухається…':'Запустити вагонетку',state.cart.running?'disabled':'')+
+   button('sandbox-clear','Повернути на старт');
+  return selector+'<div class="m02-panel-title">Маятник</div>'+
+   '<div class="m02-stat" id="m02Cycles">'+state.pendulum.cycles+' циклів</div>'+
+   '<label>Довжина <output>'+round(state.pendulum.length,1)+' м</output><input data-setting="length" type="range" min=".5" max="1.3" step=".1" value="'+state.pendulum.length+'"></label>'+
+   button('drag-hint','Як запустити')+button('slow',slow?'Звичайна швидкість ×1':'Уповільнити ×0,22');
+ }
  if(!q){
   if(n===0)return '<div class="m02-panel-title">Механічний секундомір</div>'+
    
@@ -469,6 +486,16 @@ function sandbox(){
 }
 function handle(action){
  switch(action){
+ case 'tool-watch':case 'tool-cart':case 'tool-pendulum':
+  if(mode!=='explore')break;
+  state.stopwatch.running=false;state.cart.running=false;state.pendulum.running=false;
+  state.race.running=false;state.sandboxTool=action.slice(5);
+  state.stopwatch.elapsed=0;state.stopwatch.stopped=false;
+  state.cart.elapsed=0;state.cart.done=false;
+  state.pendulum.cycles=0;state.pendulum.elapsed=0;state.pendulum.theta=.55;
+  last=0;render();break;
+ case 'sandbox-clear':
+  if(mode==='explore'){state.cart={elapsed:0,running:false,done:false};state.stopwatch.running=false;render()}break;
  case 'exam-watch':
   if(!state.stopwatch.running){state.stopwatch={elapsed:0,running:true,ever:true,stopped:false};last=0;render();startFrame()}
   else{state.stopwatch.running=false;state.stopwatch.stopped=true;render()}break;
@@ -574,7 +601,7 @@ svg.addEventListener('pointerdown',e=>{
 svg.addEventListener('pointermove',e=>{
  if(e.pointerId!==drag)return;
  const p=coords(e);if(!p)return;
- state.pendulum.theta=clamp(Math.atan2(p.x-730,p.y-218),-.9,.9);
+ state.pendulum.theta=clamp(Math.atan2(p.x-(mode==='explore'?620:730),p.y-218),-.9,.9);
  state.pendulum.cycles=0;paint();
 });
 function release(e){
