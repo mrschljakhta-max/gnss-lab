@@ -904,3 +904,12 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
  #gnssMissionV1 .m01-quest-report{gap:7px}
  #gnssMissionV1 .m01-report-row{font-size:11px}
 }
+
+/* Review makes mistakes visible without taking over the drawing workspace. */
+#gnssMissionV1 .m01-report-row small{
+ color:#8fbcc3;font:550 10px/1.4 system-ui,sans-serif;
+ white-space:nowrap;min-width:75px;text-align:right;
+}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-report-row small{font-size:9px;min-width:63px}
+}
