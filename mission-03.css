@@ -52,3 +52,6 @@ body.gnss-lesson03-active #engBoard{isolation:isolate}
 #gnssMission03 .m03-header{top:clamp(95px,12vh,125px)}
 #gnssMission03 .m03-stage{inset:0}
 #gnssMission03 .m03-panel{right:clamp(18px,2.1vw,35px);top:clamp(183px,27vh,240px);background:linear-gradient(140deg,#092939ed,#062335f3)}
+
+#gnssMission03 #m03WaterCanvas{position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none}
+#gnssMission03 #m03WaterCanvas[hidden]{display:none!important}
