@@ -1,0 +1,32 @@
+/* GNSS LAB · Lesson 03 · Wave Laboratory */
+#gnssMission03{position:absolute;inset:0;z-index:43;overflow:hidden;isolation:isolate;color:#e4f4f1;font-family:Inter,system-ui,sans-serif;pointer-events:none}
+#gnssMission03[hidden],#gnssMission03 [hidden]{display:none!important}
+body.gnss-lesson03-active #engSvg,body.gnss-lesson03-active #engCommand,body.gnss-lesson03-active #engReadout,body.gnss-lesson03-active #engStatus,body.gnss-lesson03-active #lab01Journey,body.gnss-lesson03-active #gnssMission02,body.gnss-lesson03-active .eng-dock,body.gnss-lesson03-active .eng-floats,body.gnss-lesson03-active #gnssFreeCaliper,body.gnss-lesson03-active #gnssFreeProtractor,body.gnss-lesson03-active .gnss-3d-stage{display:none!important}
+#gnssMission03 .m03-header{position:absolute;top:clamp(80px,11vh,110px);left:50%;width:min(760px,90%);transform:translateX(-50%);text-align:center;z-index:3;text-shadow:0 3px 9px #00192d}
+#gnssMission03 .m03-header h2{font-size:clamp(22px,2.5vw,35px);font-weight:800;margin:0 0 9px;color:#f4fff8}
+#gnssMission03 .m03-header p{font-size:clamp(12px,1vw,15px);margin:0;color:#c5e3e8;font-weight:600}
+#gnssMission03 .m03-stage{position:absolute;inset:0;z-index:1}
+#gnssMission03 .m03-stage svg{width:100%;height:100%;display:block;filter:drop-shadow(0 4px 12px #001c2f40);pointer-events:auto}
+#gnssMission03 .m03-panel{position:absolute;z-index:4;right:clamp(15px,2.2vw,36px);top:clamp(190px,27vh,246px);width:clamp(230px,24vw,315px);max-height:calc(100% - 310px);overflow:auto;padding:18px 18px 20px;border:1px solid #618c95;border-radius:12px;background:linear-gradient(145deg,#092a3ced,#062337ef);box-shadow:0 14px 40px #0015247c;pointer-events:auto;backdrop-filter:blur(11px)}
+#gnssMission03 .m03-panel h3{margin:0 0 13px;text-transform:uppercase;letter-spacing:.5px;font-size:13px}
+#gnssMission03 .m03-panel p{font-size:12px;line-height:1.65;color:#d2e7e8}
+#gnssMission03 .m03-panel label{display:block;font-size:12px;font-weight:650;margin:13px 0}
+#gnssMission03 .m03-panel output{float:right;color:#baf48e}
+#gnssMission03 .m03-panel input[type=range]{width:100%;accent-color:#b7f58c;display:block;margin-top:11px}
+#gnssMission03 .m03-panel input:not([type=range]){background:#082334;border:1px solid #749caa;border-radius:7px;padding:12px;color:#effff6;width:100%;box-sizing:border-box}
+#gnssMission03 button{cursor:pointer;font:750 12px Inter,system-ui,sans-serif;color:#e9f9f2;background:#1a4557;border:1px solid #648b94;border-radius:8px;padding:11px 12px}
+#gnssMission03 button:hover,#gnssMission03 button:focus-visible{border-color:#b4f38b;background:#255b4c}
+#gnssMission03 button:focus-visible{outline:2px solid #b4f38b;outline-offset:2px}
+#gnssMission03 button:disabled{opacity:.45;cursor:default}
+#gnssMission03 .m03-panel button{margin:5px 6px 4px 0}
+#gnssMission03 .m03-footer{position:absolute;z-index:8;bottom:20px;left:24px;right:90px;display:flex;align-items:center;justify-content:space-between;pointer-events:none}
+#gnssMission03 .m03-footer button{pointer-events:auto}
+#gnssMission03 .m03-footer span{font:700 12px ui-monospace,monospace;color:#d0e9eb;margin-left:auto;margin-right:13px}
+#gnssMission03 .m03-footer #m03Next{background:#b3f48a;color:#10281d}
+#gnssMission03 .m03-grade{font:800 45px ui-monospace,monospace;color:#baf48c;text-align:center}
+#gnssMission03 .m03-dock{position:absolute;z-index:9;left:50%;bottom:73px;transform:translateX(-50%);display:flex;gap:8px;padding:12px 14px;border:1px solid #658994;border-radius:18px;max-width:calc(100% - 90px);overflow-x:auto;background:linear-gradient(120deg,#0d2d40f8,#061b2bf8);box-shadow:0 17px 35px #001622aa;pointer-events:auto}
+#gnssMission03 .m03-dock button{flex:0 0 102px;width:102px;height:102px;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#0d2938;border:1px solid #305e71;border-radius:12px;gap:7px;font-size:10px}
+#gnssMission03 .m03-dock button.selected{border:1.5px solid #b2f484;background:#204235;color:#c2f89d}
+#gnssMission03 .m03-tool-icon{font-size:45px;font-weight:400;line-height:1}
+#gnssMission03 .m03-toggle{position:absolute;right:20px;bottom:20px;z-index:10;width:49px;height:49px;border-radius:50%;font-size:25px;background:#092b40ef;pointer-events:auto}
+@media(max-width:700px){#gnssMission03 .m03-panel{top:auto;bottom:140px;right:12px;width:min(275px,52vw);max-height:38vh;padding:10px}#gnssMission03 .m03-dock{bottom:75px;max-width:95%;padding:7px;gap:4px}#gnssMission03 .m03-dock button{width:75px;flex-basis:75px;height:78px;font-size:9px}#gnssMission03 .m03-tool-icon{font-size:26px}#gnssMission03 .m03-toggle{right:10px;bottom:15px}}
