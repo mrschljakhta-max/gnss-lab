@@ -34,12 +34,12 @@ const root=document.createElement('section');root.id='gnssMission02';root.hidden
 root.setAttribute('aria-label','Урок 02 — Час, рух і повторення');
 root.innerHTML='<header class="m02-head"><small id="m02Kicker"></small><h2 id="m02Title"></h2><p id="m02Prompt"></p></header>'+
  '<div class="m02-scene" id="m02Scene"><svg id="m02Svg" viewBox="0 0 1200 660" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Секундомір, рейка з візком і маятник"></svg></div>'+
- '<div class="m02-panel" id="m02Panel"></div><nav class="m02-instrument-dock" id="m02InstrumentDock" aria-label="Інструменти пісочниці" hidden></nav><div class="m02-feedback" id="m02Feedback" role="status" aria-live="polite" hidden></div>'+
+ '<div class="m02-panel" id="m02Panel"></div><nav class="m02-instrument-dock" id="m02InstrumentDock" aria-label="Інструменти пісочниці" hidden></nav><button type="button" class="m02-dock-toggle" id="m02DockToggle" data-action="toggle-tools" aria-label="Показати інструменти" aria-controls="m02InstrumentDock" aria-expanded="false" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/><path d="M8 4v6M16 10v5M11 14v6"/></svg></button><div class="m02-feedback" id="m02Feedback" role="status" aria-live="polite" hidden></div>'+
  '<footer class="m02-footer"><div><button data-action="reset" title="Почати другий курс із першого етапу" aria-label="Почати другий курс із першого етапу">↻</button><button data-action="help" title="Коротка підказка">?</button></div>'+
  '<div class="m02-advance"><span id="m02Progress"></span><button class="m02-next" data-action="next" id="m02Next">Далі →</button></div></footer>';
 board.append(root);
 const get=id=>root.querySelector('#'+id),svg=get('m02Svg'),panel=get('m02Panel'),feedback=get('m02Feedback'),dock=get('m02InstrumentDock');
-let shown=false,mode='demo',raf=0,last=0,nowTime=0,slow=false,activeLesson=-1,drag=null,feedbackTimer=0;
+let dockOpen=false,shown=false,mode='demo',raf=0,last=0,nowTime=0,slow=false,activeLesson=-1,drag=null,feedbackTimer=0;
 const state={stopwatch:{elapsed:0,running:false,ever:false,stopped:false},cart:{elapsed:0,running:false,done:false},
  pendulum:{length:.9,theta:.5,amplitude:.5,elapsed:0,running:false,cycles:0},
  distance:3,speed:1.5,other:1,trial:0,finishTimes:[],predicted:null,
@@ -92,11 +92,11 @@ function resetPhysics(){
 }
 function setMode(next){
  if(!['demo','explore','quest'].includes(next))return;
- mode=next;resetPhysics();render();
+ mode=next;dockOpen=next==='explore';resetPhysics();render();
 }
 function show(){
  if(shown)return;shown=true;root.hidden=false;document.body.classList.add('gnss-lesson02-active');
- mode=document.body.dataset.expMode||'demo';resetPhysics();render();last=0;startFrame();
+ mode=document.body.dataset.expMode||'demo';dockOpen=mode==='explore';resetPhysics();render();last=0;startFrame();
 }
 function hide(){
  shown=false;root.hidden=true;document.body.classList.remove('gnss-lesson02-active');
@@ -483,7 +483,11 @@ function sandboxToolArt(id){
 
 function renderSandboxDock(){
  const active=mode==='explore';
- dock.hidden=!active;
+ const toggle=get('m02DockToggle');toggle.hidden=!active;
+ dock.hidden=!active||!dockOpen;
+ toggle.setAttribute('aria-expanded',String(active&&dockOpen));
+ toggle.setAttribute('aria-label',dockOpen?'Приховати інструменти':'Показати інструменти');
+ toggle.title=dockOpen?'Приховати панель інструментів':'Відкрити панель інструментів';
  if(!active){dock.innerHTML='';return}
  const tools=[['watch','Секундомір'],['cart','Вагонетка'],['pendulum','Маятник']];
  dock.innerHTML=tools.map(([id,label])=>'<button type="button" class="m02-tool-card'+(state.sandboxTool===id?' selected':'')+'" data-action="tool-'+id+'" aria-pressed="'+(state.sandboxTool===id)+'" title="'+label+'">'+sandboxToolArt(id)+'<span>'+label+'</span></button>').join('');
@@ -515,10 +519,11 @@ function sandbox(){
 }
 function handle(action){
  switch(action){
+ case 'toggle-tools':if(mode==='explore'){dockOpen=!dockOpen;renderSandboxDock()}break;
  case 'tool-watch':case 'tool-cart':case 'tool-pendulum':
   if(mode!=='explore')break;
   state.stopwatch.running=false;state.cart.running=false;state.pendulum.running=false;
-  state.race.running=false;state.sandboxTool=action.slice(5);
+  state.race.running=false;state.sandboxTool=action.slice(5);dockOpen=false;
   state.stopwatch.elapsed=0;state.stopwatch.stopped=false;
   state.cart.elapsed=0;state.cart.done=false;
   state.pendulum.cycles=0;state.pendulum.elapsed=0;state.pendulum.theta=.55;
