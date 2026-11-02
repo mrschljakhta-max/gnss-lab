@@ -130,7 +130,14 @@ function frame(ts){
   const p=state.pendulum,elapsed=p.elapsed;
   p.theta=p.amplitude*Math.cos(TAU*elapsed/period())*Math.exp(-.009*elapsed);
   p.cycles=Math.floor(elapsed/period()+.00001);
-  if(mode==='demo'&&saved.stage===5&&p.cycles>=5&&!state.demoComplete)demoDone();
+  if(p.cycles>=5){
+   p.running=false;p.cycles=5;p.elapsed=5*period();
+   state.stopwatch.running=false;state.stopwatch.stopped=true;
+   state.stopwatch.elapsed=5*period();
+   if(mode==='demo'&&saved.stage===5&&!state.demoComplete)demoDone();
+   if(mode==='quest'&&saved.questStage===4)state.questReady=true;
+   render();
+  }
  }
  paint();startFrame();
 }
@@ -141,6 +148,11 @@ function onFinish(){
   if(s===2&&state.finishTimes.length===2)render();
  }else if(mode==='quest'){
   if(s===1||s===2)state.questReady=true;
+  if(s===3){
+   if(state.finishTimes.length===1){state.speed=state.other;
+    state.cart={elapsed:0,running:false,done:false};
+   }else state.questReady=true;
+  }
  }
  render();
 }
@@ -161,6 +173,7 @@ function startStopwatch(){
 function launchPendulum(){
  const p=state.pendulum;p.running=true;p.elapsed=0;p.cycles=0;
  p.amplitude=clamp(Math.abs(p.theta),.15,.9)*Math.sign(p.theta||1);
+ state.stopwatch={elapsed:0,running:true,ever:true,stopped:false};
  if(mode==='quest'&&saved.questStage===4)state.questReady=true;
  render();
 }
@@ -215,7 +228,7 @@ function paint(){
  const carts=(mode==='demo'&&s>=1&&s<=4)||mode==='explore'||(mode==='quest'&&s>=1&&s<=3);
  svg.innerHTML='<g class="m02-physics">'+stopwatchSvg()+
   (carts?cartSvg():'')+(pend?pendulumSvg():'')+'</g>';
- get('m02Reading').textContent=round(state.stopwatch.elapsed,1)+' с';
+ const reading=get('m02Reading');if(reading)reading.textContent=round(state.stopwatch.elapsed,1)+' с';
  const cycles=get('m02Cycles');if(cycles)cycles.textContent=state.pendulum.cycles+' циклів';
 }
 function button(action,label,extra=''){return '<button type="button" data-action="'+action+'" '+extra+'>'+label+'</button>'}
@@ -247,6 +260,7 @@ function controlMarkup(){
    '<div class="m02-stat" id="m02Cycles">'+state.pendulum.cycles+' циклів</div>'+
    '<label>Довжина <input data-setting="length" type="range" min=".5" max="1.3" step=".1" value="'+state.pendulum.length+'"></label>'+
    button('slow',slow?'Повернути ×1':'Уповільнення ×0,22')+
+   '<div class="m02-stat">Виміряний час: '+round(state.stopwatch.elapsed,1)+' с</div>'+
    (n===6?input('m02Period','Час одного циклу','с')+button('check-period','Перевірити'):'');
   return '<div class="m02-panel-title">Дослід завершено</div>'+button('restart-demo','Пройти урок заново')+button('sandbox','Відкрити пісочницю');
  }
@@ -259,16 +273,19 @@ function controlMarkup(){
   (n===1?'<div class="m02-stat">Запусти візок і зчитай час прибуття.</div>':
    n===2?'<div class="m02-stat">Знайди швидкість за виміряним часом.</div>':
    '<div class="m02-stat">Порівняй два рухи на однаковому шляху.</div>')+
-  (n===3?'<div class="m02-stat">Візок A '+round(v.speed,1)+' м/с · B '+round(v.other,1)+' м/с</div>':'')+
-  button('launch-cart',state.cart.running?'Вимірювання…':'Почати вимірювання',state.cart.running?'disabled':'')+
+  (n===3?'<div class="m02-stat">'+(state.finishTimes.length<2?'Виміряй A, потім B.':
+  'A: '+round(state.finishTimes[0],1)+' с · B: '+round(state.finishTimes[1],1)+' с')+'</div>':'')+
+  button('launch-cart',state.cart.running?'Вимірювання…':n===3&&state.finishTimes.length===1?'Запустити B':'Почати вимірювання',
+  state.cart.running||n===3&&state.finishTimes.length>=2?'disabled':'')+
   (state.cart.done?
-   n===3?button('choose-a','Швидший A')+button('choose-b','Швидший B'):
+   n===3?(state.finishTimes.length>=2?button('choose-a','Швидший A')+button('choose-b','Швидший B'):''):
    input('m02Answer',n===1?'Час прибуття':'Швидкість',n===1?'с':'м/с')+button('check-motion','Підтвердити'):'')+
   '<div class="m02-time" id="m02Reading">'+round(time(),1)+' с</div>';
  return '<div class="m02-panel-title">П’ять повних коливань</div>'+
   '<div class="m02-stat">Відтягни кульку. Відпусти й спостерігай за повними циклами.</div>'+
   '<div class="m02-stat" id="m02Cycles">'+state.pendulum.cycles+' циклів</div>'+
   button('slow',slow?'Звичайний ×1':'Уповільнення ×0,22')+
+  '<div class="m02-stat">Час п’яти циклів: '+round(state.stopwatch.elapsed,1)+' с</div>'+
   (state.pendulum.cycles>=5?input('m02Answer','Час одного циклу','с')+button('check-period','Підтвердити'):'');
 }
 function resultMarkup(){
@@ -310,12 +327,21 @@ function handle(action){
   if(mode==='quest'&&saved.questStage===0&&state.stopwatch.stopped&&state.stopwatch.elapsed>=.5){doneQuest('Секундомір запущено, зупинено й обнулено.');break}
   state.stopwatch={elapsed:0,running:false,ever:false,stopped:false};render();break;
  case 'launch-cart':
+  if(mode==='demo'&&saved.stage===4&&state.predicted===null){
+   notify('Спочатку введи прогноз часу.');break;
+  }
   if(mode==='demo'&&saved.stage===2&&state.finishTimes.length===1)state.speed=state.other;
   startCart();break;
  case 'choose-compare':if(state.finishTimes.length>=2)demoDone();break;
+ case 'predict':{
+  const v=parse(get('m02Predict')?.value);
+  if(!Number.isFinite(v)){notify('Введи прогноз часу до запуску.');break}
+  state.predicted=v;notify('Прогноз записано. Запусти візок.',true);break;
+ }
  case 'choose-a':case 'choose-b':
   if(mode==='quest'&&saved.questStage===3){
-   const correct=state.speed>=state.other?'choose-a':'choose-b';
+   if(state.finishTimes.length<2){notify('Спочатку виміряй обидва візки.');break}
+   const correct=state.finishTimes[0]<=state.finishTimes[1]?'choose-a':'choose-b';
    action===correct?doneQuest('Швидший візок вибрано правильно.'):penalize('Порівняй швидкості на однаковому шляху.');
   }break;
  case 'check-motion':{
@@ -354,8 +380,11 @@ panel.addEventListener('input',e=>{
  if(setting==='speed')state.speed=num;
  if(setting==='length'){state.pendulum.length=num;state.pendulum.running=false;state.pendulum.cycles=0}
  state.demoComplete=false;
- render();
+ const output=e.target.closest('label')?.querySelector('output');
+ if(output)output.textContent=round(num,1)+(setting==='speed'?' м/с':' м');
+ paint();
 });
+panel.addEventListener('change',e=>{if(e.target.matches('[data-setting]'))render()});
 root.addEventListener('keydown',e=>{
  if(e.key!=='Enter'||!e.target.matches('input[type="text"]'))return;
  e.preventDefault();handle(e.target.id==='m02Predict'?'predict':e.target.id==='m02Period'?'check-period':
