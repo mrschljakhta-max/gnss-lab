@@ -36,7 +36,7 @@ root.setAttribute('aria-label','Урок 02 — Час, рух і повторе
 root.innerHTML='<header class="m02-head"><small id="m02Kicker"></small><h2 id="m02Title"></h2><p id="m02Prompt"></p></header>'+
  '<div class="m02-scene" id="m02Scene"><svg id="m02Svg" viewBox="0 0 1200 660" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Секундомір, рейка з візком і маятник"></svg></div>'+
  '<div class="m02-panel" id="m02Panel"></div><div class="m02-feedback" id="m02Feedback" role="status" aria-live="polite" hidden></div>'+
- '<footer class="m02-footer"><div><button data-action="reset" title="Повторити поточний дослід">↻</button><button data-action="help" title="Коротка підказка">?</button></div>'+
+ '<footer class="m02-footer"><div><button data-action="reset" title="Почати другий курс із першого етапу" aria-label="Почати другий курс із першого етапу">↻</button><button data-action="help" title="Коротка підказка">?</button></div>'+
  '<div class="m02-advance"><span id="m02Progress"></span><button class="m02-next" data-action="next" id="m02Next">Далі →</button></div></footer>';
 board.append(root);
 const get=id=>root.querySelector('#'+id),svg=get('m02Svg'),panel=get('m02Panel'),feedback=get('m02Feedback');
@@ -420,7 +420,14 @@ function handle(action){
  }
  case 'slow':slow=!slow;render();break;
  case 'next':startNext();break;
- case 'reset':resetTrial();break;
+ case 'reset':
+  // Restart Lesson 02 training from its first stage, retaining exam results.
+  if(mode!=='demo')sandbox();
+  saved.stage=0;saved.lessonDone=[];
+  store();resetPhysics();render();
+  if(typeof window.GNSSLabSwitchMode==='function')window.GNSSLabSwitchMode('demo');
+  else document.querySelector('#expModes [data-mode="demo"]')?.click();
+  break;
  case 'help':notify(mode==='quest'?'Виміряй сам. Не потрібно вгадувати момент кліку.':'Спочатку дія — потім спостереження.');break;
  case 'drag-hint':notify('Відтягни кульку маятника курсором і відпусти.');break;
  case 'restart-demo':saved.stage=0;saved.lessonDone=[];store();resetPhysics();render();break;
