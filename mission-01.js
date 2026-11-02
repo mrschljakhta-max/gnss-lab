@@ -807,17 +807,35 @@ function syncCaliperVisual(){
   loupe.hidden=false;loupe.innerHTML=scaleLoupeMarkup();
  }else if(loupe&&(!settledContact||!atContact()))loupe.hidden=true;
 }
-// Keep the face controls directly below the real loupe instead of covering it.
-// The magnifier moves on short viewports, so its actual rendered height is measured.
+// Both caliper side panels use the actual lower edge of the optical loupe.
+// This keeps its graduated scale unobstructed when a jaw reaches the specimen.
 function positionFaceControls(){
- if(mode!=='demo'||memory.scene!==6)return;
+ const faceLesson=mode==='demo'&&memory.scene===6;
+ const measuringExam=mode==='quest'&&memory.assessment===1;
+ if(!faceLesson&&!measuringExam)return;
  const loupe=el('m01ScaleLoupe');
  const rootRect=root.getBoundingClientRect?.();
  const loupeRect=!loupe.hidden?loupe.getBoundingClientRect?.():null;
- const fallback=(window.innerHeight||740)<=650?375:425;
+ if(faceLesson){
+  const fallback=(window.innerHeight||740)<=650?375:425;
+  const below=loupeRect&&rootRect&&loupeRect.height>0?
+   Math.ceil(loupeRect.bottom-rootRect.top+14):fallback;
+  root.style.setProperty('--m01-face-panel-top',Math.max(0,below)+'px');
+  return;
+ }
+ // When the loupe opens after contact, move the exam brief below it.
+ // Reserve room for the bottom answer field and keep the brief scrollable.
  const below=loupeRect&&rootRect&&loupeRect.height>0?
-  Math.ceil(loupeRect.bottom-rootRect.top+14):fallback;
- root.style.setProperty('--m01-face-panel-top',Math.max(0,below)+'px');
+  Math.ceil(loupeRect.bottom-rootRect.top+14):
+  Math.min(235,Math.max(165,Math.round((rootRect?.height||740)*.27)));
+ const dock=el('m01MeasureAnswer');
+ const dockRect=!dock.hidden?dock.getBoundingClientRect?.():null;
+ const footerClearance=80;
+ const lowerLimit=dockRect&&rootRect&&dockRect.height>0?
+  Math.floor(dockRect.top-rootRect.top-12):
+  Math.floor((rootRect?.height||740)-footerClearance);
+ root.style.setProperty('--m01-quest-card-top',Math.max(0,below)+'px');
+ root.style.setProperty('--m01-quest-card-height',Math.max(55,lowerLimit-below)+'px');
 }
 
 function render(){
@@ -827,6 +845,7 @@ function render(){
  root.classList.toggle('m01-centered-heading',(!quest&&(current<=2||current===6))||(quest&&current<5));
  root.classList.toggle('m01-quest-finished',quest&&current===5);
  root.classList.toggle('m01-stage7-active',!quest&&current===6);
+ root.classList.toggle('m01-quest-measuring',quest&&current===1);
  const spec=quest?tasks[Math.min(current,4)]:specs[current];
  const trainingFinished=memory.completed.length===7;
  el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,5)+'/5':
@@ -839,11 +858,12 @@ function render(){
  renderScaleLoupe();
  controls.innerHTML=controlView();
  controls.hidden=!controls.innerHTML.trim();
- positionFaceControls();
  const answerDock=el('m01MeasureAnswer');
  answerDock.innerHTML=measurementAnswerView();
  answerDock.hidden=!answerDock.innerHTML.trim();
  root.classList.toggle('m01-answer-visible',!answerDock.hidden);
+ // Read actual loupe and answer-dock geometry after both are rendered.
+ positionFaceControls();
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
 
