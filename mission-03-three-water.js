@@ -24,6 +24,36 @@ window.GNSSWaveTank3D=async function(canvas){
  box(9.0,.16,5.8,0,-.22,0,base);
  for(const z of [-2.9,2.9]){box(9.15,.85,.17,0,.20,z,glass);box(9.2,.045,.20,0,.63,z,edge)}
  for(const x of [-4.5,4.5]){box(.17,.85,5.85,x,.20,0,glass);box(.20,.045,5.9,x,.63,0,edge)}
+ const fallbackTankParts=group.children.slice();
+ // Load the licensed ready-made GLB. Keep the current glass geometry if network/model loading fails.
+ let professionalTank=null;
+ (async()=>{
+  try{
+   const {GLTFLoader}=await import('https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/loaders/GLTFLoader.js');
+   const gltf=await new GLTFLoader().loadAsync('https://polyfork.dev/cdn/rimless-display-tank-cec438.glb');
+   if(!gltf.scene)throw Error('Empty GLB model');
+   const model=gltf.scene;
+   const bounds=new T.Box3().setFromObject(model),size=bounds.getSize(new T.Vector3());
+   if(size.x<=0||size.y<=0||size.z<=0)throw Error('Invalid model dimensions');
+   // Adapt the real-world aquarium proportions to our shallow laboratory vessel.
+   model.scale.set(9.0/size.x,.86/size.y,5.8/size.z);
+   model.updateMatrixWorld(true);
+   const fitted=new T.Box3().setFromObject(model),center=fitted.getCenter(new T.Vector3());
+   model.position.x-=center.x;model.position.z-=center.z;model.position.y+=-.22-fitted.min.y;
+   model.traverse(obj=>{
+    if(!obj.isMesh)return;
+    const name=(obj.name+' '+(obj.material?.name||'')).toLowerCase();
+    if(/glass|pane|wall|tank|aquarium/.test(name)){
+     obj.material=glass.clone();
+     obj.material.opacity=.35;
+     obj.material.transmission=.93;
+     obj.material.needsUpdate=true;
+    }
+   });
+   group.add(model);professionalTank=model;
+   for(const part of fallbackTankParts){group.remove(part);part.geometry?.dispose()}
+  }catch(err){console.warn('Professional tank GLB unavailable; keeping local tank geometry',err)}
+ })();
  const steel=new T.MeshStandardMaterial({color:0xbacbd0,metalness:.94,roughness:.15});
  for(const x of [-4.35,4.35])for(const z of [-2.72,2.72]){
    const bolt=new T.Mesh(new T.CylinderGeometry(.095,.095,.075,20),steel);bolt.position.set(x,.685,z);group.add(bolt)
