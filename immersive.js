@@ -17,13 +17,19 @@ peek.className='mode-peek';
 peek.id='modePeek';
 peek.setAttribute('aria-label','Обрати режим');
 peek.setAttribute('aria-controls','expModes');
+peek.setAttribute('aria-haspopup','true');
 peek.setAttribute('aria-expanded','false');
 peek.innerHTML='<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="2" d="M4 6h7v7H4zM13 6h7v7h-7zM4 15h7v5H4zM13 15h7v5h-7z"/></svg><span id="modeCurrent">Демонстрація</span><span class="mode-chevron" aria-hidden="true">▾</span>';
 modeAnchor.prepend(peek);
 const current=$('modeCurrent');
 const labels={demo:'Демонстрація',explore:'Пісочниця',quest:'Завдання'};
+let previousMode=null;
 function syncMode(){
  const m=document.body.dataset.expMode||'demo';
+ // Even when another component switches modes programmatically, dismiss
+ // the dropdown so it never hides the lesson title after navigation.
+ if(previousMode!==null&&previousMode!==m)setModeOpen(false);
+ previousMode=m;
  const label=labels[m]||'Режим';
  if(current.textContent!==label)current.textContent=label;
 }
