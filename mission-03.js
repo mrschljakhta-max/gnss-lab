@@ -70,44 +70,38 @@ function graphics(){const raw=stage(),n=mode==='quest'?(raw===0?0:raw===1?2:raw=
  }
 
  else if(n===1){
-  // Acrylic rim, illuminated water, wavefronts and a fixed mechanical emitter.
-  const cx=590,cy=346;
+  const cx=590,cy=347;
   shapes+='<defs>'+
-   '<linearGradient id="m03Rim" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ecfcff"/><stop offset=".28" stop-color="#679baa"/><stop offset=".54" stop-color="#dcf8fb"/><stop offset="1" stop-color="#3b768b"/></linearGradient>'+
-   '<radialGradient id="m03Water"><stop stop-color="#075d73"/><stop offset=".65" stop-color="#06465c"/><stop offset="1" stop-color="#082e46"/></radialGradient>'+
-   '<radialGradient id="m03Emitter"><stop stop-color="#fafff1"/><stop offset=".55" stop-color="#bbc9bb"/><stop offset="1" stop-color="#456476"/></radialGradient>'+
-   '<clipPath id="m03TankClip"><rect x="136" y="159" width="909" height="379" rx="22"/></clipPath></defs>'+
-   '<rect x="118" y="142" width="948" height="422" rx="34" fill="#042538" stroke="url(#m03Rim)" stroke-width="11"/>'+
-   '<rect x="132" y="155" width="920" height="394" rx="27" fill="url(#m03Water)" stroke="#1c8195" stroke-width="3"/>'+
+   '<linearGradient id="m03GlassRim" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#e6fbff"/><stop offset=".22" stop-color="#4e899f"/><stop offset=".48" stop-color="#d6f3f8"/><stop offset=".76" stop-color="#31738d"/><stop offset="1" stop-color="#c7e9f2"/></linearGradient>'+
+   '<radialGradient id="m03Water" cx=".48" cy=".44" r=".78"><stop stop-color="#076b82"/><stop offset=".46" stop-color="#07526a"/><stop offset="1" stop-color="#052c45"/></radialGradient>'+
+   '<radialGradient id="m03Emitter" cx=".32" cy=".21" r=".85"><stop stop-color="#ffffff"/><stop offset=".42" stop-color="#cededf"/><stop offset="1" stop-color="#506e7a"/></radialGradient>'+
+   '<filter id="m03WaveGlow" x="-55%" y="-55%" width="210%" height="210%"><feGaussianBlur stdDeviation="5"/></filter>'+
+   '<clipPath id="m03TankClip"><rect x="131" y="161" width="918" height="391" rx="28"/></clipPath></defs>'+
+   '<rect x="109" y="135" width="964" height="433" rx="39" fill="#031f32" stroke="#548fa6" stroke-width="4"/>'+
+   '<rect x="119" y="143" width="945" height="414" rx="36" fill="#073e56" stroke="url(#m03GlassRim)" stroke-width="9"/>'+
+   '<rect x="132" y="160" width="917" height="392" rx="26" fill="url(#m03Water)" stroke="#126783" stroke-width="3"/>'+
    '<g clip-path="url(#m03TankClip)">'+
-   '<path d="M148 182Q500 166 1040 182M150 526Q560 545 1030 522" fill="none" stroke="#7be9f2" opacity=".26" stroke-width="3"/>';
-  const rings=source?Array.from({length:24},(_,i)=>((time*145+i*145/Math.max(freq,.1))%(Math.hypot(530,300)+155))):waterRings.map(x=>x.r);
-  for(const radius of rings){
-   if(radius<=0||radius>650)continue;
-   const fade=Math.max(0,1-radius/690);
-   shapes+='<circle cx="'+cx+'" cy="'+cy+'" r="'+radius.toFixed(2)+'" fill="none" stroke="#26e1f3" stroke-width="'+(1.6+1.3*fade).toFixed(2)+'" opacity="'+(.13+.75*fade).toFixed(3)+'"/>'+
-    '<circle cx="'+cx+'" cy="'+cy+'" r="'+Math.max(0,radius-6).toFixed(2)+'" fill="none" stroke="#59e7ed" stroke-width="7" opacity="'+(.09*fade).toFixed(3)+'"/>';
+   '<path d="M146 198Q340 176 556 192T1040 188M140 526Q370 510 596 530T1040 523" fill="none" stroke="#85edf1" stroke-opacity=".22" stroke-width="3"/>';
+  // Water wavefronts share a constant outward propagation speed; frequency changes spacing.
+  const speed=145,maxR=560;
+  const spacing=speed/Math.max(freq,.25);
+  const count=Math.ceil(maxR/spacing)+2;
+  const rings=source?Array.from({length:count},(_,i)=>((time*speed-i*spacing)%maxR+maxR)%maxR):waterRings.map(v=>v.r);
+  for(const r of rings){
+   if(r<=3||r>=maxR)continue;
+   const opacity=Math.pow(Math.max(0,1-r/maxR),.78);
+   shapes+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r.toFixed(2)+'" fill="none" stroke="#2deafb" stroke-width="13" opacity="'+(.21*opacity).toFixed(3)+'" filter="url(#m03WaveGlow)"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+r.toFixed(2)+'" fill="none" stroke="#55edfb" stroke-width="2.4" opacity="'+(.85*opacity).toFixed(3)+'"/>'+
+    '<circle cx="'+cx+'" cy="'+cy+'" r="'+(r+4).toFixed(2)+'" fill="none" stroke="#90ffff" stroke-width="1" opacity="'+(.2*opacity).toFixed(3)+'"/>';
   }
   shapes+='</g>'+
-   '<rect x="147" y="166" width="888" height="366" rx="18" fill="none" stroke="#8ee7f0" stroke-opacity=".22" stroke-width="2"/>'+
-   '<g><ellipse cx="'+cx+'" cy="'+(cy+11)+'" rx="28" ry="11" fill="#001b26" opacity=".55"/>'+
-   '<rect x="'+(cx-17)+'" y="'+(cy-3)+'" width="34" height="23" rx="5" fill="#5b7680" stroke="#ecfaf9" stroke-width="2"/>'+
-   '<ellipse cx="'+cx+'" cy="'+cy+'" rx="19" ry="11" fill="url(#m03Emitter)" stroke="#d5eef0" stroke-width="2"/></g>'+
-   '<g fill="#e3f7f7" font-family="Inter,system-ui,sans-serif" font-size="12" font-weight="650">'+
-   '<path d="M610 340L675 291H726" fill="none" stroke="#e5f7f4" stroke-width="1.5"/>'+
-   '<rect x="726" y="271" width="175" height="44" rx="9" fill="#05273a" fill-opacity=".9" stroke="#80bbc9"/>'+
-   '<text x="738" y="290">Джерело хвиль</text><text x="738" y="305" font-size="10" font-weight="500">(вібратор)</text>'+
-   '<path d="M420 348L358 302H321" fill="none" stroke="#e5f7f4" stroke-width="1.5"/>'+
-   '<rect x="188" y="270" width="133" height="49" rx="9" fill="#05273a" fill-opacity=".9" stroke="#80bbc9"/>'+
-   '<text x="200" y="290">Фронт хвилі</text><text x="200" y="306" font-size="10" font-weight="500">(гребінь)</text>'+
-   '<rect x="179" y="449" width="214" height="63" rx="10" fill="#052739" fill-opacity=".89" stroke="#568d9c"/>'+
-   '<path d="M180 456V505" stroke="#b7f48b" stroke-width="4"/>'+
-   '<text x="193" y="471" font-size="13">КРУГОВА ХВИЛЯ</text><text x="193" y="490" font-size="10" font-weight="500">Збурення поширюється</text><text x="193" y="504" font-size="10" font-weight="500">від точкового джерела.</text>'+
-   '</g>';
-  const spacing=145/Math.max(freq,.1);
-  const lx=810,rx=Math.min(1030,lx+spacing);
-  shapes+='<g stroke="#e7f6f6" stroke-width="1.6" fill="none"><path d="M'+lx+' 459v-30M'+rx.toFixed(1)+' 459v-30M'+lx+' 443H'+rx.toFixed(1)+'"/></g>'+
-   '<text x="'+((lx+rx)/2).toFixed(1)+'" y="421" font-size="13" fill="#f2fbfa" text-anchor="middle">λ — довжина хвилі</text>';
+   '<path d="M145 169Q390 148 1042 169" fill="none" stroke="#e6fcff" stroke-opacity=".48" stroke-width="3"/>'+
+   '<path d="M148 547Q500 566 1037 543" fill="none" stroke="#8be7f5" stroke-opacity=".32" stroke-width="3"/>'+
+   '<rect x="143" y="169" width="893" height="375" rx="22" fill="none" stroke="#b6f5fa" stroke-opacity=".16" stroke-width="2"/>'+
+   '<ellipse cx="'+cx+'" cy="'+(cy+14)+'" rx="27" ry="10" fill="#001e2b" opacity=".65"/>'+
+   '<rect x="'+(cx-19)+'" y="'+(cy-2)+'" width="38" height="24" rx="6" fill="#5a8492" stroke="#c8eff0" stroke-width="1.5"/>'+
+   '<ellipse cx="'+cx+'" cy="'+cy+'" rx="21" ry="13" fill="url(#m03Emitter)" stroke="#e5f9f8" stroke-width="1.8"/>'+
+   '<ellipse cx="'+(cx-5)+'" cy="'+(cy-4)+'" rx="9" ry="3.5" fill="#ffffff" opacity=".32"/>';
  }
  else if(wave){shapes+='<path d="'+line(freq,amp*95,320,time*freq*2)+'" stroke="#b8f687" stroke-width="4" fill="none"/>';if(mode==='quest'&&raw===1)shapes+='<path d="'+line(freq,amp*40,460,time*freq*2)+'" stroke="#7cc5e0" stroke-width="4" fill="none"/>';if(n===3){shapes+='<path d="M90 180V520H1120" stroke="#92b6bf" stroke-width="2"/>';for(const [i,m] of markers.entries())shapes+='<line data-marker="'+i+'" x1="'+(90+m*1030)+'" x2="'+(90+m*1030)+'" y1="180" y2="520" stroke="'+(i===0?'#f1c681':'#8dd3eb')+'" stroke-width="3" stroke-dasharray="6 5" style="cursor:ew-resize"/>'}}
  else if(n===4){for(const [x,f] of [[430,freq],[790,frequency2]]){const spread=50*(1/(1+(f-frequency2)*(f-frequency2)*2));const offset=started?Math.sin(time*f*4)*spread:0;shapes+='<path d="M'+(x-24+offset)+' 200L'+x+' 430L'+(x+24+offset)+' 200" fill="none" stroke="#d8e6e2" stroke-width="9"/><rect x="'+(x-70)+'" y="433" width="140" height="18" fill="#7e9ba4"/>'}}
