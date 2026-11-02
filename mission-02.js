@@ -229,36 +229,71 @@ const stopwatchSvg=()=>{
 };
 const comparingCarts=()=>mode==='demo'&&saved.stage===2||mode==='quest'&&saved.questStage===3;
 const cartSvg=()=>{
- const f=clamp(state.cart.elapsed/Math.max(duration(),.001),0,1);
+ const progress=clamp(state.cart.elapsed/Math.max(duration(),.001),0,1);
  const compare=comparingCarts();
- const cart=(id,y,color,x)=>'<g id="'+id+'" transform="translate('+x+',0)">'+
-  '<rect x="-42" y="'+(y-43)+'" width="84" height="39" rx="6" fill="'+color+'" stroke="#f6ddb2" stroke-width="3"/>'+
-  '<path d="M-31 '+(y-36)+'h62" stroke="#fff5d5" stroke-width="3" opacity=".6"/>'+
-  '<circle cx="-24" cy="'+y+'" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/>'+
-  '<circle cx="25" cy="'+y+'" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/></g>';
- const rail=(y)=>'<rect x="363" y="'+(y-1)+'" width="475" height="12" rx="3" fill="#cbdde0" stroke="#82a5b0"/>'+
-  Array.from({length:11},(_,i)=>'<line x1="'+(385+i*43)+'" x2="'+(385+i*43)+'" y1="'+(y+16)+'" y2="'+(y+(i%5===0?39:28))+'" stroke="#d0eaeb" stroke-width="1.5"/>').join('');
+ // Metallic cart modeled in SVG rather than using a flat rectangular icon.
+ // Wheel groups are rotated in paint() at the same distance traveled by the body.
+ const wheel=(cx,y,id)=>'<g id="'+id+'" transform="translate('+cx+' '+y+')">'+
+  '<circle r="12" fill="#101f2a" stroke="#536a74" stroke-width="1.5"/>'+
+  '<circle r="9" fill="url(#m02Tire)" stroke="#11212c" stroke-width="1"/>'+
+  '<circle r="6.3" fill="url(#m02Steel)" stroke="#f4faf8" stroke-width=".8"/>'+
+  '<path d="M-4 0H4M0-4V4" stroke="#526a76" stroke-width=".75"/>'+
+  '<circle r="2.7" fill="url(#m02Steel)" stroke="#3f5059" stroke-width=".6"/></g>';
+ const cart=(id,y,x,tint)=>'<g id="'+id+'" transform="translate('+x+',0)">'+
+  '<ellipse cx="0" cy="'+(y+6)+'" rx="48" ry="7" fill="#071c2a" opacity=".3"/>'+
+  '<path d="M-43 '+(y-43)+' H43 Q49 '+(y-43)+' 50 '+(y-38)+' L48 '+(y-34)+' H-48 L-50 '+(y-38)+'Z" fill="url(#m02Steel)" stroke="#e4f2f3" stroke-width="1.2"/>'+
+  '<path d="M-45 '+(y-33)+' H45 V'+(y-4)+' Q45 '+y+' 39 '+y+' H-39 Q-45 '+y+' -45 '+(y-5)+'Z" fill="url(#m02CartMetal)" stroke="#c5d5d6" stroke-width="1.4"/>'+
+  '<rect x="-37" y="'+(y-29)+'" width="74" height="24" rx="4" fill="'+tint+'" opacity=".14"/>'+
+  '<path d="M-34 '+(y-27)+' V'+(y-9)+' Q-34 '+(y-7)+' -30 '+(y-7)+' H30 Q34 '+(y-7)+' 34 '+(y-11)+'V'+(y-27)+'" fill="none" stroke="#ffffff" stroke-opacity=".56" stroke-width="1.3"/>'+
+  '<path d="M-46 '+(y-45)+' H46 Q49 '+(y-45)+' 49 '+(y-42)+' L45 '+(y-38)+' H-45 L-49 '+(y-42)+'Z" fill="url(#m02Steel)" stroke="#f0faf8" stroke-width="1"/>'+
+  '<path d="M-38 '+(y-44)+' H38" stroke="#233944" stroke-width="2" stroke-linecap="round"/>'+
+  '<path d="M17 '+(y-23)+' l8 -7m-3 9 8 -7m-3 9 8 -7" stroke="'+tint+'" stroke-width="3"/>'+
+  '<circle cx="-33" cy="'+(y-23)+'" r="2" fill="#586b76" stroke="#edf5f2" stroke-width=".8"/>'+
+  '<circle cx="33" cy="'+(y-23)+'" r="2" fill="#586b76" stroke="#edf5f2" stroke-width=".8"/>'+
+  wheel(-26,y,id+'WheelL')+
+  wheel(26,y,id+'WheelR')+'</g>';
+ // A physically legible 0–distance rule, independent of screen scaling.
+ const ruler=(y)=>'<g>'+
+  '<rect x="358" y="'+(y+31)+'" width="480" height="38" rx="5" fill="#0b3a55" opacity=".94" stroke="#91b3c0" stroke-width="1"/>'+
+  Array.from({length:61},(_,i)=>{
+   const x=385+i*430/60,major=i%10===0,half=i%5===0;
+   return '<path d="M'+x.toFixed(2)+' '+(y+32)+'v'+(major?14:half?10:5)+'" stroke="#deeff1" stroke-width="'+(major?1.3:.7)+'"/>'+
+   (major?'<text x="'+x.toFixed(2)+'" y="'+(y+60)+'" fill="#f0fafb" font-size="10" text-anchor="middle">'+round(state.distance*i/60,1)+'</text>':'');
+  }).join('')+
+  '<text x="827" y="'+(y+61)+'" fill="#e8f8fa" font-size="9">м</text></g>';
+ const rail=(y)=>'<g>'+
+  '<rect x="362" y="'+(y-8)+'" width="477" height="13" rx="3" fill="#041d2d" opacity=".35"/>'+
+  Array.from({length:6},(_,i)=>{
+   const x=390+i*82;
+   return '<path d="M'+x+' '+(y+5)+'v13" stroke="#b3c5ce" stroke-width="5"/>'+
+   '<path d="M'+(x-8)+' '+(y+17)+'h16" stroke="#dce9ea" stroke-width="3"/>';
+  }).join('')+
+  '<rect x="361" y="'+(y-12)+'" width="478" height="9" rx="2" fill="url(#m02Steel)" stroke="#d1e0e3" stroke-width=".7"/>'+
+  '<path d="M365 '+(y-10)+' H835" stroke="#fff" stroke-opacity=".66"/>'+
+  '<rect x="361" y="'+(y-1)+'" width="478" height="6" rx="1.5" fill="url(#m02Steel)" stroke="#9cbbc5" stroke-width=".6"/>'+
+  '</g>';
+ const signs=(top,bottom)=>'<g>'+
+  '<path d="M385 '+(top-12)+'V'+(bottom+8)+' M815 '+(top-12)+'V'+(bottom+8)+'" fill="none" stroke="#a8ef79" stroke-width="2" stroke-dasharray="4 6" opacity=".9"/>'+
+  '<rect x="361" y="'+(top-60)+'" width="70" height="26" rx="5" fill="#102d3e" stroke="#9fbac2"/>'+
+  '<rect x="781" y="'+(top-60)+'" width="70" height="26" rx="5" fill="#102d3e" stroke="#9fbac2"/>'+
+  '<text x="396" y="'+(top-42)+'" fill="#f2f9f7" font-weight="700" font-size="13" text-anchor="middle">СТАРТ</text>'+
+  '<text x="816" y="'+(top-42)+'" fill="#f2f9f7" font-weight="700" font-size="13" text-anchor="middle">ФІНІШ</text>'+
+  '</g>';
+ const defs='<defs>'+
+  '<linearGradient id="m02Steel" x1="0" y1="0" x2=".1" y2="1"><stop stop-color="#f4fcfd"/><stop offset=".24" stop-color="#8398a1"/><stop offset=".51" stop-color="#ffffff"/><stop offset=".78" stop-color="#607987"/><stop offset="1" stop-color="#ccdce0"/></linearGradient>'+
+  '<linearGradient id="m02CartMetal" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#a8b7b9"/><stop offset=".42" stop-color="#f1f1e8"/><stop offset=".77" stop-color="#929fa2"/><stop offset="1" stop-color="#dae6e4"/></linearGradient>'+
+  '<radialGradient id="m02Tire"><stop stop-color="#405466"/><stop offset=".6" stop-color="#223644"/><stop offset="1" stop-color="#0c1b27"/></radialGradient>'+
+  '</defs>';
  if(compare){
   const count=state.finishTimes.length;
-  const aX=385+(count>=1?430:f*430);
-  const bX=385+(count>=2?430:count===1?f*430:0);
-  return rail(322)+rail(444)+
-   '<line x1="385" y1="258" x2="385" y2="458" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
-   '<line x1="815" y1="258" x2="815" y2="458" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
-   '<text x="385" y="245" font-size="15" text-anchor="middle" fill="#d8f4e8">СТАРТ</text>'+
-   '<text x="815" y="245" font-size="15" text-anchor="middle" fill="#d8f4e8">ФІНІШ</text>'+
-   '<text x="340" y="326" font-size="19" text-anchor="middle" font-weight="700" fill="#f3cf97">A</text>'+
-   '<text x="340" y="448" font-size="19" text-anchor="middle" font-weight="700" fill="#a9d9ed">B</text>'+
-   cart('m02CartA',322,'#e5bd81',aX)+cart('m02CartB',444,'#8dbbd0',bX)+
-   '<text x="603" y="535" fill="#d8edf0" font-size="18" text-anchor="middle">Однакова відстань · '+round(state.distance,1)+' м</text>';
+  const aX=385+(count>=1?430:progress*430),bX=385+(count>=2?430:count===1?progress*430:0);
+  return defs+signs(279,444)+rail(340)+rail(453)+
+   ruler(354)+ruler(465)+
+   '<text x="343" y="341" text-anchor="middle" font-size="18" font-weight="800" fill="#f6d48a">A</text>'+
+   '<text x="343" y="454" text-anchor="middle" font-size="18" font-weight="800" fill="#a4e2f3">B</text>'+
+   cart('m02CartA',340,aX,'#efbc46')+cart('m02CartB',453,bX,'#3c9dbf');
  }
- return rail(375)+
-  '<line x1="385" y1="274" x2="385" y2="387" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
-  '<line x1="815" y1="274" x2="815" y2="387" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
-  '<text x="385" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">СТАРТ</text>'+
-  '<text x="815" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">ФІНІШ</text>'+
-  cart('m02MovingCart',375,'#e5bd81',385+f*430)+
-  '<text x="603" y="458" fill="#d8edf0" font-size="18" text-anchor="middle">Шлях '+round(state.distance,1)+' м</text>';
+ return defs+signs(342,391)+rail(390)+ruler(407)+cart('m02MovingCart',390,385+progress*430,'#efbc46');
 };
 const pendulumSvg=()=>{
  const p=state.pendulum,L=clamp(p.length,.45,1.35),r=L*148,tx=730+r*Math.sin(p.theta),ty=240+r*Math.cos(p.theta);
@@ -300,6 +335,17 @@ function paint(){
   if(b)b.setAttribute('transform','translate('+(385+(count>=2?430:count===1?f*430:0)).toFixed(3)+',0)');
  }
 
+ // Rotate wheel hubs proportionally to traveled distance (radius 12 SVG units).
+ const rotation=(state.cart.elapsed/Math.max(duration(),.001)*430/12)*180/Math.PI;
+ for(const id of ['m02MovingCart','m02CartA','m02CartB']){
+  const moving=id==='m02MovingCart'||id==='m02CartA'&&state.finishTimes.length===0||id==='m02CartB'&&state.finishTimes.length===1;
+  const degrees=moving?rotation:0;
+  for(const suffix of ['WheelL','WheelR']){
+   const wheel=get(id+suffix);
+   if(wheel){const cx=suffix==='WheelL'?-26:26,y=id==='m02CartA'?340:id==='m02CartB'?453:390;
+    wheel.setAttribute('transform','translate('+cx+' '+y+') rotate('+degrees.toFixed(2)+')')}
+  }
+ }
  const bob=get('m02PendBall'),cord=get('m02PendString');
  if(bob&&cord){
   const p=state.pendulum,r=clamp(p.length,.45,1.35)*148;
