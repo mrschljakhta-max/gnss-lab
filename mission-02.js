@@ -84,6 +84,7 @@ function resetPhysics(){
  state.stopwatch={elapsed:0,running:false,ever:false,stopped:false};
  state.cart={elapsed:0,running:false,done:false};
  state.pendulum={length:mode==='quest'?j.length:.9,theta:.55,amplitude:.55,elapsed:0,running:false,cycles:0};
+ state.pendulumSamples=[];
  state.distance=mode==='quest'?j.distance:3;
  state.speed=mode==='quest'?j.speed:1.5;state.other=mode==='quest'?j.other:1;
  state.trial=0;state.finishTimes=[];state.predicted=null;state.readings={};state.answers={};
@@ -136,6 +137,7 @@ function frame(ts){
   p.cycles=Math.floor(elapsed/period()+.00001);
   if(p.cycles>=5&&mode!=='explore'){
    p.running=false;p.cycles=5;p.elapsed=5*period();
+   if(mode==='demo'&&saved.stage===5)state.pendulumSamples.push({length:p.length,period:period(),total:5*period()});
    state.stopwatch.running=false;state.stopwatch.stopped=true;
    state.stopwatch.elapsed=5*period();
    if(mode==='demo'&&saved.stage===5&&!state.demoComplete)demoDone();
@@ -179,7 +181,8 @@ function startStopwatch(){
  render();startFrame();
 }
 function launchPendulum(){
- const p=state.pendulum;p.running=true;p.elapsed=0;p.cycles=0;
+ const p=state.pendulum;
+ if(mode==='demo'&&saved.stage===5&&state.pendulumSamples.length>=1)state.demoComplete=false;p.running=true;p.elapsed=0;p.cycles=0;
  p.amplitude=clamp(Math.abs(p.theta),.15,.9)*Math.sign(p.theta||1);
  state.stopwatch={elapsed:0,running:true,ever:true,stopped:false};
  if(mode==='quest'&&saved.questStage===4)state.questReady=true;
@@ -300,15 +303,35 @@ const cartSvg=()=>{
  return defs+signs(342,391)+rail(390)+ruler(407)+cart('m02MovingCart',390,385+progress*430,'#efbc46');
 };
 const pendulumSvg=()=>{
- const p=state.pendulum,L=clamp(p.length,.45,1.35),r=L*148,tx=730+r*Math.sin(p.theta),ty=240+r*Math.cos(p.theta);
- return '<g><rect x="688" y="207" width="85" height="10" rx="2" fill="#9db5c2"/>'+
- '<line x1="730" y1="218" x2="730" y2="452" stroke="#b6cbd4" stroke-dasharray="5 8" opacity=".3"/>'+
- '<path id="m02PendString" d="M730 218L'+tx+' '+ty+'" stroke="#e3e7da" stroke-width="3" stroke-linecap="round"/>'+
- '<circle cx="730" cy="218" r="7" fill="#abc5cd"/>'+
- '<circle id="m02PendBall" data-drag="pendulum" cx="'+tx+'" cy="'+ty+'" r="22" fill="#d5ab68" stroke="#fff0cf" stroke-width="3" tabindex="0" role="button" aria-label="Відтягни кульку маятника та відпусти"/>'+
- '<path d="M730 218m-145 0a145 145 0 0 1 290 0" stroke="#83bac3" stroke-opacity=".2" fill="none"/>'+
- '<text x="728" y="480" font-size="16" fill="#e1f3ed" text-anchor="middle">МАЯТНИК · '+round(p.length,1)+' м</text>'+
- '<text id="m02PendCount" x="728" y="509" font-size="19" fill="#b6f28f" font-weight="750" text-anchor="middle">'+p.cycles+' повних циклів</text></g>';
+ const p=state.pendulum,L=clamp(p.length,.45,1.35),r=L*148;
+ const tx=730+r*Math.sin(p.theta),ty=218+r*Math.cos(p.theta);
+ const ticks=Array.from({length:11},(_,i)=>{
+  const y=218+i*148/10;
+  return '<line x1="889" y1="'+y.toFixed(1)+'" x2="'+(i%5===0?907:899)+'" y2="'+y.toFixed(1)+'" stroke="#d5ebec" stroke-width="'+(i%5===0?1.5:.8)+'"/>'+
+   (i%5===0?'<text x="913" y="'+(y+4).toFixed(1)+'" fill="#d7eff0" font-size="11">'+round(i/10,1)+' м</text>':'');
+ }).join('');
+ return '<g aria-label="Лабораторний маятник зі змінною довжиною">'+
+ '<defs><linearGradient id="m02PendSteel" x1="0" y1="0" x2="1" y2=".8"><stop stop-color="#eaf4f4"/><stop offset=".32" stop-color="#5c7a87"/><stop offset=".62" stop-color="#f9fcf8"/><stop offset="1" stop-color="#657985"/></linearGradient>'+
+ '<radialGradient id="m02PendBrass" cx=".28" cy=".2" r=".9"><stop stop-color="#fff4c9"/><stop offset=".3" stop-color="#e8c47e"/><stop offset=".73" stop-color="#ac7741"/><stop offset="1" stop-color="#67482e"/></radialGradient></defs>'+
+ '<ellipse cx="730" cy="480" rx="124" ry="11" fill="#051c2c" opacity=".25"/>'+
+ '<rect x="653" y="472" width="154" height="14" rx="4" fill="url(#m02PendSteel)" stroke="#d2e0e2"/>'+
+ '<rect x="718" y="194" width="17" height="278" rx="4" fill="url(#m02PendSteel)" stroke="#647f8b" opacity=".75"/>'+
+ '<rect x="681" y="200" width="100" height="17" rx="5" fill="url(#m02PendSteel)" stroke="#c9dce0" stroke-width="1.5"/>'+
+ '<path d="M698 205H766" stroke="#ffffff" stroke-opacity=".7" stroke-width="2"/>'+
+ '<line x1="730" y1="218" x2="730" y2="439" stroke="#b6cbd4" stroke-dasharray="5 8" opacity=".36"/>'+
+ '<path d="M'+(730-r*Math.sin(.8)).toFixed(2)+' '+(218+r*Math.cos(.8)).toFixed(2)+' A'+r.toFixed(1)+' '+r.toFixed(1)+' 0 0 1 '+(730+r*Math.sin(.8)).toFixed(2)+' '+(218+r*Math.cos(.8)).toFixed(2)+'" fill="none" stroke="#a3c7d1" stroke-width="1.5" stroke-dasharray="4 7" opacity=".42"/>'+
+ '<rect x="882" y="207" width="58" height="221" rx="4" fill="#0a364c" fill-opacity=".5" stroke="#7297a5"/>'+
+ ticks+
+ '<line x1="872" y1="218" x2="872" y2="'+(218+r).toFixed(2)+'" stroke="#b2f38f" stroke-width="2.5"/>'+
+ '<path d="M867 218h10M867 '+(218+r).toFixed(2)+'h10" stroke="#b2f38f" stroke-width="2"/>'+
+ '<path id="m02PendString" d="M730 218L'+tx+' '+ty+'" stroke="#eef3f1" stroke-width="3.5" stroke-linecap="round"/>'+
+ '<path id="m02PendStringHighlight" d="M730 218L'+tx+' '+ty+'" stroke="#819da6" stroke-width=".85" opacity=".6"/>'+
+ '<circle cx="730" cy="218" r="9" fill="url(#m02PendSteel)" stroke="#eef5f2" stroke-width="1"/>'+
+ '<circle cx="730" cy="218" r="3.2" fill="#344e58"/>'+
+ '<circle id="m02PendBall" data-drag="pendulum" cx="'+tx+'" cy="'+ty+'" r="23" fill="url(#m02PendBrass)" stroke="#ffe9bf" stroke-width="2.5" tabindex="0" role="button" aria-label="Відтягни тягарець маятника та відпусти" style="cursor:grab"/>'+
+ '<ellipse id="m02PendGlint" cx="'+(tx-7)+'" cy="'+(ty-9)+'" rx="6" ry="3.5" fill="#fff7d9" opacity=".44" pointer-events="none"/>'+
+ '<text id="m02PendLength" x="819" y="465" font-size="15" fill="#d5ebef" text-anchor="middle">Довжина '+round(L,1)+' м</text>'+
+ '<text id="m02PendCount" x="730" y="515" font-size="18" fill="#b6f28f" font-weight="750" text-anchor="middle">'+p.cycles+' повних циклів</text></g>';
 };
 // Static SVG is built once per step. Never replace the draggable ball and
 // 60 stopwatch ticks on every frame: only update the moving coordinates.
@@ -350,12 +373,14 @@ function paint(){
     wheel.setAttribute('transform','translate('+cx+' '+y+') rotate('+degrees.toFixed(2)+')')}
   }
  }
- const bob=get('m02PendBall'),cord=get('m02PendString');
+ const bob=get('m02PendBall'),cord=get('m02PendString'),glint=get('m02PendGlint'),highlight=get('m02PendStringHighlight');
  if(bob&&cord){
   const p=state.pendulum,r=clamp(p.length,.45,1.35)*148;
-  const x=730+r*Math.sin(p.theta),y=240+r*Math.cos(p.theta);
+  const x=730+r*Math.sin(p.theta),y=218+r*Math.cos(p.theta);
   bob.setAttribute('cx',x.toFixed(3));bob.setAttribute('cy',y.toFixed(3));
   cord.setAttribute('d','M730 218L'+x.toFixed(3)+' '+y.toFixed(3));
+  if(highlight)highlight.setAttribute('d','M730 218L'+x.toFixed(3)+' '+y.toFixed(3));
+  if(glint){glint.setAttribute('cx',(x-7).toFixed(3));glint.setAttribute('cy',(y-9).toFixed(3))}
  }
  setReadout('m02PendCount',state.pendulum.cycles+' повних циклів');
 
@@ -392,6 +417,8 @@ function controlMarkup(){
   if(n===5||n===6)return '<div class="m02-panel-title">Коливання маятника</div>'+
    '<div class="m02-stat">Відтягни кульку курсором та відпусти.</div>'+
    '<div class="m02-stat" id="m02Cycles">'+state.pendulum.cycles+' циклів</div>'+
+   (n===5?'<div class="m02-stat">Зміни довжину та повтори 5 коливань. Порівняй період.</div>'+
+    state.pendulumSamples.slice(-2).map((v,i)=>'<div class="m02-stat">Вимір '+(state.pendulumSamples.length>1?state.pendulumSamples.length-Math.min(2,state.pendulumSamples.length)+i+1:i+1)+': '+round(v.length,1)+' м · 5 циклів '+round(v.total,1)+' с · 1 цикл '+round(v.period,2)+' с</div>').join(''):'')+
    '<label>Довжина <input data-setting="length" type="range" min=".5" max="1.3" step=".1" value="'+state.pendulum.length+'"></label>'+
    button('slow',slow?'Повернути ×1':'Уповільнення ×0,22')+
    '<div class="m02-stat">Виміряний час: '+round(state.stopwatch.elapsed,1)+' с</div>'+
@@ -524,7 +551,7 @@ panel.addEventListener('input',e=>{
  const num=Number(e.target.value);if(!Number.isFinite(num))return;
  if(setting==='distance')state.distance=num;
  if(setting==='speed')state.speed=num;
- if(setting==='length'){state.pendulum.length=num;state.pendulum.running=false;state.pendulum.cycles=0}
+ if(setting==='length'){state.pendulum.length=num;state.pendulum.running=false;state.pendulum.cycles=0;state.pendulum.elapsed=0;state.stopwatch.running=false;state.stopwatch.elapsed=0;state.demoComplete=false}
  state.demoComplete=false;
  const output=e.target.closest('label')?.querySelector('output');
  if(output)output.textContent=round(num,1)+(setting==='speed'?' м/с':' м');
