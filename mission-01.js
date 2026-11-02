@@ -23,29 +23,76 @@ const specs=[
  {name:'Закріплення',title:'Обертай і вимірюй',prompt:'Поверни брусок і виміряй довжину, ширину та товщину.'},
  {name:'Підсумок',title:'Місію завершено',prompt:''}
 ];
+const QUEST_VERSION=2;
+const QUEST_WEIGHTS=[10,25,25,20,20];
 const tasks=[
- {name:'Виміряй деталь',prompt:'Зведи губки й зчитай шкалу.'},
- {name:'Відрізок',prompt:'Побудуй відрізок 35 мм.'},
- {name:'Прямокутник',prompt:'Побудуй прямокутник 30 × 20 мм.'},
- {name:'Коло',prompt:'Побудуй коло радіусом 12 мм.'}
+ {name:'Підготуй штангенциркуль',prompt:'Перевір нуль та підготуй інструмент.'},
+ {name:'Знайди придатну деталь',prompt:'Виміряй A та B і визнач, яка деталь відповідає замовленню.'},
+ {name:'Креслення за замовленням',prompt:'Побудуй прямокутник за технічною карткою.'},
+ {name:'Коло за діаметром',prompt:'Побудуй коло за заданим діаметром.'},
+ {name:'Знайди та виправ помилку',prompt:'Перевір готове креслення та виправ помилкову сторону.'}
 ];
+const QUEST_VARIANTS=[
+ {length:42,blocks:[42,49],rect:[36,24],diameter:34,flaw:'height',wrong:[36,30]},
+ {length:45,blocks:[51,45],rect:[32,26],diameter:28,flaw:'width',wrong:[39,26]},
+ {length:38,blocks:[38,44],rect:[39,22],diameter:36,flaw:'height',wrong:[39,27]},
+ {length:47,blocks:[53,47],rect:[34,28],diameter:32,flaw:'width',wrong:[40,28]},
+ {length:41,blocks:[41,48],rect:[37,25],diameter:30,flaw:'height',wrong:[37,19]}
+];
+const questVariant=()=>QUEST_VARIANTS[(memory.quest?.seed||0)%QUEST_VARIANTS.length];
+const newQuest=seed=>({version:QUEST_VERSION,seed,scores:[null,null,null,null,null],
+ mistakes:[0,0,0,0,0],readings:{},identified:null,diagnosis:null,report:[],passed:false});
+const questScores=()=>memory.quest?.scores||[];
+const questTotal=()=>questScores().reduce((sum,n)=>sum+(Number.isFinite(n)?n:0),0);
+const questPasses=()=>questTotal()>=80&&questScores()[0]>=7&&questScores()[1]>=15;
+function questMistake(message){
+ const k=memory.assessment,q=memory.quest;
+ if(q&&k<5){q.mistakes[k]=(q.mistakes[k]||0)+1;memory.assessmentAttempts++;persist()}
+ announce(message);
+}
+function finishQuestStation(note){
+ const k=memory.assessment,q=memory.quest;
+ if(!q||k>=5||q.scores[k]!==null)return;
+ const point=QUEST_WEIGHTS[k],deduction=k===1?5:4;
+ q.scores[k]=Math.max(0,point-(q.mistakes[k]||0)*deduction);
+ q.report[k]=note;
+ memory.assessment=k+1;
+ if(memory.assessment===5){q.passed=questPasses();memory.passed=q.passed}
+ persist();resetStep();render();
+ if(memory.assessment===5){
+  if(q.passed)document.dispatchEvent(new CustomEvent('gnss:mission-one-complete',
+   {detail:{mission:1,completed:true,score:questTotal(),attempts:memory.assessmentAttempts}}));
+  announce(q.passed?'✓ Практичний залік складено.':'Залік завершено. Переглянь результати та повтори слабкі навички.',q.passed);
+ }else announce('✓ Станцію завершено. Наступне завдання.',true);
+}
+function startFreshQuest(){
+ memory.quest=newQuest(Math.floor(Math.random()*QUEST_VARIANTS.length));
+ memory.assessment=0;memory.passed=false;memory.assessmentAttempts=0;
+ persist();resetStep();render();
+}
+
 // One wooden specimen (millimetres); the caliper measures each horizontal face.
 const DIMENSIONS=[
  {id:'length',name:'Довжина',mm:42,face:'верхня грань'},
  {id:'width',name:'Ширина',mm:28,face:'поворот на 90°'},
  {id:'thickness',name:'Товщина',mm:18,face:'бічна грань'}
 ];
-const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{},curriculumVersion:3};
+const initial={scene:0,completed:[],skipped:[],assessment:0,passed:false,assessmentAttempts:0,dimensionProgress:{},curriculumVersion:3,quest:null};
 const firstUnfinished=()=>{for(let i=0;i<7;i++)if(!memory.completed.includes(i))return i;return 7};
 let memory={...initial};
 try{
  const p=JSON.parse(localStorage.getItem(STORE)||'{}');
  if(p&&typeof p==='object'){
-  memory={...initial,...p,scene:clamp(Number(p.scene)||0,0,7),assessment:clamp(Number(p.assessment)||0,0,4),
+  memory={...initial,...p,scene:clamp(Number(p.scene)||0,0,7),assessment:clamp(Number(p.assessment)||0,0,5),
    completed:Array.isArray(p.completed)?p.completed.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    skipped:Array.isArray(p.skipped)?p.skipped.filter(x=>Number.isInteger(x)&&x>=0&&x<7):[],
    passed:!!p.passed};
-  // Old numeric conversions have been replaced with physical drafting.
+  if(!memory.quest||memory.quest.version!==QUEST_VERSION||
+    !Array.isArray(memory.quest.scores)||memory.quest.scores.length!==5){
+    memory.quest=newQuest(Math.floor(Math.random()*QUEST_VARIANTS.length));
+    memory.assessment=0;memory.passed=false;
+   }
+   // Old numeric conversions have been replaced with physical drafting.
   // Keep verified caliper progress but offer all three new geometry lessons.
   if(p.curriculumVersion!==3){
    memory.completed=memory.completed.filter(n=>n<3||n===6);
@@ -59,9 +106,14 @@ try{
 // All dimensions are mm, physically laid out on the existing drafting board.
 const DRAW_ORIGIN={x:425,y:325};
 function geometryTask(){
- if(mode==='quest')return {
-  1:{kind:'line',width:35},2:{kind:'rect',width:30,height:20},3:{kind:'circle',radius:12}
- }[memory.assessment]||null;
+ if(mode==='quest'){
+  const q=questVariant();
+  if(memory.assessment===2)return {kind:'rect',width:q.rect[0],height:q.rect[1]};
+  if(memory.assessment===3)return {kind:'circle',radius:q.diameter/2};
+  if(memory.assessment===4&&memory.quest?.diagnosis===q.flaw)
+   return {kind:'rect',width:q.rect[0],height:q.rect[1]};
+  return null;
+ }
  return {
   3:{kind:'line',width:50},4:{kind:'rect',width:40,height:25},5:{kind:'circle',radius:20}
  }[memory.scene]||null;
@@ -103,24 +155,27 @@ function resetStep(){
   dimensionIndex=mode==='demo'&&memory.scene===6?
    Math.max(0,DIMENSIONS.findIndex(d=>dimensionReadings[d.id]!==d.mm)):0;
   turnPointer=null;solidPose=facePose(dimensionIndex);
- if(mode==='quest'){assessmentSeed=Math.min(4,Math.max(0,Number(memory.assessmentAttempts)||0)%5);
-  assessmentTarget=[42,47,63,38,69][assessmentSeed];gap=assessmentTarget+24;}
+ if(mode==='quest'){assessmentTarget=target();gap=calibration()?12:target()+24;}
  if(mode==='demo'&&memory.scene===2)gap=70;
  if(mode==='demo'&&memory.scene===6)gap=target()+24;
  if(mode==='demo'&&memory.scene===1)gap=12;
- caliperChosen=mode==='quest'&&memory.assessment===0||mode==='demo'&&(
+ caliperChosen=mode==='quest'&&(memory.assessment===0||memory.assessment===1)||mode==='demo'&&(
   memory.scene===1||memory.scene===2||memory.scene===6);
  caliperStartGap=gap;
 }
 function target(){
- if(mode==='quest')return assessmentTarget;
+ if(mode==='quest'){
+  if(memory.assessment===0)return 0;
+  if(memory.assessment===1)return questVariant().blocks[part==='a'?0:1];
+  return 0;
+ }
  if(memory.scene===2)return part==='a'?50:54;
  if(memory.scene===6)return DIMENSIONS[dimensionIndex].mm;
  return 50;
 }
 function canMeasure(){return caliperChosen&&!turnPointer&&!turning&&moved&&settledContact&&Math.abs(gap-target())<.001}
 function sceneComplete(){
- if(mode==='quest')return memory.assessment>=4;
+ if(mode==='quest')return memory.assessment>=5;
  switch(memory.scene){
   case 0:return !!choice;
   case 1:return caliperChosen&&moved&&gap===0;
@@ -290,7 +345,7 @@ function caliperScene(calTarget,calGap,showBlock=true){
  let s=schematic();
  const jawX=X0+calGap*MM,contact=Math.abs(calGap-calTarget)<.001;
  const travelStart=calGap,limit=showBlock?calTarget:0;
- const label=mode==='quest'?'Невідома деталь':memory.scene===6?DIMENSIONS[dimensionIndex].name:part==='a'?'Деталь A':'Деталь B';
+ const label=mode==='quest'?(part==='a'?'Деталь A':'Деталь B'):memory.scene===6?DIMENSIONS[dimensionIndex].name:part==='a'?'Деталь A':'Деталь B';
  if(showBlock){
   s+=mode==='demo'&&memory.scene===6?orientableBlockSvg():blockSvg(X0,265,calTarget*MM,'',false,false);
   s+='<text x="'+(X0+calTarget*MM/2)+'" y="242" fill="#e3efdf" text-anchor="middle" font-size="17">'+label+'</text>';
