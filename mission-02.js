@@ -227,20 +227,38 @@ const stopwatchSvg=()=>{
  '<text x="203" y="452" fill="#d6f0eb" font-size="16" text-anchor="middle">СЕКУНДОМІР</text>'+
  '<text id="m02FaceTime" x="203" y="479" fill="#bcf39c" font-weight="800" font-size="27" text-anchor="middle">'+round(v,1)+' с</text>';
 };
+const comparingCarts=()=>mode==='demo'&&saved.stage===2||mode==='quest'&&saved.questStage===3;
 const cartSvg=()=>{
- const f=clamp(state.cart.elapsed/Math.max(duration(),.001),0,1),x=385+f*430;
- const cart='<g id="m02MovingCart" transform="translate('+x+',0)"><rect x="-42" y="331" width="84" height="39" rx="6" fill="#e5bd81" stroke="#f6ddb2" stroke-width="3"/>'+
- '<path d="M-31 338h62" stroke="#fff5d5" stroke-width="3" opacity=".6"/>'+
- '<circle cx="-24" cy="375" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/>'+
- '<circle cx="25" cy="375" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/></g>';
- let ticks='';for(let i=0;i<=10;i++)ticks+='<line x1="'+(385+i*43)+'" x2="'+(385+i*43)+'" y1="388" y2="'+(i%5===0?411:400)+'" stroke="#d0eaeb" stroke-width="1.5"/>';
- return '<rect x="363" y="374" width="475" height="12" rx="3" fill="#cbdde0" stroke="#82a5b0"/>'+ticks+
- '<line x1="385" y1="274" x2="385" y2="387" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
- '<line x1="815" y1="274" x2="815" y2="387" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
- '<text x="385" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">СТАРТ</text>'+
- '<text x="815" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">ФІНІШ</text>'+
- cart+'<text x="603" y="458" fill="#d8edf0" font-size="18" text-anchor="middle">Шлях '+round(state.distance,1)+' м</text>'+
- '';
+ const f=clamp(state.cart.elapsed/Math.max(duration(),.001),0,1);
+ const compare=comparingCarts();
+ const cart=(id,y,color,x)=>'<g id="'+id+'" transform="translate('+x+',0)">'+
+  '<rect x="-42" y="'+(y-43)+'" width="84" height="39" rx="6" fill="'+color+'" stroke="#f6ddb2" stroke-width="3"/>'+
+  '<path d="M-31 '+(y-36)+'h62" stroke="#fff5d5" stroke-width="3" opacity=".6"/>'+
+  '<circle cx="-24" cy="'+y+'" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/>'+
+  '<circle cx="25" cy="'+y+'" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/></g>';
+ const rail=(y)=>'<rect x="363" y="'+(y-1)+'" width="475" height="12" rx="3" fill="#cbdde0" stroke="#82a5b0"/>'+
+  Array.from({length:11},(_,i)=>'<line x1="'+(385+i*43)+'" x2="'+(385+i*43)+'" y1="'+(y+16)+'" y2="'+(y+(i%5===0?39:28))+'" stroke="#d0eaeb" stroke-width="1.5"/>').join('');
+ if(compare){
+  const count=state.finishTimes.length;
+  const aX=385+(count>=1?430:f*430);
+  const bX=385+(count>=2?430:count===1?f*430:0);
+  return rail(322)+rail(444)+
+   '<line x1="385" y1="258" x2="385" y2="458" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
+   '<line x1="815" y1="258" x2="815" y2="458" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
+   '<text x="385" y="245" font-size="15" text-anchor="middle" fill="#d8f4e8">СТАРТ</text>'+
+   '<text x="815" y="245" font-size="15" text-anchor="middle" fill="#d8f4e8">ФІНІШ</text>'+
+   '<text x="340" y="326" font-size="19" text-anchor="middle" font-weight="700" fill="#f3cf97">A</text>'+
+   '<text x="340" y="448" font-size="19" text-anchor="middle" font-weight="700" fill="#a9d9ed">B</text>'+
+   cart('m02CartA',322,'#e5bd81',aX)+cart('m02CartB',444,'#8dbbd0',bX)+
+   '<text x="603" y="535" fill="#d8edf0" font-size="18" text-anchor="middle">Однакова відстань · '+round(state.distance,1)+' м</text>';
+ }
+ return rail(375)+
+  '<line x1="385" y1="274" x2="385" y2="387" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
+  '<line x1="815" y1="274" x2="815" y2="387" stroke="#b7ee91" stroke-width="2" stroke-dasharray="5 5"/>'+
+  '<text x="385" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">СТАРТ</text>'+
+  '<text x="815" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">ФІНІШ</text>'+
+  cart('m02MovingCart',375,'#e5bd81',385+f*430)+
+  '<text x="603" y="458" fill="#d8edf0" font-size="18" text-anchor="middle">Шлях '+round(state.distance,1)+' м</text>';
 };
 const pendulumSvg=()=>{
  const p=state.pendulum,L=clamp(p.length,.45,1.35),r=L*148,tx=730+r*Math.sin(p.theta),ty=240+r*Math.cos(p.theta);
@@ -274,6 +292,13 @@ function paint(){
  setReadout('m02FaceTime',round(sw,1)+' с');
  const cart=get('m02MovingCart');
  if(cart)cart.setAttribute('transform','translate('+(385+clamp(state.cart.elapsed/Math.max(duration(),.001),0,1)*430).toFixed(3)+',0)');
+ if(comparingCarts()){
+  const count=state.finishTimes.length;
+  const f=clamp(state.cart.elapsed/Math.max(duration(),.001),0,1);
+  const a=get('m02CartA'),b=get('m02CartB');
+  if(a)a.setAttribute('transform','translate('+(385+(count>=1?430:f*430)).toFixed(3)+',0)');
+  if(b)b.setAttribute('transform','translate('+(385+(count>=2?430:count===1?f*430:0)).toFixed(3)+',0)');
+ }
 
  const bob=get('m02PendBall'),cord=get('m02PendString');
  if(bob&&cord){
@@ -308,7 +333,7 @@ function controlMarkup(){
       '<label>Швидкість <input data-setting="speed" type="range" min=".5" max="3" step=".1" value="'+state.speed+'"></label>':'')+
     (n===4?input('m02Predict','Час прибуття','с')+
      (state.cart.done?'<div class="m02-stat">Прогноз: '+round(state.predicted,1)+' с · Виміряно: '+round(state.cart.elapsed,1)+' с</div>':''):
-     n===2?'<div class="m02-stat">Дослідів: '+state.finishTimes.length+' / 2</div>'+
+     n===2?'<div class="m02-stat">Візок A: '+(state.finishTimes.length>=1?round(state.finishTimes[0],1)+' с':'очікує запуску')+'</div><div class="m02-stat">Візок B: '+(state.finishTimes.length>=2?round(state.finishTimes[1],1)+' с':state.finishTimes.length===1?'готовий до запуску':'очікує запуску')+'</div>'+
       (state.finishTimes.length?'<div class="m02-stat">Час A: '+round(state.finishTimes[0],1)+' с'+
        (state.finishTimes.length>1?' · B: '+round(state.finishTimes[1],1)+' с':'')+'</div>':''):'')+
     button('launch-cart',state.cart.running?'Візок рухається…':n===2?'Запустити дослід':'Запустити візок',state.cart.running?'disabled':'')+
