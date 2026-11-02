@@ -107,6 +107,12 @@ document.addEventListener('gnss:mission-one-complete',event=>{
  drawPanel();
  toast('✓ Перша практична місія підтверджена й записана до журналу.');
 });
+document.addEventListener('gnss:mission-two-complete',event=>{
+ if(!event.detail?.completed||count(1)>=3)return;
+ // Lesson 02 replaces all three legacy parameter quests for this topic.
+ wins[1]=3;save();drawPanel();
+ toast('✓ Лабораторію часу завершено — залік записано до прогресу.');
+});
 
 function save(){try{localStorage.setItem(KEY,JSON.stringify(wins))}catch{}}
 function preserve(){snapshot=states[active].map(s=>({...s}));snapshotLab=active}
