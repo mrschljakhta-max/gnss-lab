@@ -100,7 +100,7 @@ function show(){
 }
 function hide(){
  shown=false;root.hidden=true;document.body.classList.remove('gnss-lesson02-active');
- if(raf){cancelAnimationFrame(raf);raf=0}drag=null;
+ if(raf){cancelAnimationFrame(raf);raf=0}last=0;drag=null;
 }
 function isLessonTwo(){return typeof window.GNSSLabActiveIndex==='function'?window.GNSSLabActiveIndex()===1:
  typeof active==='number'?active===1:location.hash==='#lab-02'}
@@ -117,7 +117,7 @@ function startFrame(){
 }
 function frame(ts){
  raf=0;if(!shown||document.hidden)return;
- const dt=last?clamp((ts-last)/1000,0,.06):0;last=ts;
+ const dt=last?clamp((ts-last)/1000,0,.08):0;last=ts;
  const scaled=dt*(slow?.22:1);
  if(state.stopwatch.running)state.stopwatch.elapsed+=scaled;
  if(state.cart.running){
@@ -195,14 +195,14 @@ const stopwatchSvg=()=>{
  '<circle cx="203" cy="325" r="84" fill="#c7d5d5" stroke="#436d79" stroke-width="5"/>'+
  '<circle cx="203" cy="325" r="75" fill="#f4f8f3" stroke="#a7c3c3" stroke-width="2"/>'+tick+
  '<path d="M195 237h16v-12h-16z" fill="#a5b9bd" stroke="#607d8b"/>'+
- '<line x1="203" y1="325" x2="'+xx+'" y2="'+yy+'" stroke="#bb455a" stroke-width="3.7" stroke-linecap="round"/>'+
+ '<line id="m02Hand" x1="203" y1="325" x2="'+xx+'" y2="'+yy+'" stroke="#bb455a" stroke-width="3.7" stroke-linecap="round"/>'+
  '<circle cx="203" cy="325" r="6" fill="#385767"/>'+
  '<text x="203" y="452" fill="#d6f0eb" font-size="16" text-anchor="middle">СЕКУНДОМІР</text>'+
- '<text x="203" y="479" fill="#bcf39c" font-weight="800" font-size="27" text-anchor="middle">'+round(v,1)+' с</text>';
+ '<text id="m02FaceTime" x="203" y="479" fill="#bcf39c" font-weight="800" font-size="27" text-anchor="middle">'+round(v,1)+' с</text>';
 };
 const cartSvg=()=>{
  const f=clamp(state.cart.elapsed/Math.max(duration(),.001),0,1),x=385+f*430;
- const cart='<g transform="translate('+x+',0)"><rect x="-42" y="331" width="84" height="39" rx="6" fill="#e5bd81" stroke="#f6ddb2" stroke-width="3"/>'+
+ const cart='<g id="m02MovingCart" transform="translate('+x+',0)"><rect x="-42" y="331" width="84" height="39" rx="6" fill="#e5bd81" stroke="#f6ddb2" stroke-width="3"/>'+
  '<path d="M-31 338h62" stroke="#fff5d5" stroke-width="3" opacity=".6"/>'+
  '<circle cx="-24" cy="375" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/>'+
  '<circle cx="25" cy="375" r="10" fill="#17364a" stroke="#aec7cc" stroke-width="3"/></g>';
@@ -213,27 +213,51 @@ const cartSvg=()=>{
  '<text x="385" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">СТАРТ</text>'+
  '<text x="815" y="260" font-size="15" text-anchor="middle" fill="#d8f4e8">ФІНІШ</text>'+
  cart+'<text x="603" y="458" fill="#d8edf0" font-size="18" text-anchor="middle">Шлях '+round(state.distance,1)+' м</text>'+
- '<text x="602" y="486" fill="#b2f38f" font-size="15" text-anchor="middle">Час '+round(state.cart.elapsed,1)+' с</text>';
+ '<text id="m02CartTime" x="602" y="486" fill="#b2f38f" font-size="15" text-anchor="middle">Час '+round(state.cart.elapsed,1)+' с</text>';
 };
 const pendulumSvg=()=>{
  const p=state.pendulum,L=clamp(p.length,.45,1.35),r=L*148,tx=730+r*Math.sin(p.theta),ty=240+r*Math.cos(p.theta);
  return '<g><rect x="688" y="207" width="85" height="10" rx="2" fill="#9db5c2"/>'+
  '<line x1="730" y1="218" x2="730" y2="452" stroke="#b6cbd4" stroke-dasharray="5 8" opacity=".3"/>'+
- '<path d="M730 218L'+tx+' '+ty+'" stroke="#e3e7da" stroke-width="3" stroke-linecap="round"/>'+
+ '<path id="m02PendString" d="M730 218L'+tx+' '+ty+'" stroke="#e3e7da" stroke-width="3" stroke-linecap="round"/>'+
  '<circle cx="730" cy="218" r="7" fill="#abc5cd"/>'+
- '<circle data-drag="pendulum" cx="'+tx+'" cy="'+ty+'" r="22" fill="#d5ab68" stroke="#fff0cf" stroke-width="3" tabindex="0" role="button" aria-label="Відтягни кульку маятника та відпусти"/>'+
+ '<circle id="m02PendBall" data-drag="pendulum" cx="'+tx+'" cy="'+ty+'" r="22" fill="#d5ab68" stroke="#fff0cf" stroke-width="3" tabindex="0" role="button" aria-label="Відтягни кульку маятника та відпусти"/>'+
  '<path d="M730 218m-145 0a145 145 0 0 1 290 0" stroke="#83bac3" stroke-opacity=".2" fill="none"/>'+
  '<text x="728" y="480" font-size="16" fill="#e1f3ed" text-anchor="middle">МАЯТНИК · '+round(p.length,1)+' м</text>'+
- '<text x="728" y="509" font-size="19" fill="#b6f28f" font-weight="750" text-anchor="middle">'+p.cycles+' повних циклів</text></g>';
+ '<text id="m02PendCount" x="728" y="509" font-size="19" fill="#b6f28f" font-weight="750" text-anchor="middle">'+p.cycles+' повних циклів</text></g>';
 };
-function paint(){
- if(!shown)return;
- const s=station(),pend=(mode==='demo'&&s>=5)||mode==='explore'||(mode==='quest'&&s===4);
- const carts=(mode==='demo'&&s>=1&&s<=4)||mode==='explore'||(mode==='quest'&&s>=1&&s<=3);
+// Static SVG is built once per step. Never replace the draggable ball and
+// 60 stopwatch ticks on every frame: only update the moving coordinates.
+function buildScene(){
+ const n=station(),pend=(mode==='demo'&&n>=5)||mode==='explore'||(mode==='quest'&&n===4);
+ const carts=(mode==='demo'&&n>=1&&n<=4)||mode==='explore'||(mode==='quest'&&n>=1&&n<=3);
  svg.innerHTML='<g class="m02-physics">'+stopwatchSvg()+
   (carts?cartSvg():'')+(pend?pendulumSvg():'')+'</g>';
- const reading=get('m02Reading');if(reading)reading.textContent=round(state.stopwatch.elapsed,1)+' с';
- const cycles=get('m02Cycles');if(cycles)cycles.textContent=state.pendulum.cycles+' циклів';
+ paint();
+}
+function paint(){
+ if(!shown)return;
+ const sw=state.stopwatch.elapsed,a=(sw%60)/60*TAU;
+ const hand=get('m02Hand');
+ if(hand){hand.setAttribute('x2',(203+Math.sin(a)*59).toFixed(3));
+  hand.setAttribute('y2',(325-Math.cos(a)*59).toFixed(3))}
+ const face=get('m02FaceTime');if(face)face.textContent=round(sw,1)+' с';
+ const cart=get('m02MovingCart');
+ if(cart)cart.setAttribute('transform','translate('+(385+clamp(state.cart.elapsed/Math.max(duration(),.001),0,1)*430).toFixed(3)+',0)');
+ const cartTime=get('m02CartTime');if(cartTime)cartTime.textContent='Час '+round(state.cart.elapsed,1)+' с';
+ const bob=get('m02PendBall'),cord=get('m02PendString');
+ if(bob&&cord){
+  const p=state.pendulum,r=clamp(p.length,.45,1.35)*148;
+  const x=730+r*Math.sin(p.theta),y=240+r*Math.cos(p.theta);
+  bob.setAttribute('cx',x.toFixed(3));bob.setAttribute('cy',y.toFixed(3));
+  cord.setAttribute('d','M730 218L'+x.toFixed(3)+' '+y.toFixed(3));
+ }
+ const count=get('m02PendCount');
+ if(count)count.textContent=state.pendulum.cycles+' повних циклів';
+ const reading=get('m02Reading');
+ if(reading)reading.textContent=round(sw,1)+' с';
+ const cycles=get('m02Cycles');
+ if(cycles)cycles.textContent=state.pendulum.cycles+' циклів';
 }
 function button(action,label,extra=''){return '<button type="button" data-action="'+action+'" '+extra+'>'+label+'</button>'}
 function input(id,placeholder,unit){return '<label class="m02-answer"><input id="'+id+'" inputmode="decimal" type="text" autocomplete="off" placeholder="'+placeholder+'"/><span>'+unit+'</span></label>'}
@@ -315,7 +339,7 @@ function render(){
  get('m02Progress').textContent=mode==='quest'?Math.min(n,5)+'/5 · '+score()+'/100':mode==='demo'?Math.min(n,7)+'/7':'Пісочниця';
  const next=get('m02Next');next.hidden=mode==='explore'||!finished&&mode==='quest';next.disabled=mode==='demo'&&!finished&&!state.demoComplete;
  next.textContent=mode==='quest'?'Пісочниця →':finished?'Пісочниця →':'Далі →';
- paint();
+ buildScene();
 }
 function startNext(){
  if(mode==='quest'){if(saved.questStage>=5)sandbox();return}
