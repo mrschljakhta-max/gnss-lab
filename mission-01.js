@@ -779,9 +779,9 @@ function controlView(){
    const job=questVariant(),description=step===3?'Ø '+job.diameter+' мм':job.rect[0]+' × '+job.rect[1]+' мм';
    return '<div class="m01-control-title">'+(step===4?'ВИПРАВЛЕННЯ':'ТЕХНІЧНА КАРТКА')+'</div>'+
     '<div class="m01-quest-target">'+description+'</div>'+
-    '<div class="m01-quest-caption">'+(step===3?'Самостійно визнач розхил циркуля.':
-      step===4?'Побудуй правильний прямокутник замість помилкового.':
-      'Побудуй прямокутник, дотримуючись розмірів.')+'</div>';
+    '<div class="m01-quest-caption">'+(step===3?'Сітка 1 мм. Тягни радіус, слідкуй за поточним Ø.':
+      step===4?'Виправ креслення за сіткою 1 мм. Поточні розміри — над фігурою.':
+      'Сітка 1 мм. Тягни кут і контролюй фактичні ширину й висоту.')+'</div>';
   }
   const kind=task.kind==='line'?'ЛІНІЙКА + ОЛІВЕЦЬ':task.kind==='rect'?'КУТНИК + ОЛІВЕЦЬ':'ЦИРКУЛЬ';
   return '<div class="m01-geometry-panel">'+
