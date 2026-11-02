@@ -825,3 +825,82 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
 }
 /* On narrow phones preserve the earlier non-overlapping lower placement.
  * The main learning heading is still centered. */
+
+/* Practical certification V2: the exam uses the existing instrument canvas.
+ * Only the assignment card is new; no hints, ghost outlines or auto-corrected values. */
+#gnssMissionV1 .m01-quest-target{
+ font:800 clamp(18px,1.75vw,25px)/1.25 ui-monospace,Consolas,monospace;
+ color:#d2f8b2;letter-spacing:.3px;padding:5px 0 9px;
+}
+#gnssMissionV1 .m01-quest-caption{
+ color:#c4e1e4;font:600 12px/1.6 Inter,system-ui,sans-serif;
+ max-width:290px;margin:2px 0 10px;
+}
+#gnssMissionV1 .m01-controls:has(.m01-quest-target){
+ width:clamp(235px,27vw,330px);max-width:35vw;
+ right:23px;top:clamp(185px,27vh,245px);
+ padding:17px 16px;border:1px solid #779a9a;
+ background:linear-gradient(145deg,#092b3bdc,#082333e8);
+ border-radius:11px;
+}
+#gnssMissionV1 .m01-controls:has(.m01-quest-target) button{
+ min-height:38px;
+}
+#gnssMissionV1.m01-quest-finished .m01-header{
+ position:absolute;left:50%;top:clamp(56px,9vh,82px);
+ width:min(570px,calc(100% - 30px));max-width:none;
+ transform:translateX(-50%);text-align:center;
+}
+#gnssMissionV1.m01-quest-finished .m01-kicker{display:none!important}
+#gnssMissionV1.m01-quest-finished .m01-header p{
+ text-align:center;margin:auto;max-width:none;
+}
+#gnssMissionV1.m01-quest-finished .m01-controls:has(.m01-quest-report){
+ position:absolute;z-index:7;
+ top:clamp(150px,21vh,196px);left:50%;right:auto;bottom:auto;
+ transform:translateX(-50%);
+ width:min(440px,calc(100% - 28px));
+ max-width:none;max-height:calc(100% - 262px);
+ border:1px solid #608e93;background:rgba(5,31,43,.96);
+ padding:17px 20px;box-shadow:0 15px 36px #0015227f;
+}
+#gnssMissionV1 .m01-quest-report{display:flex;flex-direction:column;gap:10px}
+#gnssMissionV1 .m01-report-score{
+ color:#ccfb9f;text-align:center;
+ font:850 clamp(36px,4vw,52px)/1.1 ui-monospace,Consolas,monospace;
+}
+#gnssMissionV1 .m01-report-score span{font:650 15px system-ui;color:#aed0cb}
+#gnssMissionV1 .m01-report-status{
+ text-align:center;color:#dff3e3;font:750 16px system-ui;
+ padding-bottom:10px;border-bottom:1px solid #476c78;
+}
+#gnssMissionV1 .m01-report-row{
+ display:flex;justify-content:space-between;align-items:center;gap:8px;
+ color:#c6e2e6;font:600 12px system-ui;
+}
+#gnssMissionV1 .m01-report-row strong{
+ color:#d0f3d5;font:750 13px ui-monospace,Consolas,monospace;
+}
+#gnssMissionV1 .m01-report-note{
+ color:#bad2da;font:600 11px/1.45 system-ui;
+ padding:5px 0;border-top:1px solid #476c78;
+}
+#gnssMissionV1 .m01-quest-report>button{width:100%;margin-top:2px}
+#gnssMissionV1.m01-quest-finished .m01-canvas{opacity:.17}
+@media(max-width:900px){
+ #gnssMissionV1 .m01-controls:has(.m01-quest-target){
+  top:150px;right:12px;max-width:45%;
+ }
+}
+@media(max-width:650px){
+ #gnssMissionV1 .m01-controls:has(.m01-quest-target){
+  top:auto;bottom:100px;right:10px;max-width:calc(100% - 20px);
+  width:min(295px,calc(100% - 20px));padding:11px;
+ }
+ #gnssMissionV1.m01-quest-finished .m01-header{top:70px}
+ #gnssMissionV1.m01-quest-finished .m01-controls:has(.m01-quest-report){
+  top:145px;max-height:calc(100% - 220px);padding:12px;
+ }
+ #gnssMissionV1 .m01-quest-report{gap:7px}
+ #gnssMissionV1 .m01-report-row{font-size:11px}
+}
