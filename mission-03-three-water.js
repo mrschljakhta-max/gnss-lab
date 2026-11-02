@@ -58,31 +58,32 @@ window.GNSSWaveTank3D=async function(canvas){
  for(const x of [-4.35,4.35])for(const z of [-2.72,2.72]){
    const bolt=new T.Mesh(new T.CylinderGeometry(.095,.095,.075,20),steel);bolt.position.set(x,.685,z);group.add(bolt)
  }
+ const emitterXZ=new T.Vector2(0,0); // One origin for emitter, waves and all radial calculations.
  const waterGeo=new T.PlaneGeometry(8.78,5.57,240,160);waterGeo.rotateX(-Math.PI/2);
  const shader=new T.ShaderMaterial({
   transparent:false,side:T.DoubleSide,
-  uniforms:{uTime:{value:0},uFreq:{value:2},uOn:{value:0},uCount:{value:0},uHits:{value:Array.from({length:8},()=>new T.Vector3(0,0,-1000))}},
+  uniforms:{uTime:{value:0},uFreq:{value:2},uOn:{value:0},uCenter:{value:emitterXZ}, uCount:{value:0},uHits:{value:Array.from({length:8},()=>new T.Vector3(0,0,-1000))}},
   vertexShader:`
 varying vec2 vUv;varying vec3 vPos;
-uniform float uTime,uFreq,uOn,uCount;uniform vec3 uHits[8];
+uniform float uTime,uFreq,uOn,uCount;uniform vec2 uCenter;uniform vec3 uHits[8];
 void main(){
- vUv=uv;vec3 p=position;float d=length(p.xz);float h=0.;
+ vUv=uv;vec3 p=position;float d=length(p.xz-uCenter);float h=0.;
  if(uOn>.5)h+=sin(d*5.5-uTime*uFreq*6.28318)*.035*exp(-d*.23);
  for(int i=0;i<8;i++){if(float(i)<uCount){vec3 hit=uHits[i];float q=length(p.xz-hit.xy);h+=exp(-pow((q-hit.z)/.12,2.))*.067;}}
  p.y+=h;vPos=p;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);
 }`,
   fragmentShader:`
-precision highp float;varying vec2 vUv;varying vec3 vPos;uniform float uTime,uFreq,uOn,uCount;uniform vec3 uHits[8];
+precision highp float;varying vec2 vUv;varying vec3 vPos;uniform float uTime,uFreq,uOn,uCount;uniform vec2 uCenter;uniform vec3 uHits[8];
 void main(){
-float d=length(vPos.xz);float rip=on=0.;
+float d=length(vPos.xz-uCenter);float rip=on=0.;
 }`
  });
  // Finish fragment separately to keep the shader intentionally simple and maintainable.
  shader.fragmentShader=`precision highp float;
  varying vec2 vUv;varying vec3 vPos;
- uniform float uTime,uFreq,uOn,uCount;uniform vec3 uHits[8];
+ uniform float uTime,uFreq,uOn,uCount;uniform vec2 uCenter;uniform vec3 uHits[8];
  void main(){
-  float d=length(vPos.xz);
+  float d=length(vPos.xz-uCenter);
   float theta=d*5.5-uTime*uFreq*6.2831853;
   float envelope=exp(-d*.18);
   float wave=uOn>.5?sin(theta)*envelope:0.;
@@ -109,8 +110,8 @@ float d=length(vPos.xz);float rip=on=0.;
  }`;
  const water=new T.Mesh(waterGeo,shader);water.position.y=.46;group.add(water);
  const chrome=new T.MeshPhysicalMaterial({color:0xd3dfe0,metalness:.93,roughness:.13});
- const emitter=new T.Mesh(new T.CylinderGeometry(.23,.25,.27,48),chrome);emitter.position.set(0,.63,0);group.add(emitter);
- const emitterTop=new T.Mesh(new T.CylinderGeometry(.24,.24,.022,48),new T.MeshStandardMaterial({color:0xf4ffff,metalness:.8,roughness:.12}));emitterTop.position.set(0,.78,0);group.add(emitterTop);
+ const emitter=new T.Mesh(new T.CylinderGeometry(.23,.25,.27,48),chrome);emitter.position.set(emitterXZ.x,.63,emitterXZ.y);group.add(emitter);
+ const emitterTop=new T.Mesh(new T.CylinderGeometry(.24,.24,.022,48),new T.MeshStandardMaterial({color:0xf4ffff,metalness:.8,roughness:.12}));emitterTop.position.set(emitterXZ.x,.78,emitterXZ.y);group.add(emitterTop);
  let alive=true;
  function render(time,freq,on,hits){
   if(!alive)return;
