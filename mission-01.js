@@ -66,7 +66,7 @@ function finishQuestStation(note){
  }else announce('✓ Станцію завершено. Наступне завдання.',true);
 }
 function startFreshQuest(){
- memory.quest=newQuest(Math.floor(Math.random()*QUEST_VARIANTS.length));
+ memory.quest=newQuest(((memory.quest?.seed??0)+1)%QUEST_VARIANTS.length);
  memory.assessment=0;memory.passed=false;memory.assessmentAttempts=0;
  persist();resetStep();render();
 }
@@ -145,7 +145,7 @@ const draw=(s)=>canvas.innerHTML=s;
 const persist=()=>{try{localStorage.setItem(STORE,JSON.stringify(memory))}catch{}};
 function resetStep(){
  stopTurnAnimation();cancelDraftingAnimation();
- part='a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
+ part=mode==='quest'&&memory.assessment===1&&Number.isFinite(memory.quest?.readings?.a)?'b':'a';gap=78;caliperChosen=false;moved=false;settledContact=false;caliperPhase='idle';dragOffset=0;choice='';answers={};
  hintLevel=0;feedback='';feedbackSuccess=false;
  geomPointer=null;geomDraft=null;geomLast=null;geomKeyboard=0;
  geomDone=mode==='demo'&&memory.completed.includes(memory.scene)&&memory.scene>=3&&memory.scene<=5;
@@ -635,7 +635,7 @@ function geometryKeyboard(e){
 }
 
 function summaryScene(){
- let s=schematic(),done=mode==='quest'?memory.passed||memory.assessment>=4:memory.completed.length===7;
+ let s=schematic(),done=mode==='quest'?questPasses()&&memory.assessment>=5:memory.completed.length===7;
  if(done){
   s+='<circle class="m01-final-ring" cx="600" cy="335" r="75" fill="#245b45" fill-opacity=".32" stroke="#b4f68f" stroke-width="3"/>'+
    '<path class="m01-final-check" d="M553 340l34 32 65-73" fill="none" stroke="#c1ff9a" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>';
@@ -810,15 +810,16 @@ function render(){
  if(!visible)return;
  const quest=mode==='quest',current=quest?memory.assessment:memory.scene;
  root.classList.toggle('m01-geometry-active',!!geometryTask());
- root.classList.toggle('m01-centered-heading',(!quest&&(current<=2||current===6))||(quest&&current===0));
+ root.classList.toggle('m01-centered-heading',(!quest&&(current<=2||current===6))||(quest&&current<5));
+ root.classList.toggle('m01-quest-finished',quest&&current===5);
  root.classList.toggle('m01-stage7-active',!quest&&current===6);
- const spec=quest?tasks[Math.min(current,3)]:specs[current];
+ const spec=quest?tasks[Math.min(current,4)]:specs[current];
  const trainingFinished=memory.completed.length===7;
- el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,4)+'/4':
+ el('m01Kicker').textContent=quest?'ПРАКТИЧНИЙ ЗАЛІК · МІСІЯ 01 · '+Math.min(current+1,5)+'/5':
   'НАВЧАННЯ · МІСІЯ 01 · '+(current+1)+'/8';
- el('m01Title').textContent=quest?(current===4?'Залік складено':spec.name):
+ el('m01Title').textContent=quest?(current===5?(questPasses()?'Залік складено':'Залік завершено'):spec.name):
   current===7?(trainingFinished?'Місія виконана':'Маршрут переглянуто'):spec.title;
- el('m01Prompt').textContent=caliperStep()?caliperInstruction():geomAnimating?'Інструмент проводить креслення…':quest?(current===4?'4/4 підтверджено':spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
+ el('m01Prompt').textContent=caliperStep()?caliperInstruction():geomAnimating?'Інструмент проводить креслення…':quest?(current===5?(questPasses()?'П’ять практичних навичок підтверджено':'Переглянь результати та спробуй новий варіант'):spec.prompt):current===7?'':current>=3&&current<=5&&sceneComplete()?'Побудова готова. Натисни «Далі →».':spec.prompt;
  el('m01Guidance').textContent=hintLevel>0&&!quest?hintMessage():'';
  draw(mainScene());
  renderScaleLoupe();
@@ -832,14 +833,14 @@ function render(){
  renderFeedback();
  const next=el('m01Next'),skip=el('m01Skip'),hint=root.querySelector('[data-act="hint"]');
 
- const allowed=quest?current>=4:!geomAnimating&&(sceneComplete()||memory.completed.includes(current));
- next.hidden=quest&&current<4||mode==='demo'&&current===0;
+ const allowed=quest?current>=5:!geomAnimating&&(sceneComplete()||memory.completed.includes(current));
+ next.hidden=quest&&current<5||mode==='demo'&&current===0;
  next.disabled=!allowed;
  next.textContent=quest?'Пісочниця →':current===7?(trainingFinished?'До заліку →':'Повернутися до уроку →'):current===6&&allowed?'До підсумку →':current>=3&&current<=5&&allowed?'Наступна побудова →':'Далі →';
  next.classList.toggle('m01-next-ready',mode==='demo'&&current>=3&&current<=6&&allowed);
  skip.hidden=quest||current===7;hint.hidden=quest||current===7;
 
- el('m01Progress').textContent=quest?'✓ '+Math.min(current,4)+'/4':
+ el('m01Progress').textContent=quest?'✓ '+Math.min(current,5)+'/5 · '+questTotal()+'/100':
   '✓ '+memory.completed.length+'/7';
 }
 // A compact, dedicated answer dock shared by training, final block and assessment.
