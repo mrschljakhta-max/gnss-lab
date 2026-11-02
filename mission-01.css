@@ -913,3 +913,39 @@ body.gnss-mission-active.tools-open #gnssMissionV1 .m01-measure-answer{
 @media(max-width:650px){
  #gnssMissionV1 .m01-report-row small{font-size:9px;min-width:63px}
 }
+
+/* Exam 2/5: the brief must NEVER cover the real magnified caliper scale.
+ * Measure the loupe's bottom in JS and keep the card below it, above input. */
+#gnssMissionV1.m01-quest-measuring .m01-controls:has(.m01-quest-target){
+ position:absolute;
+ top:var(--m01-quest-card-top,425px);
+ bottom:auto;
+ right:25px;
+ width:min(330px,35vw);
+ max-width:calc(100% - 32px);
+ max-height:var(--m01-quest-card-height,180px);
+ overflow-y:auto;
+ overscroll-behavior:contain;
+ scrollbar-width:thin;
+ z-index:6;
+}
+@media(max-width:980px){
+ #gnssMissionV1.m01-quest-measuring .m01-controls:has(.m01-quest-target){
+  right:12px;width:min(330px,42vw);
+ }
+}
+@media(max-width:650px){
+ #gnssMissionV1.m01-quest-measuring .m01-controls:has(.m01-quest-target){
+  top:var(--m01-quest-card-top,425px);
+  bottom:auto;
+  right:50%;
+  transform:translateX(50%);
+  width:min(330px,calc(100% - 22px));
+  max-width:calc(100% - 22px);
+  max-height:var(--m01-quest-card-height,180px);
+  padding:10px 12px;
+ }
+ #gnssMissionV1.m01-quest-measuring .m01-quest-target{
+  font-size:18px;
+ }
+}
