@@ -111,7 +111,10 @@ function sync(){
  const next=document.body.dataset.expMode||'demo';
  if(next!==mode)setMode(next);
 }
-function startFrame(){if(raf||!shown||document.hidden)return;raf=requestAnimationFrame(frame)}
+function startFrame(){
+ if(raf||!shown||document.hidden||!(state.stopwatch.running||state.cart.running||state.pendulum.running))return;
+ raf=requestAnimationFrame(frame);
+}
 function frame(ts){
  raf=0;if(!shown||document.hidden)return;
  const dt=last?clamp((ts-last)/1000,0,.06):0;last=ts;
@@ -161,7 +164,7 @@ function startCart(){
  if(state.cart.running)return;
  state.cart={elapsed:0,running:true,done:false};
  state.stopwatch={elapsed:0,running:true,ever:true,stopped:false};
- render();
+ render();startFrame();
 }
 function startStopwatch(){
  const sw=state.stopwatch;
@@ -169,14 +172,14 @@ function startStopwatch(){
   if(mode==='demo'&&saved.stage===0&&sw.elapsed>=.6)demoDone();
   if(mode==='quest'&&saved.questStage===0)state.questReady=true;
  }else{sw.elapsed=0;sw.running=true;sw.ever=true;sw.stopped=false}
- render();
+ render();startFrame();
 }
 function launchPendulum(){
  const p=state.pendulum;p.running=true;p.elapsed=0;p.cycles=0;
  p.amplitude=clamp(Math.abs(p.theta),.15,.9)*Math.sign(p.theta||1);
  state.stopwatch={elapsed:0,running:true,ever:true,stopped:false};
  if(mode==='quest'&&saved.questStage===4)state.questReady=true;
- render();
+ render();startFrame();
 }
 function resetTrial(){
  state.stopwatch={elapsed:0,running:false,ever:false,stopped:false};
