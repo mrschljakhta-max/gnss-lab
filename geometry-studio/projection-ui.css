@@ -65,3 +65,11 @@
  .projection-fab__icon{width:19px;height:19px}
 }
 @media(prefers-reduced-motion:reduce){.projection-popover{transition:none}}
+/* Recovery action for accidental guide lines; never removes projection point links. */
+.projection-cleanup{border-top:1px solid #e1ebf0;margin-top:13px;padding-top:12px}
+.projection-cleanup button{width:100%;padding:10px 9px;border-radius:9px;
+ border:1px solid #cadfe9;background:#edf6f8;color:#24657d;
+ font-size:11px;font-weight:750;text-align:center;cursor:pointer}
+.projection-cleanup button:hover:not(:disabled){background:#dff0f4;border-color:#9ccbd6}
+.projection-cleanup button:disabled{opacity:.46;cursor:default}
+.projection-cleanup p{margin:7px 1px 0;font-size:10px;line-height:1.45;color:#7b94a4}
