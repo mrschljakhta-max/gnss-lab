@@ -912,7 +912,7 @@ function normalizedPointScale(value){
 let globalPointSizeBefore=null;
 function syncGlobalPointSize(){
  const range=$('globalPointSize'),value=$('globalPointSizeValue');
- if(range&&document.activeElement!==range)range.value=String(Math.round(state.pointScale*100));
+ if(range)range.value=String(Math.round(state.pointScale*100));
  if(value)value.textContent=Math.round(state.pointScale*100)+'%';
 }
 function initializeGlobalPointSize(){
