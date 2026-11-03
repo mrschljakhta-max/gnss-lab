@@ -202,6 +202,12 @@ function init(){
  });
  document.addEventListener("keydown",event=>{if(event.key==="Escape"&&isOpen())close();});
  for(const id of ["btnNew","btnExample"])$(id)?.addEventListener("click",()=>setMode("none"));
+ // The editor may have rendered an existing drawing before this module initialized.
+ const current=window.GeometryStudioViewportAPI;
+ const initial=current?.getAxisScaleSegments?.();
+ if(Array.isArray(initial))lines=initial;
+ const initialZoom=current?.getZoom?.();
+ if(Number.isFinite(initialZoom)&&initialZoom>0)zoom=initialZoom;
  paint();
 }
 window.GeometryStudioAxes={
