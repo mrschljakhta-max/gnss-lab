@@ -154,10 +154,38 @@ function handleDraftingClicks(tool,p,event){
 }
 function recomputeDerived(){for(let pass=0;pass<4;pass++){for(const p of state.entities){if(p.type!=='point'||!p.derivation)continue;const d=p.derivation;let loc=null;if(d.kind==='intersection'){const l1=get(d.l1),l2=get(d.l2);const x=linePoints(l1),y=linePoints(l2);if(x&&y){const inter=lineIntersect(x.a,x.b,y.a,y.b,l1.extent==='segment',l2.extent==='segment');if(inter)loc=inter.point;}}if(d.kind==='foot'){const l=get(d.line),source=pointOf(d.point),ll=linePoints(l);if(source&&ll)loc=foot2(source,ll.a,ll.b);}if(loc){p.x=loc.x;p.y=loc.y;}}}}
 function log(msg){state.history.unshift({msg,time:new Date().toLocaleTimeString('uk-UA',{hour:'2-digit',minute:'2-digit'})});state.history=state.history.slice(0,36);}
-function saveUndo(msg){state.undo.push(JSON.stringify({entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter}));if(state.undo.length>70)state.undo.shift();state.redo=[];if(msg)log(msg);}
+function syncUndoControls(){
+ const undoAvailable=state.undo.length>0||!!state.pending?.undoBefore;
+ const redoAvailable=state.redo.length>0;
+ for(const id of ['btnUndo','floatingUndo']){
+  const button=$(id);if(button)button.disabled=!undoAvailable;
+ }
+ const redoButton=$('btnRedo');if(redoButton)redoButton.disabled=!redoAvailable;
+}
+function pushUndoBefore(snapshot,msg){
+ state.undo.push(snapshot);
+ if(state.undo.length>70)state.undo.shift();
+ state.redo=[];
+ if(msg)log(msg);
+ syncUndoControls();
+}
+function saveUndo(msg){pushUndoBefore(snapshotForUndo(),msg);}
 function restoreSnap(obj){state.entities=deep(obj.entities||[]);state.coords3=deep(obj.coords3||DEFAULT_3D);state.counter=obj.counter||state.entities.length;state.paperMode=obj.paperMode||'blank';taskResult=state.paperMode==='example'?computeTask(state.coords3):null;state.selected=null;state.pending=null;render();saveLocal();}
-function undo(){if(!state.undo.length)return toast('Немає дій для скасування');state.redo.push(JSON.stringify({entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter}));restoreSnap(JSON.parse(state.undo.pop()));log('Скасування');}
-function redo(){if(!state.redo.length)return toast('Немає дій для повторення');state.undo.push(JSON.stringify({entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter}));restoreSnap(JSON.parse(state.redo.pop()));log('Повторення');}
+function undo(){
+ if(state.pending?.undoBefore){
+  const before=JSON.parse(state.pending.undoBefore);
+  state.entities=deep(before.entities);state.counter=before.counter;state.pending=null;state.selected=null;
+  render();toast('Скасовано початок відрізка');return;
+ }
+ if(!state.undo.length)return toast('Немає дій для скасування');
+ state.redo.push(snapshotForUndo());restoreSnap(JSON.parse(state.undo.pop()));
+ log('Скасування');syncUndoControls();
+}
+function redo(){
+ if(!state.redo.length)return toast('Немає дій для повторення');
+ state.undo.push(snapshotForUndo());restoreSnap(JSON.parse(state.redo.pop()));
+ log('Повторення');syncUndoControls();
+}
 function computeTask(coords){
  const {A,B,C,D}=coords;const n=cross3(sub3(B,A),sub3(C,A));if(sq3(n)<1e-9)throw Error('Точки A, B, C лежать на одній прямій. Задайте іншу площину.');
  const H=Object.fromEntries(['x','y','z'].map(k=>[k,D[k]-n[k]*dot3(n,sub3(D,A))/sq3(n)]));
@@ -206,7 +234,12 @@ function createExample(){
  log('Завантажено варіант 15');render();saveLocal();
 }
 function setMode(mode){if(!['auto','manual'].includes(mode))return;state.mode=mode;state.selected=null;state.pending=null;stopPlay();$('autoStrip').classList.toggle('hidden',mode!=='auto');$('modeManual').classList.toggle('active',mode==='manual');$('modeAuto').classList.toggle('active',mode==='auto');$('statusMode').textContent=mode==='auto'?'Автопобудова':'Креслення';if(mode==='auto'&&state.paperMode==='blank')createExample();else render();closeDrawer();}
-function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan'||tool==='select');$('canvasViewport').classList.remove('can-pan','panning','cursor-on-vertex','cursor-on-geometry');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
+function setTool(tool){
+ if(state.pending?.undoBefore){
+  const before=JSON.parse(state.pending.undoBefore);
+  state.entities=deep(before.entities);state.counter=before.counter;
+ }
+ state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan'||tool==='select');$('canvasViewport').classList.remove('can-pan','panning','cursor-on-vertex','cursor-on-geometry');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
 function projectedPlane(e){
  if(!e)return null;
  if(e.type==='point'){
@@ -489,7 +522,7 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
 function updateStepUI(){let step=state.step;$('stepTitle').textContent=STEPS[step][0];$('stepDescription').textContent=STEPS[step][1];$('stepCount').textContent=`${String(step+1).padStart(2,'0')} / 07`;$('stepRange').value=String(step);$('stepPrev').disabled=step===0;$('stepNext').disabled=step===6;$('stepNext').textContent=step===6?'Завершено ✓':'Далі →';$('docName').textContent=state.paperMode==='blank'?'Нове креслення':'Відстань від точки до площини';$('docVariant').textContent=state.paperMode==='blank'?'A3 • клітинка 5 мм':'Варіант 15';$('canvasHelp').textContent=state.mode==='auto'?STEPS[step][1]:manualHint();}
 function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Shift — строго горизонтально (0°) або вертикально (90°). Esc — скасувати.';if(['perp','parallel'].includes(state.tool))return 'Тепер натисніть на точку, через яку треба провести побудову.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
  return ({select:'Перетягуй полотно мишкою. Клацни об’єкт, щоб вибрати. Alt + перетягування — перемістити точку.',pan:'Перетягуй полотно мишкою.',pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',circle:'Вкажіть центр кола, потім точку на його окружності.',rectangle:'Вкажіть дві протилежні вершини прямокутника.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Оберіть опорну пряму, потім точку для перпендикуляра.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
-function render(){redraw();renderInspector();saveLocalDebounced();}
+function render(){redraw();renderInspector();syncUndoControls();saveLocalDebounced();}
 window.GeometryStudioViewportAPI={
  zoomIn:()=>moveZoom(1.2),
  zoomOut:()=>moveZoom(1/1.2),
@@ -738,9 +771,7 @@ function finalizeGeometryDrag(drag){
  if(!drag)return;
  const after=snapshotForUndo();
  if(after===drag.undoBefore)return;
- state.undo.push(drag.undoBefore);
- if(state.undo.length>70)state.undo.shift();
- state.redo=[];
+ pushUndoBefore(drag.undoBefore);
  const selected=get(drag.id);
  state.selected=selected?.id||null;
  log(drag.kind==='point'?'Переміщено вершину':drag.kind==='vertex'?'Змінено контур фігури':'Переміщено фігуру');
@@ -768,10 +799,9 @@ function constrainedStraightEndpoint(start,raw){
   ?{x:aligned,y:start.y,axis:'horizontal'}
   :{x:start.x,y:aligned,axis:'vertical'};
 }
-function ensureExactPointWithUndo(pos){
+function ensureExactPoint(pos){
  const at=state.entities.find(e=>e.type==='point'&&Math.hypot(e.x-pos.x,e.y-pos.y)<1e-7);
  if(at)return at.id;
- saveUndo('Додано опорну точку');
  return addPoint(`P${state.counter+1}`,pos,{color:state.style.color});
 }
 function renderStraightPreview(world,holdingShift){
@@ -800,14 +830,21 @@ function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(stat
  if(state.tool==='erase'||state.tool==='eraser'){if(entity){state.selected=entity.id;deleteSelected();}return;}
  if(state.tool==='point'){saveUndo('Додано точку');const id=ensurePoint(p);state.selected=id;render();return;}
  if(['segment','line','ruler'].includes(state.tool)){
-  if(!state.pending){state.pending={start:ensurePointWithUndo(p)};render();return;}
+  if(!state.pending){
+   const before=snapshotForUndo();
+   const start=ensurePoint(p);
+   state.pending={start,undoBefore:before};
+   render();return;
+  }
   const first=state.pending.start;
   const origin=pointOf(first);
   const endpoint=ev.shiftKey&&origin?constrainedStraightEndpoint(origin,p):p;
   if(!origin||len(origin,endpoint)<.15){toast('Оберіть іншу точку');return;}
-  const end=ev.shiftKey?ensureExactPointWithUndo(endpoint):ensurePointWithUndo(endpoint);
+  const end=ev.shiftKey?ensureExactPoint(endpoint):ensurePoint(endpoint);
   if(first===end){toast('Оберіть іншу точку');return;}
-  saveUndo(`Побудовано ${state.tool==='line'?'пряму':'відрізок'}`);state.selected=addLine(first,end,{extent:state.tool==='line'?'line':'segment',...state.style});state.pending=null;render();return;
+  pushUndoBefore(state.pending.undoBefore||snapshotForUndo(),`Побудовано ${state.tool==='line'?'пряму':'відрізок'}`);
+  state.selected=addLine(first,end,{extent:state.tool==='line'?'line':'segment',...state.style});
+  state.pending=null;render();return;
  }
  if(['perp','parallel','intersect'].includes(state.tool)){
   if(!state.pending){const l=lineCandidateFromEvent(ev,p);if(!l){toast('Спочатку оберіть опорну лінію');return;}state.pending={line:l.id};render();return;}
