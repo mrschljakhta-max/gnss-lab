@@ -480,6 +480,49 @@ function refreshPointLabels(){
 function standardizeExportLabels(svg){
  layoutPointLabels(svg,{fontSize:3.8,gap:4.4,halo:.75});
 }
+
+/* Editable annotation attached to the segment: its offset survives vertex moves. */
+function lineLabelMetrics(zoom=state.zoom){
+ const z=clamp(Number(zoom)||1,.38,3.5);
+ return {fontSize:clamp(14.4*Math.pow(z,.27),11,21)/(2*z),halo:2.15/(2*z)};
+}
+function lineLabelPosition(line,a,b,metrics=lineLabelMetrics()){
+ const dx=b.x-a.x,dy=b.y-a.y,n=Math.hypot(dx,dy);
+ if(n<1e-8)return {x:a.x,y:a.y};
+ const point={x:a.x+dx*.55,y:a.y+dy*.55};
+ let nx=-dy/n,ny=dx/n;
+ if(ny>0||(Math.abs(ny)<1e-5&&nx<0)){nx=-nx;ny=-ny;}
+ const gap=Math.max(3.5,metrics.fontSize*.82);
+ return {x:point.x+nx*gap+(Number(line.labelOffset?.dx)||0),
+  y:point.y+ny*gap+(Number(line.labelOffset?.dy)||0)};
+}
+function refreshLineLabels(){
+ const layer=$('drawingLayer');if(!layer)return;
+ const metrics=lineLabelMetrics();
+ for(const node of layer.querySelectorAll('[data-line-label-id]')){
+  const line=get(node.getAttribute('data-line-label-id'));if(!line?.label)continue;
+  const v=linePoints(line);if(!v)continue;
+  const p=lineLabelPosition(line,v.a,v.b,metrics);
+  node.setAttribute('x',p.x);node.setAttribute('y',p.y);
+  node.setAttribute('font-size',metrics.fontSize);
+  node.setAttribute('stroke-width',metrics.halo);
+ }
+}
+function standardizeExportLineLabels(svg){
+ const metrics={fontSize:3.8,halo:.75};
+ for(const node of svg.querySelectorAll('[data-line-label-id]')){
+  const line=get(node.getAttribute('data-line-label-id'));if(!line?.label)continue;
+  const v=linePoints(line);if(!v)continue;
+  const p=lineLabelPosition(line,v.a,v.b,metrics);
+  node.setAttribute('x',p.x);node.setAttribute('y',p.y);
+  node.setAttribute('font-size',metrics.fontSize);
+  node.setAttribute('stroke-width',metrics.halo);
+  node.removeAttribute('data-line-label-id');
+  node.removeAttribute('data-id');
+  node.setAttribute('pointer-events','none');
+ }
+}
+
 function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints(e);if(!pts)return;let {a,b}=pts;if(e.extent==='line'){
  const d=minus(b,a);const ext=e.region==='plan'?{minX:15,minY:192,maxX:281,maxY:306}:e.region==='front'?{minX:15,minY:40,maxX:281,maxY:187}:e.region==='drawing'?{minX:15,minY:38,maxX:281,maxY:307}:{minX:0,minY:0,maxX:297,maxY:420};
  let samples=[];if(Math.abs(d.x)>1e-9){samples.push({x:ext.minX,y:a.y+(ext.minX-a.x)*d.y/d.x},{x:ext.maxX,y:a.y+(ext.maxX-a.x)*d.y/d.x});}
@@ -490,7 +533,14 @@ function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints
  const line=makeSVG('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:e.color||state.style.color,'stroke-width':e.width??state.style.width,'stroke-dasharray':styleLine(e.dash),'stroke-linecap':'round','data-id':interactive?e.id:undefined},parent);
  if(selected)line.classList.add('selected-drawing');
  if(interactive){makeSVG('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'transparent','stroke-width':5,'data-id':e.id},parent);}
- if(e.label){const m=plus(a,times(minus(b,a),.58));const label=makeSVG('text',{x:m.x+3,y:m.y-3,class:'line-label','pointer-events':'none'},parent);label.textContent=e.label;}
+ if(e.label){
+  const metrics=lineLabelMetrics(),position=lineLabelPosition(e,a,b,metrics);
+  const label=makeSVG('text',{x:position.x,y:position.y,class:'line-label',
+   'data-line-label-id':interactive?e.id:undefined,'data-id':interactive?e.id:undefined,
+   'text-anchor':'middle','font-size':metrics.fontSize,'stroke-width':metrics.halo,
+   'pointer-events':interactive?'bounding-box':'none'},parent);
+  label.textContent=printablePointLabel(e.label);
+ }
 }
 function drawPoint(parent,p,selected=false,interactive=true){
  if(p.invalid)return;
@@ -1357,6 +1407,7 @@ function updatePaperTransform(){
  $('zoomLabel').textContent=Math.round(state.zoom*100)+'%';
  if($('zoomPercent'))$('zoomPercent').textContent=Math.round(state.zoom*100)+'%';
  refreshPointLabels();
+ refreshLineLabels();
  window.GeometryStudioAxes?.setZoom?.(state.zoom);
 }
 function stopPlay(){if(state.playing){clearInterval(state.playing);state.playing=null;}$('stepPlay').textContent='▶ Пуск';}
@@ -1369,13 +1420,13 @@ function addPoint3D(){const name=$('add3Name').value.trim().replace(/[^A-Za-zА-
 }
 function exportBlob(text,type,name){const a=document.createElement('a');const u=URL.createObjectURL(new Blob([text],{type}));a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}
 function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none',axisScale:window.GeometryStudioAxes?.getScaleSettings?.(),projection:state.projection,pointScale:state.pointScale},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
-function exportSVG(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');cl.setAttribute('xmlns','http://www.w3.org/2000/svg');exportBlob(new XMLSerializer().serializeToString(cl),'image/svg+xml;charset=utf-8','geometry-studio-A3.svg');toast('SVG-креслення збережено');}
+function exportSVG(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);standardizeExportLineLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');cl.setAttribute('xmlns','http://www.w3.org/2000/svg');exportBlob(new XMLSerializer().serializeToString(cl),'image/svg+xml;charset=utf-8','geometry-studio-A3.svg');toast('SVG-креслення збережено');}
 function addExplicitPrintGrid(svg){
  const g=svg.querySelector('#gridLayer');if(!g)return;g.replaceChildren();if(!state.grid)return;
  for(let x=0;x<=A3.width+.01;x+=5){makeSVG('line',{x1:x,y1:0,x2:x,y2:420,stroke:x%25===0?'#a9bfd3':'#d5e2ed','stroke-width':x%25===0?.23:.11},g);}
  for(let y=0;y<=A3.height+.01;y+=5){makeSVG('line',{x1:0,y1:y,x2:297,y2:y,stroke:y%25===0?'#a9bfd3':'#d5e2ed','stroke-width':y%25===0?.23:.11},g);}
 }
-function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');addExplicitPrintGrid(cl);$('printSheet').replaceChildren(cl);window.print();}
+function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);standardizeExportLineLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');addExplicitPrintGrid(cl);$('printSheet').replaceChildren(cl);window.print();}
 function importJSON(file){file.text().then(txt=>{try{const obj=JSON.parse(txt);if(!Array.isArray(obj.entities)||obj.entities.length>5000)throw Error('Некоректна структура проєкту');for(const e of obj.entities){if(!['point','line','path','circle','angle','shape','dimension'].includes(e.type))throw Error('Невідомий тип об’єкта');if(e.type==='point'&&(!Number.isFinite(e.x)||!Number.isFinite(e.y)))throw Error('Некоректні координати');if(['path','shape','angle'].includes(e.type)&&(!Array.isArray(e.points)||e.points.length>3000||!e.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))))throw Error('Некоректні точки фігури');}
  saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');window.GeometryStudioAxes?.setScaleSettings?.(obj.axisScale||{step:5,ticks:true,numbers:true,crossings:true});state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};state.pointScale=normalizedPointScale(obj.pointScale);render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
 function init(){
