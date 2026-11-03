@@ -14,7 +14,7 @@ const STEPS=[
  ['Основа перпендикуляра H','H₂ = p₂ ∩ U₂V₂. Вертикальна лінія зв’язку дає H₁ на p₁. Виділяємо DH.'],
  ['Справжня довжина DH','Будуємо прямокутний трикутник RST: RS = D₁H₁, ST = |zD − zH|, RT — справжня довжина DH.']
 ];
-const state={mode:'auto',tool:'select',tab:'properties',entities:[],coords3:structuredClone(DEFAULT_3D),step:6,selected:null,pending:null,style:{color:'#233c61',dash:'solid',width:0.65},shapeKind:'rectangle',squareAngle:90,stroke:null,zoom:1,pan:{x:0,y:0},grid:true,showIntersections:false,snap:5,history:[],undo:[],redo:[],counter:0,paperMode:'example',drag:null,playing:null};
+const state={mode:'auto',tool:'select',tab:'properties',entities:[],coords3:structuredClone(DEFAULT_3D),step:6,selected:null,pending:null,style:{color:'#233c61',dash:'solid',width:0.65},shapeKind:'rectangle',squareAngle:90,stroke:null,zoom:1,pan:{x:0,y:0},projection:{view:'both',links:true,profile:false},grid:true,showIntersections:false,snap:5,history:[],undo:[],redo:[],counter:0,paperMode:'example',drag:null,playing:null};
 let toastTimeout=null,persistTimer=null,needFit=true;
 let drawerCloseTimer=null, hintTimer=null, lastPointer={x:window.innerWidth/2,y:window.innerHeight/2};
 const drawerEl=()=>document.getElementById('studioDrawer');
@@ -207,7 +207,33 @@ function createExample(){
 }
 function setMode(mode){if(!['auto','manual'].includes(mode))return;state.mode=mode;state.selected=null;state.pending=null;stopPlay();$('autoStrip').classList.toggle('hidden',mode!=='auto');$('modeManual').classList.toggle('active',mode==='manual');$('modeAuto').classList.toggle('active',mode==='auto');$('statusMode').textContent=mode==='auto'?'Автопобудова':'Креслення';if(mode==='auto'&&state.paperMode==='blank')createExample();else render();closeDrawer();}
 function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
-function visibleEntity(e,full=false){return full||state.mode==='manual'||e.stage<=state.step;}
+function projectedPlane(e){
+ if(!e)return null;
+ if(e.type==='point'){
+  if(e.projectionPlane)return e.projectionPlane;
+  if(e.source==='task5'&&/[12]$/.test(e.label))return e.label.endsWith('1')?'pi1':'pi2';
+  if(/[12]$/.test(e.label)){
+   const match=state.entities.some(l=>l.type==='line'&&l.kind==='projection'&&(l.a===e.id||l.b===e.id));
+   if(match)return e.label.endsWith('1')?'pi1':'pi2';
+  }
+  return null;
+ }
+ if(e.type==='line'){
+  if(e.kind==='projection')return 'link';
+  const a=get(e.a),b=get(e.b),pa=projectedPlane(a),pb=projectedPlane(b);
+  if(pa&&pb)return pa===pb?pa:'link';
+ }
+ return null;
+}
+function visibleEntity(e,full=false){
+ if(full)return true;
+ if(state.mode==='auto'&&e.stage>state.step)return false;
+ const type=projectedPlane(e),mode=state.projection.view;
+ if(type==='pi1'&&mode==='pi2')return false;
+ if(type==='pi2'&&mode==='pi1')return false;
+ if(type==='link'&&(!state.projection.links||mode!=='both'))return false;
+ return true;
+}
 function labelOffset(p){if(p.offset)return [p.offset.dx,p.offset.dy];if(p.label.endsWith('1'))return [3.1,4.8];if(p.label.endsWith('2'))return [3.1,-2.8];return [3.2,-3.2];}
 function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints(e);if(!pts)return;let {a,b}=pts;if(e.extent==='line'){
  const d=minus(b,a);const ext=e.region==='plan'?{minX:15,minY:192,maxX:281,maxY:306}:e.region==='front'?{minX:15,minY:40,maxX:281,maxY:187}:e.region==='drawing'?{minX:15,minY:38,maxX:281,maxY:307}:{minX:0,minY:0,maxX:297,maxY:420};
@@ -254,6 +280,19 @@ function updateStepUI(){let step=state.step;$('stepTitle').textContent=STEPS[ste
 function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Esc — скасувати.';if(['perp','parallel'].includes(state.tool))return 'Тепер натисніть на точку, через яку треба провести побудову.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
  return ({pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',circle:'Вкажіть центр кола, потім точку на його окружності.',rectangle:'Вкажіть дві протилежні вершини прямокутника.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Оберіть опорну пряму, потім точку для перпендикуляра.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
 function render(){redraw();renderInspector();saveLocalDebounced();}
+window.GeometryStudioViewportAPI={
+ zoomIn:()=>moveZoom(1.2),
+ zoomOut:()=>moveZoom(1/1.2),
+ resetZoom:()=>fitPaper(),
+ getProjection:()=>({...state.projection}),
+ setProjection:options=>{
+  state.projection={view:['both','pi1','pi2'].includes(options?.view)?options.view:state.projection.view,
+   links:options?.links===undefined?state.projection.links:!!options.links,
+   profile:options?.profile===undefined?state.projection.profile:!!options.profile};
+  render();return {...state.projection};
+ }
+};
+
 function renderInspector(){
  document.querySelectorAll('.inspector-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
  for(const tab of ['properties','points','history'])$(tab+'Tab').classList.toggle('hidden',state.tab!==tab);
@@ -279,8 +318,8 @@ function renderInspector(){
 }
 function toast(text){const t=$('toast');t.textContent=text;t.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.remove('show'),3000);}
 function saveLocalDebounced(){clearTimeout(persistTimer);persistTimer=setTimeout(saveLocal,450);}
-function saveLocal(){try{localStorage.setItem('geometry-studio-v1',JSON.stringify({entities:state.entities,coords3:state.coords3,counter:state.counter,paperMode:state.paperMode,mode:state.mode,step:state.step,grid:state.grid,snap:state.snap,history:state.history.slice(0,15)}));}catch(err){}}
-function loadLocal(){try{const str=localStorage.getItem('geometry-studio-v1');if(!str)return false;const p=JSON.parse(str);if(!Array.isArray(p.entities)||p.entities.length>7000)return false;state.entities=p.entities;state.coords3=p.coords3||structuredClone(DEFAULT_3D);state.counter=p.counter||p.entities.length;state.paperMode=p.paperMode||'example';state.step=clamp(Number(p.step)||0,0,6);state.grid=p.grid!==false;state.snap=[0,1,5].includes(p.snap)?p.snap:5;state.history=Array.isArray(p.history)?p.history:[];state.mode=['manual','auto'].includes(p.mode)?p.mode:'auto';if(state.paperMode==='example')taskResult=computeTask(state.coords3);return true;}catch(e){return false;}}
+function saveLocal(){try{localStorage.setItem('geometry-studio-v1',JSON.stringify({entities:state.entities,coords3:state.coords3,counter:state.counter,paperMode:state.paperMode,mode:state.mode,step:state.step,grid:state.grid,snap:state.snap,projection:state.projection,history:state.history.slice(0,15)}));}catch(err){}}
+function loadLocal(){try{const str=localStorage.getItem('geometry-studio-v1');if(!str)return false;const p=JSON.parse(str);if(!Array.isArray(p.entities)||p.entities.length>7000)return false;state.entities=p.entities;state.coords3=p.coords3||structuredClone(DEFAULT_3D);state.counter=p.counter||p.entities.length;state.paperMode=p.paperMode||'example';state.step=clamp(Number(p.step)||0,0,6);state.grid=p.grid!==false;state.projection=(p.projection&&['both','pi1','pi2'].includes(p.projection.view))?{view:p.projection.view,links:p.projection.links!==false,profile:!!p.projection.profile}:{view:'both',links:true,profile:false};state.snap=[0,1,5].includes(p.snap)?p.snap:5;state.history=Array.isArray(p.history)?p.history:[];state.mode=['manual','auto'].includes(p.mode)?p.mode:'auto';if(state.paperMode==='example')taskResult=computeTask(state.coords3);return true;}catch(e){return false;}}
 function screenToWorld(event){const svg=$('sheet');const pt=svg.createSVGPoint();pt.x=event.clientX;pt.y=event.clientY;const ctm=svg.getScreenCTM();if(!ctm)return null;const p=pt.matrixTransform(ctm.inverse());return {x:p.x,y:p.y};}
 function nearestPoint(p,limit=5){let best=null,dist=limit;for(const e of state.entities){if(e.type!=='point'||!visibleEntity(e))continue;const d=len(p,e);if(d<dist){best=e;dist=d;}}return best;}
 function nearestIntersection(p,limit=5){const ls=state.entities.filter(e=>e.type==='line'&&visibleEntity(e));let best=null,dist=limit;for(let i=0;i<ls.length;i++)for(let j=i+1;j<ls.length;j++){const a=linePoints(ls[i]),b=linePoints(ls[j]);if(!a||!b)continue;const c=lineIntersect(a.a,a.b,b.a,b.b,ls[i].extent==='segment',ls[j].extent==='segment');if(!c)continue;const d=len(p,c.point);if(d<dist){best=c.point;dist=d;}}return best;}
@@ -318,19 +357,27 @@ function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(stat
 function ensurePointWithUndo(p){const sn=snapped(p),nearest=nearestPoint(sn,.5);if(nearest)return nearest.id;saveUndo('Додано опорну точку');return ensurePoint(sn);}
 function deleteSelected(){const e=get(state.selected);if(!e)return;saveUndo(`Видалено ${e.type==='point'?'точку':'лінію'} ${e.label||e.id}`);state.entities=state.entities.filter(p=>p.id!==e.id&&!(e.type==='point'&&p.type==='line'&&(p.a===e.id||p.b===e.id))&&!(p.derivation&&(p.derivation.line===e.id||p.derivation.l1===e.id||p.derivation.l2===e.id||p.derivation.point===e.id)));state.selected=null;render();}
 function setStyle(key,value){const e=get(state.selected);if(e&&e.type!=='point'){saveUndo('Змінено стиль об’єкта');e[key]=value;}else state.style[key]=value;render();}
-function moveZoom(factor){state.zoom=clamp(state.zoom*factor,.38,3.5);updatePaperTransform();}
+function moveZoom(factor,clientPoint=null){
+ const old=state.zoom,updated=clamp(old*factor,.38,3.5);
+ if(Math.abs(updated-old)<1e-8)return;
+ const bounds=$('canvasViewport').getBoundingClientRect();
+ const anchor=clientPoint?{x:clientPoint.x-bounds.left,y:clientPoint.y-bounds.top}:{x:bounds.width/2,y:bounds.height/2};
+ const pageX=(anchor.x-state.pan.x)/old,pageY=(anchor.y-state.pan.y)/old;
+ state.zoom=updated;state.pan={x:anchor.x-pageX*updated,y:anchor.y-pageY*updated};
+ updatePaperTransform();
+}
 function fitPaper(){const box=$('canvasViewport');if(!box.clientWidth||!box.clientHeight)return;const factor=Math.min((box.clientWidth-50)/594,(box.clientHeight-65)/840,1.14);state.zoom=clamp(factor,.35,1.14);state.pan={x:(box.clientWidth-594*state.zoom)/2,y:Math.max(15,(box.clientHeight-840*state.zoom)/2)};updatePaperTransform();}
-function updatePaperTransform(){const wrap=$('paperWrap');wrap.style.transform=`translate(${state.pan.x}px,${state.pan.y}px) scale(${state.zoom})`;const viewport=$('canvasViewport');viewport.style.setProperty('--minor-step',`${10*state.zoom}px`);viewport.style.setProperty('--major-step',`${50*state.zoom}px`);viewport.style.setProperty('--grid-offset-x',`${state.pan.x}px`);viewport.style.setProperty('--grid-offset-y',`${state.pan.y}px`);$('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`;}
+function updatePaperTransform(){const wrap=$('paperWrap');wrap.style.transform=`translate(${state.pan.x}px,${state.pan.y}px) scale(${state.zoom})`;const viewport=$('canvasViewport');viewport.style.setProperty('--minor-step',`${10*state.zoom}px`);viewport.style.setProperty('--major-step',`${50*state.zoom}px`);viewport.style.setProperty('--grid-offset-x',`${state.pan.x}px`);viewport.style.setProperty('--grid-offset-y',`${state.pan.y}px`);$('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`;if($('zoomPercent'))$('zoomPercent').textContent=`${Math.round(state.zoom*100)}%`;}
 function stopPlay(){if(state.playing){clearInterval(state.playing);state.playing=null;}$('stepPlay').textContent='▶ Пуск';}
 function autoplay(){if(state.playing){stopPlay();return;}if(state.step>=6)state.step=0;setMode('auto');render();$('stepPlay').textContent='Ⅱ Пауза';state.playing=setInterval(()=>{if(state.step>=6){stopPlay();return;}state.step++;render();},1450);}
 function setStep(step){stopPlay();state.step=clamp(step,0,6);if(state.mode==='auto')render();}
 function newBlank(){saveUndo('Новий чистий аркуш');stopPlay();state.entities=[];state.counter=0;state.selected=null;state.paperMode='blank';taskResult=null;state.history=[];log('Створено порожнє креслення');setMode('manual');state.zoom=1;fitPaper();render();toast('Чистий аркуш A3 готовий');}
 function startExample(){saveUndo('Завантажено приклад');state.coords3=deep(DEFAULT_3D);state.step=6;createExample();setMode('auto');fitPaper();}
 function addPoint3D(){const name=$('add3Name').value.trim().replace(/[^A-Za-zА-Яа-яІіЇїЄєҐґ0-9_-]/g,'').slice(0,12)||'P';const x=Number($('add3X').value),y=Number($('add3Y').value),z=Number($('add3Z').value);if(![x,y,z].every(Number.isFinite)||[p1({x,y,z}),p2({x,y,z})].some(p=>p.x<0||p.x>297||p.y<0||p.y>420)){toast('Координати мають бути в межах аркуша A3');return;}
- saveUndo(`Додано просторову точку ${name}`);const q1=addPoint(`${name}1`,p1({x,y,z}),{color:state.style.color});const q2=addPoint(`${name}2`,p2({x,y,z}),{color:state.style.color});addLine(q1,q2,{dash:'dashed',color:COLORS.guide,width:.35});setMode('manual');render();toast(`Створено ${name}₁ та ${name}₂`);
+ saveUndo(`Додано просторову точку ${name}`);const q1=addPoint(`${name}1`,p1({x,y,z}),{color:state.style.color});const q2=addPoint(`${name}2`,p2({x,y,z}),{color:state.style.color});get(q1).projectionPlane='pi1';get(q2).projectionPlane='pi2';addLine(q1,q2,{dash:'dashed',color:COLORS.guide,width:.35,kind:'projection'});setMode('manual');render();toast(`Створено ${name}₁ та ${name}₂`);
 }
 function exportBlob(text,type,name){const a=document.createElement('a');const u=URL.createObjectURL(new Blob([text],{type}));a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none'},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
+function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none',projection:state.projection},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
 function exportSVG(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');cl.setAttribute('xmlns','http://www.w3.org/2000/svg');exportBlob(new XMLSerializer().serializeToString(cl),'image/svg+xml;charset=utf-8','geometry-studio-A3.svg');toast('SVG-креслення збережено');}
 function addExplicitPrintGrid(svg){
  const g=svg.querySelector('#gridLayer');if(!g)return;g.replaceChildren();if(!state.grid)return;
@@ -339,7 +386,7 @@ function addExplicitPrintGrid(svg){
 }
 function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');addExplicitPrintGrid(cl);$('printSheet').replaceChildren(cl);window.print();}
 function importJSON(file){file.text().then(txt=>{try{const obj=JSON.parse(txt);if(!Array.isArray(obj.entities)||obj.entities.length>5000)throw Error('Некоректна структура проєкту');for(const e of obj.entities){if(!['point','line','path','circle','angle','shape','dimension'].includes(e.type))throw Error('Невідомий тип об’єкта');if(e.type==='point'&&(!Number.isFinite(e.x)||!Number.isFinite(e.y)))throw Error('Некоректні координати');if(['path','shape','angle'].includes(e.type)&&(!Array.isArray(e.points)||e.points.length>3000||!e.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))))throw Error('Некоректні точки фігури');}
- saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
+ saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
 function init(){
  const restored=loadLocal();if(!restored){state.entities=[];state.paperMode='blank';state.mode='manual';state.step=0;state.counter=0;taskResult=null;log('Новий аркуш');}else{if(state.paperMode==='example')taskResult=computeTask(state.coords3);render();}
  document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
@@ -371,6 +418,7 @@ function init(){
  const viewport=$('canvasViewport'),svg=$('sheet');let down=null;let suppressClick=false;const touchPointers=new Map();let pinch=null;
  svg.addEventListener('click',e=>{if(suppressClick){suppressClick=false;return;}onCanvasClick(e);});
  svg.addEventListener('contextmenu',e=>{e.preventDefault();state.pending=null;render();});
+ svg.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
  svg.addEventListener('pointerdown',e=>{
   if(e.pointerType==='touch'){
    touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
@@ -379,12 +427,13 @@ function init(){
     pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom:state.zoom,paperX:(midpoint.x-bounds.left-state.pan.x)/state.zoom,paperY:(midpoint.y-bounds.top-state.pan.y)/state.zoom};down=null;svg.setPointerCapture(e.pointerId);return;
    }
   }
-  if(e.button!==0)return;
-  if(state.tool==='pencil'&&state.mode==='manual'){const world=screenToWorld(e);if(world){state.stroke={pointerId:e.pointerId,points:[world]};svg.setPointerCapture(e.pointerId);e.preventDefault();return;}}
+  if(e.button!==0&&e.button!==1)return;
+  const forcedPan=e.button===1||e.shiftKey||state.tool==='pan';
+  if(state.tool==='pencil'&&state.mode==='manual'&&!forcedPan){const world=screenToWorld(e);if(world){state.stroke={pointerId:e.pointerId,points:[world]};svg.setPointerCapture(e.pointerId);e.preventDefault();return;}}
   const world=screenToWorld(e);const entity=world?findClickEntity(e,world):null;
   const dragPoint=state.mode==='manual'&&state.tool==='select'&&entity?.type==='point'&&!entity.derivation?entity:null;
-  down={startX:e.clientX,startY:e.clientY,panX:state.pan.x,panY:state.pan.y,dragPoint:dragPoint?.id,original:dragPoint?{x:dragPoint.x,y:dragPoint.y}:null,moved:false,world};
-  if(state.tool==='pan'||e.shiftKey){viewport.classList.add('panning');}
+  down={startX:e.clientX,startY:e.clientY,panX:state.pan.x,panY:state.pan.y,dragPoint:forcedPan?null:dragPoint?.id,original:dragPoint&&!forcedPan?{x:dragPoint.x,y:dragPoint.y}:null,backgroundPan:forcedPan||(!entity&&state.tool!=='pencil'),moved:false,world};
+  if(forcedPan){e.preventDefault();viewport.classList.add('panning');}
   svg.setPointerCapture(e.pointerId);
  });
  svg.addEventListener('pointermove',e=>{
@@ -393,10 +442,11 @@ function init(){
   if(pinch&&touchPointers.size>=2){const [a,b]=[...touchPointers.values()];const newDist=Math.hypot(a.x-b.x,a.y-b.y);const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};const bounds=viewport.getBoundingClientRect();
    state.zoom=clamp(pinch.zoom*newDist/Math.max(1,pinch.distance),.38,3.5);state.pan={x:midpoint.x-bounds.left-pinch.paperX*state.zoom,y:midpoint.y-bounds.top-pinch.paperY*state.zoom};updatePaperTransform();suppressClick=true;return;}
   const world=screenToWorld(e);if(world)$('cursorCoords').textContent=`X: ${fmt(world.x,1)} мм · Y: ${fmt(world.y,1)} мм`;
+  if(!down&&world&&state.tool!=='pencil')viewport.classList.toggle('can-pan',!findClickEntity(e,world));
   if(!down)return;const dx=e.clientX-down.startX,dy=e.clientY-down.startY;
   if(Math.hypot(dx,dy)>4)down.moved=true;
   if(!down.moved)return;
-  if(state.tool==='pan'||e.shiftKey){state.pan={x:down.panX+dx,y:down.panY+dy};updatePaperTransform();suppressClick=true;}
+  if(down.backgroundPan){state.pan={x:down.panX+dx,y:down.panY+dy};updatePaperTransform();viewport.classList.add('panning');suppressClick=true;}
   else if(down.dragPoint){const p=get(down.dragPoint);if(p&&world){const candidate=state.snap?{x:Math.round(world.x/state.snap)*state.snap,y:Math.round(world.y/state.snap)*state.snap}:world;p.x=clamp(candidate.x,0,297);p.y=clamp(candidate.y,0,420);redraw();suppressClick=true;}}
  });
  svg.addEventListener('pointerup',e=>{
@@ -406,7 +456,7 @@ function init(){
   if(down?.moved){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}down=null;viewport.classList.remove('panning');
  });
  svg.addEventListener('pointercancel',e=>{state.stroke=null;$('previewLayer').replaceChildren();touchPointers.delete(e.pointerId);if(touchPointers.size<2)pinch=null;down=null;viewport.classList.remove('panning');});
- viewport.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();moveZoom(e.deltaY<0?1.1:1/1.1);},{passive:false});
+ viewport.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();moveZoom(e.deltaY<0?1.1:1/1.1,{x:e.clientX,y:e.clientY});},{passive:false});
  // On graph-paper area beyond the A3 drawing viewport, drag to pan the sheet.
  let emptyDrag=null;
  viewport.addEventListener('pointerdown',e=>{
@@ -463,7 +513,7 @@ window.GeometryStudioTriangleAPI={
   if(state.mode==='auto')setMode('manual');
   saveUndo('Нанесено точку '+label);
   const plan=addPoint(label+'1',a,{color:COLORS.base});
-  const front=addPoint(label+'2',b,{color:COLORS.base});
+  const front=addPoint(label+'2',b,{color:COLORS.base});get(plan).projectionPlane='pi1';get(front).projectionPlane='pi2';
   addLine(plan,front,{color:COLORS.guide,width:.32,dash:'dashed',kind:'projection'});
   state.pending=null;state.selected=null;render();return {plan,front,label};
  },
@@ -489,7 +539,7 @@ window.GeometryStudioTriangleAPI={
   const names=this.nextLabels();
   saveUndo('Побудовано трикутник ABC за координатами');
   const pairs=points.map((p,i)=>{
-   const a=p1(p),b=p2(p),plan=addPoint(names[i]+'1',a,{color:COLORS.base}),front=addPoint(names[i]+'2',b,{color:COLORS.base});
+   const a=p1(p),b=p2(p),plan=addPoint(names[i]+'1',a,{color:COLORS.base}),front=addPoint(names[i]+'2',b,{color:COLORS.base});get(plan).projectionPlane='pi1';get(front).projectionPlane='pi2';
    addLine(plan,front,{color:COLORS.guide,width:.32,dash:'dashed',kind:'projection'});
    return {plan,front,label:names[i]};
   });
