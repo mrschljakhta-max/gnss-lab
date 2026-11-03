@@ -281,6 +281,7 @@ function projectedPlane(e){
 }
 function visibleEntity(e,full=false){
  if(full)return true;
+ if(e?.invalid)return false;
  if(state.mode==='auto'&&e.stage>state.step)return false;
  const type=projectedPlane(e),mode=state.projection.view;
  if(type==='pi1'&&mode==='pi2')return false;
@@ -616,7 +617,7 @@ function extensionSetEndpoint(endpoint){
  extensionState.endpoint=endpoint;
  document.querySelectorAll('#extendEndpoints button').forEach(btn=>
   btn.setAttribute('aria-pressed',String(btn.dataset.endpoint===endpoint)));
- extensionMessage('Натисніть «Почати», а потім виберіть цільову лінію на кресленні.');
+ extensionMessage(extensionState.stage==='pick'?'Оберіть цільову лінію або довільну довжину за цим кінцем.':'Натисніть «Почати», а потім виберіть цільову лінію на кресленні.');
 }
 function updateExtensionPanel(){
  const controls=$('extensionControls'),options=$('extendOptions');
@@ -651,7 +652,7 @@ function updateExtensionPanel(){
   }
   optionsGroup.querySelectorAll('button').forEach(btn=>
    btn.setAttribute('aria-pressed',String(btn.dataset.endpoint===extensionState.endpoint)));
-  $('extendActivate').textContent=extensionState.stage==='pick'?'Виберіть лінію на аркуші':'Почати';
+  $('extendActivate').textContent=extensionState.stage==='pick'?(extensionState.mode==='free'?'Виберіть кінець на аркуші':'Виберіть лінію на аркуші'):'Почати';
   $('extendActivate').disabled=extensionState.stage==='pick';
  }
 }
@@ -681,7 +682,7 @@ function extensionActivate(){
  try{extensionNormalizeLabel($('extendPointName').value);}catch(e){extensionMessage(e.message,'error');return;}
  extensionState.stage='pick';
  $('extendActivate').disabled=true;
- $('extendActivate').textContent='Виберіть на аркуші';
+ $('extendActivate').textContent=extensionState.mode==='free'?'Вкажіть кінець на аркуші':'Виберіть лінію на аркуші';
  $('canvasViewport').classList.add('extend-picking');
  extensionMessage(extensionState.mode==='free'
   ?'Наведіть курсор за вибраний кінець. Лінія залишиться строго на тій самій прямій. Натисніть для завершення.'
