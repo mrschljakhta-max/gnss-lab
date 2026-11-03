@@ -265,11 +265,52 @@ function baseDecor(layer){
  }
  if(state.step>=6||state.mode==='manual')legendText(layer,160,338,'МЕТОД ПРЯМОКУТНОГО ТРИКУТНИКА','#647990',3.1,'bold');
 }
+
+/* Orthographic profile: Π₃ = (Y,Z), derived from the paired Π₁ / Π₂ points. */
+function renderProfileProjection(parent){
+ if(!state.projection.profile)return;
+ const pairMap=new Map();
+ const pset=state.entities.filter(e=>e.type==='point'&&visibleEntity(e,true));
+ for(const p of pset){
+  if(!p.label||!/[12]$/.test(p.label))continue;
+  const plane=projectedPlane(p);
+  if(!plane)continue;
+  const base=p.label.slice(0,-1);
+  const pair=pairMap.get(base)||{};
+  pair[plane]=p;pairMap.set(base,pair);
+ }
+ const points=new Map();
+ for(const [name,pair] of pairMap){
+  if(!pair.pi1||!pair.pi2)continue;
+  const projected={x:174+pair.pi1.y-A3.origin.y,y:405-(A3.origin.y-pair.pi2.y)};
+  if(projected.x>=166&&projected.x<=280&&projected.y>=318&&projected.y<=411)points.set(name,projected);
+ }
+ const g=makeSVG('g',{'aria-label':'Третя ортогональна проєкція Π3'},parent);
+ makeSVG('rect',{x:165,y:309,width:119,height:106,rx:2,fill:'#fff','fill-opacity':.94,stroke:'#d1e0e8','stroke-width':.35},g);
+ legendText(g,170,316,'Π₃  /  ПРОФІЛЬ (Y, Z)','#4e6c85',3.8,'bold');
+ makeSVG('line',{x1:174,y1:405,x2:277,y2:405,stroke:'#839eb4','stroke-width':.35},g);
+ makeSVG('line',{x1:174,y1:405,x2:174,y2:322,stroke:'#839eb4','stroke-width':.35},g);
+ legendText(g,273,402,'Y','#14888c',3.5,'bold');legendText(g,177,326,'Z','#ae7547',3.5,'bold');
+ for(const line of state.entities.filter(e=>e.type==='line'&&(e.kind==='triangle'||(e.kind==='task5'&&e.stage===1)))){
+  const a=get(line.a),b=get(line.b);
+  if(!a||!b||!a.label?.endsWith('1')||!b.label?.endsWith('1'))continue;
+  const p=points.get(a.label.slice(0,-1)),q=points.get(b.label.slice(0,-1));
+  if(p&&q)makeSVG('line',{x1:p.x,y1:p.y,x2:q.x,y2:q.y,
+   stroke:line.color||COLORS.base,'stroke-width':Math.min(line.width||.7,.8)},g);
+ }
+ for(const [name,p] of points){
+  makeSVG('circle',{cx:p.x,cy:p.y,r:1.35,fill:'#fff',stroke:COLORS.base,'stroke-width':.65},g);
+  legendText(g,Math.min(p.x+2.5,277),Math.max(p.y-2,321),name+'₃','#294a65',3.05);
+ }
+ if(!points.size)legendText(g,170,350,'Спочатку додайте точки X, Y, Z','#778b9d',2.8);
+}
+
 function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren();const stage=state.mode==='auto'?state.step:6;const always=state.mode==='manual';baseDecor(l);
  const visible=state.entities.filter(e=>visibleEntity(e));
  visible.filter(e=>e.type==='line').forEach(e=>drawLine(l,e,state.selected===e.id));
  visible.filter(e=>!['line','point'].includes(e.type)).forEach(e=>renderPrimitive(l,e,state.selected===e.id));
  visible.filter(e=>e.type==='point').forEach(e=>drawPoint(l,e,state.selected===e.id));
+ renderProfileProjection(l);
  if(state.grid)$('gridLayer').style.display='';else $('gridLayer').style.display='none';$('canvasViewport').classList.toggle('grid-on',state.grid);
  const preview=$('previewLayer');preview.replaceChildren();
  if(state.pending?.start){const p=pointOf(state.pending.start);if(p){makeSVG('circle',{cx:p.x,cy:p.y,r:3.5,stroke:'#15a2ab','stroke-width':.8,fill:'none','stroke-dasharray':'2 1'},preview);}}
