@@ -667,7 +667,7 @@ function init(){
  const isHoverless=matchMedia('(hover:none)');if(isHoverless.matches){edge.setAttribute('title','Натисни, щоб відкрити інструменти');}
 
  const viewport=$('canvasViewport'),svg=$('sheet');let down=null;let suppressClick=false;let lastStraightCursor=null,shiftPreviewHeld=false;const touchPointers=new Map();let pinch=null;
- viewport.addEventListener('click',e=>{if(suppressClick){suppressClick=false;return;}if(e.button===0)onCanvasClick(e);});
+ // Drawing clicks are resolved on pointerup, ensuring that viewport pointer capture never swallows an anchor click.
  viewport.addEventListener('contextmenu',e=>{e.preventDefault();state.pending=null;render();});
  viewport.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
  viewport.addEventListener('pointerdown',e=>{
@@ -715,6 +715,9 @@ function init(){
      if(state.pending)onCanvasClick(eventAt(e.clientX,e.clientY));
     }
    }
+  }
+  if(down&&!down.moved&&e.button===0&&state.tool!=='pan'){
+   onCanvasClick(e);
   }
   if(down?.dragPoint&&down.moved){const p=get(down.dragPoint);if(p&&down.original&&len(p,down.original)>.001){const after={x:p.x,y:p.y};p.x=down.original.x;p.y=down.original.y;saveUndo(`Переміщено точку ${p.label}`);p.x=after.x;p.y=after.y;state.selected=p.id;render();}}
   if(down?.moved){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}down=null;viewport.classList.remove('panning');
