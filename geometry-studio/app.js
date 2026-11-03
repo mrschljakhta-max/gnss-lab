@@ -122,7 +122,7 @@ function rectCorners(a,b){return [a,{x:b.x,y:a.y},b,{x:a.x,y:b.y}];}
 function recordPrimitive(type,geometry,message){saveUndo(message);state.selected=addPrimitive(type,geometry);state.pending=null;render();}
 function handleDraftingClicks(tool,p,event){
  const point=snapped(p),pos={x:point.x,y:point.y};
- if(tool==='projection'){const horizontal=Boolean(event?.shiftKey);saveUndo('Проведено проєкційну лінію');state.selected=addLine(horizontal?{x:0,y:pos.y}:{x:pos.x,y:0},horizontal?{x:297,y:pos.y}:{x:pos.x,y:420},{color:COLORS.guide,dash:'dashed',width:.35,label:''});render();return;}
+ if(tool==='projection'){const horizontal=Boolean(event?.shiftKey);saveUndo('Проведено проєкційну лінію');state.selected=addLine(horizontal?{x:0,y:pos.y}:{x:pos.x,y:0},horizontal?{x:297,y:pos.y}:{x:pos.x,y:420},{color:COLORS.guide,dash:'dashed',width:.35,label:'',kind:'manual-projection'});render();return;}
  if(tool==='compass'||tool==='circle'){
   if(!state.pending){state.pending={points:[pos]};render();return;}
   const center=state.pending.points[0],radius=len(center,pos);if(radius<.4){toast('Задайте радіус більший за 0');return;}
@@ -206,6 +206,31 @@ function redo(){
  state.undo.push(snapshotForUndo());restoreSnap(JSON.parse(state.redo.pop()));
  log('Повторення');syncUndoControls();
 }
+function isManualProjectionLine(line){
+ if(line?.type!=='line')return false;
+ if(line.kind==='manual-projection')return true;
+ // Compatibility with old projects: manual projections previously used kind='normal'.
+ if(line.kind!=='normal'||line.extent!=='segment'||line.dash!=='dashed'
+     ||Math.abs((line.width??0)-.35)>.005||line.color!==COLORS.guide)return false;
+ const v=linePoints(line);if(!v)return false;
+ const vertical=Math.abs(v.a.x-v.b.x)<.0001&&Math.min(v.a.y,v.b.y)<.01&&Math.max(v.a.y,v.b.y)>419.99;
+ const horizontal=Math.abs(v.a.y-v.b.y)<.0001&&Math.min(v.a.x,v.b.x)<.01&&Math.max(v.a.x,v.b.x)>296.99;
+ return vertical||horizontal;
+}
+window.GeometryStudioHistoryAPI={
+ undo:()=>undo(),redo:()=>redo(),
+ countManualProjections:()=>state.entities.filter(isManualProjectionLine).length,
+ removeLastManualProjection:()=>{
+  const index=state.entities.findLastIndex(isManualProjectionLine);
+  if(index<0)return false;
+  saveUndo('Видалено випадкову проєкційну лінію');
+  const removed=state.entities.splice(index,1)[0];
+  if(state.selected===removed.id)state.selected=null;
+  if(extensionState)extensionCancel();
+  render();toast('Прибрано останню проєкційну лінію — Ctrl+Z відновить її');
+  return true;
+ }
+};
 function computeTask(coords){
  const {A,B,C,D}=coords;const n=cross3(sub3(B,A),sub3(C,A));if(sq3(n)<1e-9)throw Error('Точки A, B, C лежать на одній прямій. Задайте іншу площину.');
  const H=Object.fromEntries(['x','y','z'].map(k=>[k,D[k]-n[k]*dot3(n,sub3(D,A))/sq3(n)]));
@@ -897,8 +922,27 @@ function renderInspector(){
 }
 function toast(text){const t=$('toast');t.textContent=text;t.classList.add('show');clearTimeout(toastTimeout);toastTimeout=setTimeout(()=>t.classList.remove('show'),3000);}
 function saveLocalDebounced(){clearTimeout(persistTimer);persistTimer=setTimeout(saveLocal,450);}
-function saveLocal(){try{localStorage.setItem('geometry-studio-v1',JSON.stringify({entities:state.entities,coords3:state.coords3,counter:state.counter,paperMode:state.paperMode,mode:state.mode,step:state.step,grid:state.grid,snap:state.snap,projection:state.projection,history:state.history.slice(0,15)}));}catch(err){}}
-function loadLocal(){try{const str=localStorage.getItem('geometry-studio-v1');if(!str)return false;const p=JSON.parse(str);if(!Array.isArray(p.entities)||p.entities.length>7000)return false;state.entities=p.entities;state.coords3=p.coords3||structuredClone(DEFAULT_3D);state.counter=p.counter||p.entities.length;state.paperMode=p.paperMode||'example';state.step=clamp(Number(p.step)||0,0,6);state.grid=p.grid!==false;state.projection=(p.projection&&['both','pi1','pi2'].includes(p.projection.view))?{view:p.projection.view,links:p.projection.links!==false,profile:!!p.projection.profile}:{view:'both',links:true,profile:false};state.snap=[0,1,5].includes(p.snap)?p.snap:5;state.history=Array.isArray(p.history)?p.history:[];state.mode=['manual','auto'].includes(p.mode)?p.mode:'auto';if(state.paperMode==='example')taskResult=computeTask(state.coords3);return true;}catch(e){return false;}}
+function saveLocal(){
+ const payload={entities:state.entities,coords3:state.coords3,counter:state.counter,paperMode:state.paperMode,
+  mode:state.mode,step:state.step,grid:state.grid,snap:state.snap,projection:state.projection,history:state.history.slice(0,15),
+  undo:state.undo.slice(-24),redo:state.redo.slice(-24)};
+ // Preserve the drawing even if many previous snapshots would exceed storage quota.
+ let data=JSON.stringify(payload);
+ while(data.length>2800000&&(payload.undo.length||payload.redo.length)){
+  if(payload.undo.length>=payload.redo.length)payload.undo.shift();
+  else payload.redo.shift();
+  data=JSON.stringify(payload);
+ }
+ try{localStorage.setItem('geometry-studio-v1',data);}
+ catch(err){
+  delete payload.undo;delete payload.redo;
+  try{localStorage.setItem('geometry-studio-v1',JSON.stringify(payload));}catch(_){}
+ }
+}
+function loadLocal(){try{const str=localStorage.getItem('geometry-studio-v1');if(!str)return false;const p=JSON.parse(str);if(!Array.isArray(p.entities)||p.entities.length>7000)return false;state.entities=p.entities;state.coords3=p.coords3||structuredClone(DEFAULT_3D);state.counter=p.counter||p.entities.length;state.paperMode=p.paperMode||'example';state.step=clamp(Number(p.step)||0,0,6);state.grid=p.grid!==false;state.projection=(p.projection&&['both','pi1','pi2'].includes(p.projection.view))?{view:p.projection.view,links:p.projection.links!==false,profile:!!p.projection.profile}:{view:'both',links:true,profile:false};state.snap=[0,1,5].includes(p.snap)?p.snap:5;state.history=Array.isArray(p.history)?p.history:[];state.mode=['manual','auto'].includes(p.mode)?p.mode:'auto';
+ const safeHistory=list=>Array.isArray(list)?list.filter(v=>typeof v==='string'&&v.length<350000&&v[0]==='{').slice(-24):[];
+ state.undo=safeHistory(p.undo);state.redo=safeHistory(p.redo);
+ if(state.paperMode==='example')taskResult=computeTask(state.coords3);return true;}catch(e){return false;}}
 function screenToWorld(event){const svg=$('sheet');const pt=svg.createSVGPoint();pt.x=event.clientX;pt.y=event.clientY;const ctm=svg.getScreenCTM();if(!ctm)return null;const p=pt.matrixTransform(ctm.inverse());return {x:p.x,y:p.y};}
 function nearestPoint(p,limit=5){let best=null,dist=limit;for(const e of state.entities){if(e.type!=='point'||!visibleEntity(e))continue;const d=len(p,e);if(d<dist){best=e;dist=d;}}return best;}
 function nearestIntersection(p,limit=5){const ls=state.entities.filter(e=>e.type==='line'&&visibleEntity(e));let best=null,dist=limit;for(let i=0;i<ls.length;i++)for(let j=i+1;j<ls.length;j++){const a=linePoints(ls[i]),b=linePoints(ls[j]);if(!a||!b)continue;const c=lineIntersect(a.a,a.b,b.a,b.b,ls[i].extent==='segment',ls[j].extent==='segment');if(!c)continue;const d=len(p,c.point);if(d<dist){best=c.point;dist=d;}}return best;}
@@ -1385,9 +1429,23 @@ function init(){
   if(e.key==='Shift'){shiftPreviewHeld=false;if(lastStraightCursor)renderStraightPreview(lastStraightCursor,false);}
  });
  window.addEventListener('blur',()=>{shiftPreviewHeld=false;});
+ // Capture undo shortcuts before a canvas tool or a hidden panel can consume them.
+ document.addEventListener('keydown',e=>{
+  const mod=(e.ctrlKey||e.metaKey)&&!e.altKey;
+  const key=String(e.key||'').toLowerCase();
+  if(!mod||key!=='z'&&key!=='y')return;
+  const active=document.activeElement;
+  const textField=active?.isContentEditable||
+    active?.tagName==='TEXTAREA'||
+    active?.tagName==='INPUT'&&['text','search','number','email','url','tel','password'].includes(active.type);
+  const visible=!!active?.getClientRects?.().length&&!active?.closest?.('[hidden],[aria-hidden="true"]');
+  if(textField&&visible)return; // Keep native text-editing undo inside an active text field.
+  e.preventDefault();e.stopImmediatePropagation();
+  if(key==='y'||key==='z'&&e.shiftKey)redo();else undo();
+ },true);
+ window.addEventListener('pagehide',saveLocal);
  document.addEventListener('keydown',e=>{if(e.key==='Tab'&&!e.shiftKey&&!drawerIsOpen()&&(!document.activeElement||document.activeElement===document.body||document.activeElement===edge)){e.preventDefault();openDrawer();$('drawerClose').focus();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
- if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}
- if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}
+
  if(e.key==='Delete'||e.key==='Backspace'){deleteSelected();return;}
  if(e.key==='Escape'){
   if(extensionState){extensionCancel();render();return;}
