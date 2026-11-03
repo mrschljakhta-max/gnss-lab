@@ -572,6 +572,14 @@ function renderProfileProjection(parent){
  if(!points.size)legendText(g,170,350,'Спочатку додайте точки X, Y, Z','#778b9d',2.8);
 }
 
+function axisScaleSegments(){
+ return state.entities.filter(e=>e.type==='line'&&visibleEntity(e)).map(e=>{
+  const v=linePoints(e);
+  if(!v?.a||!v?.b)return null;
+  return {x1:v.a.x,y1:v.a.y,x2:v.b.x,y2:v.b.y,
+   extent:e.extent||'segment',kind:e.kind||'normal'};
+ }).filter(Boolean);
+}
 function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren();const stage=state.mode==='auto'?state.step:6;const always=state.mode==='manual';baseDecor(l);
  const visible=state.entities.filter(e=>visibleEntity(e));
  visible.filter(e=>e.type==='line').forEach(e=>drawLine(l,e,state.selected===e.id));
@@ -579,6 +587,7 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
  visible.filter(e=>e.type==='point').forEach(e=>drawPoint(l,e,state.selected===e.id));
  if(state.mode==='manual'&&state.selected)showSelectionHandles(l,get(state.selected));
  renderProfileProjection(l);
+ window.GeometryStudioAxes?.refresh?.(axisScaleSegments(),state.zoom);
  if(state.grid)$('gridLayer').style.display='';else $('gridLayer').style.display='none';$('canvasViewport').classList.toggle('grid-on',state.grid);
  const preview=$('previewLayer');preview.replaceChildren();
  if(state.pending?.start){const p=pointOf(state.pending.start);if(p){makeSVG('circle',{cx:p.x,cy:p.y,r:3.5,stroke:'#15a2ab','stroke-width':.8,fill:'none','stroke-dasharray':'2 1'},preview);}}
@@ -939,6 +948,8 @@ window.GeometryStudioViewportAPI={
  zoomIn:()=>moveZoom(1.2),
  zoomOut:()=>moveZoom(1/1.2),
  resetZoom:()=>fitPaper(),
+ getAxisScaleSegments:()=>axisScaleSegments(),
+ getZoom:()=>state.zoom,
  getProjection:()=>({...state.projection}),
  setProjection:options=>{
   state.projection={view:['both','pi1','pi2'].includes(options?.view)?options.view:state.projection.view,
@@ -1346,6 +1357,7 @@ function updatePaperTransform(){
  $('zoomLabel').textContent=Math.round(state.zoom*100)+'%';
  if($('zoomPercent'))$('zoomPercent').textContent=Math.round(state.zoom*100)+'%';
  refreshPointLabels();
+ window.GeometryStudioAxes?.setZoom?.(state.zoom);
 }
 function stopPlay(){if(state.playing){clearInterval(state.playing);state.playing=null;}$('stepPlay').textContent='▶ Пуск';}
 function autoplay(){if(state.playing){stopPlay();return;}if(state.step>=6)state.step=0;setMode('auto');render();$('stepPlay').textContent='Ⅱ Пауза';state.playing=setInterval(()=>{if(state.step>=6){stopPlay();return;}state.step++;render();},1450);}
@@ -1356,7 +1368,7 @@ function addPoint3D(){const name=$('add3Name').value.trim().replace(/[^A-Za-zА-
  saveUndo(`Додано просторову точку ${name}`);const q1=addPoint(`${name}1`,p1({x,y,z}),{color:state.style.color});const q2=addPoint(`${name}2`,p2({x,y,z}),{color:state.style.color});get(q1).projectionPlane='pi1';get(q2).projectionPlane='pi2';addLine(q1,q2,{dash:'dashed',color:COLORS.guide,width:.35,kind:'projection'});setMode('manual');render();toast(`Створено ${name}₁ та ${name}₂`);
 }
 function exportBlob(text,type,name){const a=document.createElement('a');const u=URL.createObjectURL(new Blob([text],{type}));a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none',projection:state.projection,pointScale:state.pointScale},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
+function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none',axisScale:window.GeometryStudioAxes?.getScaleSettings?.(),projection:state.projection,pointScale:state.pointScale},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
 function exportSVG(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');cl.setAttribute('xmlns','http://www.w3.org/2000/svg');exportBlob(new XMLSerializer().serializeToString(cl),'image/svg+xml;charset=utf-8','geometry-studio-A3.svg');toast('SVG-креслення збережено');}
 function addExplicitPrintGrid(svg){
  const g=svg.querySelector('#gridLayer');if(!g)return;g.replaceChildren();if(!state.grid)return;
@@ -1365,7 +1377,7 @@ function addExplicitPrintGrid(svg){
 }
 function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');addExplicitPrintGrid(cl);$('printSheet').replaceChildren(cl);window.print();}
 function importJSON(file){file.text().then(txt=>{try{const obj=JSON.parse(txt);if(!Array.isArray(obj.entities)||obj.entities.length>5000)throw Error('Некоректна структура проєкту');for(const e of obj.entities){if(!['point','line','path','circle','angle','shape','dimension'].includes(e.type))throw Error('Невідомий тип об’єкта');if(e.type==='point'&&(!Number.isFinite(e.x)||!Number.isFinite(e.y)))throw Error('Некоректні координати');if(['path','shape','angle'].includes(e.type)&&(!Array.isArray(e.points)||e.points.length>3000||!e.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))))throw Error('Некоректні точки фігури');}
- saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};state.pointScale=normalizedPointScale(obj.pointScale);render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
+ saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');window.GeometryStudioAxes?.setScaleSettings?.(obj.axisScale||{step:5,ticks:true,numbers:true,crossings:true});state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};state.pointScale=normalizedPointScale(obj.pointScale);render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
 function init(){
  initializeSelectedStyleUI();
  initializeGlobalPointSize();
