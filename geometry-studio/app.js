@@ -958,7 +958,27 @@ function moveZoom(factor,clientPoint=null){
  updatePaperTransform();
 }
 function fitPaper(){const box=$('canvasViewport');if(!box.clientWidth||!box.clientHeight)return;const factor=Math.min((box.clientWidth-50)/594,(box.clientHeight-65)/840,1.14);state.zoom=clamp(factor,.35,1.14);state.pan={x:(box.clientWidth-594*state.zoom)/2,y:Math.max(15,(box.clientHeight-840*state.zoom)/2)};updatePaperTransform();}
-function updatePaperTransform(){const wrap=$('paperWrap');wrap.style.transform=`translate(${state.pan.x}px,${state.pan.y}px) scale(${state.zoom})`;const viewport=$('canvasViewport');viewport.style.setProperty('--minor-step',`${10*state.zoom}px`);viewport.style.setProperty('--major-step',`${50*state.zoom}px`);viewport.style.setProperty('--grid-offset-x',`${state.pan.x}px`);viewport.style.setProperty('--grid-offset-y',`${state.pan.y}px`);$('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`;if($('zoomPercent'))$('zoomPercent').textContent=`${Math.round(state.zoom*100)}%`;refreshPointLabels();}
+function updatePaperTransform(){
+ const wrap=$('paperWrap'),viewport=$('canvasViewport');
+ // Resize the real SVG viewport; do not CSS-scale a rasterized container.
+ const dpr=Math.max(1,window.devicePixelRatio||1);
+ const place=v=>Math.round(v*dpr)/dpr;
+ const left=place(state.pan.x),top=place(state.pan.y);
+ state.pan={x:left,y:top};
+ wrap.style.transform='none';
+ wrap.style.width=(594*state.zoom)+'px';
+ wrap.style.height=(840*state.zoom)+'px';
+ wrap.style.left=left+'px';
+ wrap.style.top=top+'px';
+ // Keep CSS grid background aligned with the vector sheet.
+ viewport.style.setProperty('--minor-step',(10*state.zoom)+'px');
+ viewport.style.setProperty('--major-step',(50*state.zoom)+'px');
+ viewport.style.setProperty('--grid-offset-x',left+'px');
+ viewport.style.setProperty('--grid-offset-y',top+'px');
+ $('zoomLabel').textContent=Math.round(state.zoom*100)+'%';
+ if($('zoomPercent'))$('zoomPercent').textContent=Math.round(state.zoom*100)+'%';
+ refreshPointLabels();
+}
 function stopPlay(){if(state.playing){clearInterval(state.playing);state.playing=null;}$('stepPlay').textContent='▶ Пуск';}
 function autoplay(){if(state.playing){stopPlay();return;}if(state.step>=6)state.step=0;setMode('auto');render();$('stepPlay').textContent='Ⅱ Пауза';state.playing=setInterval(()=>{if(state.step>=6){stopPlay();return;}state.step++;render();},1450);}
 function setStep(step){stopPlay();state.step=clamp(step,0,6);if(state.mode==='auto')render();}
