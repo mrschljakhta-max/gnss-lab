@@ -128,6 +128,27 @@
 </main>
 
 
+<aside class="selected-style-panel" id="selectedStylePanel" hidden aria-label="Стиль вибраної фігури">
+ <div class="selected-style-head">
+  <div><span class="selected-style-kicker">ВЛАСТИВОСТІ</span><strong id="selectedStyleName">Вибрана фігура</strong></div>
+  <button id="selectedStyleClose" type="button" aria-label="Закрити властивості" title="Зняти виділення">×</button>
+ </div>
+ <div class="selected-style-content">
+  <label class="selected-style-label" for="selectedStyleCustom">Колір лінії</label>
+  <div class="selected-style-colors" role="group" aria-label="Готові кольори">
+   <button type="button" class="selected-style-swatch" data-style-color="#2367b1" style="--swatch:#2367b1" aria-label="Синій" title="Синій"></button>
+   <button type="button" class="selected-style-swatch" data-style-color="#148b80" style="--swatch:#148b80" aria-label="Бірюзовий" title="Бірюзовий"></button>
+   <button type="button" class="selected-style-swatch" data-style-color="#ea7c34" style="--swatch:#ea7c34" aria-label="Помаранчевий" title="Помаранчевий"></button>
+   <button type="button" class="selected-style-swatch" data-style-color="#d64560" style="--swatch:#d64560" aria-label="Червоний" title="Червоний"></button>
+   <button type="button" class="selected-style-swatch" data-style-color="#242f44" style="--swatch:#242f44" aria-label="Графітовий" title="Графітовий"></button>
+   <label class="selected-style-custom" title="Свій колір"><input id="selectedStyleCustom" type="color" value="#2367b1" aria-label="Власний колір"/><span>+</span></label>
+  </div>
+  <div class="selected-style-width-head"><label class="selected-style-label" for="selectedStyleWidth">Товщина лінії</label><output id="selectedStyleWidthValue" for="selectedStyleWidth">0,65 мм</output></div>
+  <input id="selectedStyleWidth" class="selected-style-slider" type="range" min="0.2" max="3" step="0.05" value="0.65" aria-label="Товщина лінії в міліметрах"/>
+  <div class="selected-style-width-labels"><span>Тонка</span><span>Товста</span></div>
+  <p id="selectedStyleScope" class="selected-style-note">Зміни застосовуються до вибраної фігури.</p>
+ </div>
+</aside>
 <div class="floating-zoom" role="group" aria-label="Керування кресленням">
 <button class="floating-zoom__undo" id="floatingUndo" type="button" title="Скасувати останню дію (Ctrl+Z)" aria-label="Скасувати останню дію — Ctrl+Z" disabled>
 <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 7 4 12l5 5"/><path d="M4 12h9a6.5 6.5 0 0 1 6.5 6.5"/></svg></button>
