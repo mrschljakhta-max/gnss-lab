@@ -147,6 +147,26 @@
   <input id="selectedStyleWidth" class="selected-style-slider" type="range" min="0.2" max="3" step="0.05" value="0.65" aria-label="Товщина лінії в міліметрах"/>
   <div class="selected-style-width-labels"><span>Тонка</span><span>Товста</span></div>
   <p id="selectedStyleScope" class="selected-style-note">Зміни застосовуються до вибраної фігури.</p>
+  <section class="extend-controls" id="extensionControls" hidden aria-label="Продовження відрізка">
+   <button type="button" class="extend-start" id="extendStart"><span aria-hidden="true">↗</span> Продовжити відрізок</button>
+   <div class="extend-options" id="extendOptions" hidden>
+    <div class="extend-caption">1. За який кінець продовжити?</div>
+    <div id="extendEndpoints" class="extend-endpoints" role="group" aria-label="Кінець відрізка"></div>
+    <label class="extend-field" for="extendPointName">Назва нової точки
+     <input id="extendPointName" type="text" value="J2" autocomplete="off" maxlength="12" aria-label="Назва нової точки"/>
+    </label>
+    <div class="extend-caption">2. Спосіб продовження</div>
+    <div class="extend-radio">
+     <label><input type="radio" name="extendMethod" value="intersection" checked/> До перетину з лінією</label>
+     <label><input type="radio" name="extendMethod" value="free"/> На довільну довжину</label>
+    </div>
+    <p id="extendStatus" class="extend-status" role="status" aria-live="polite">Оберіть кінець і натисніть «Почати».</p>
+    <div class="extend-actions">
+     <button type="button" class="extend-apply" id="extendActivate">Почати</button>
+     <button type="button" class="extend-cancel" id="extendCancel">Скасувати</button>
+    </div>
+   </div>
+  </section>
  </div>
 </aside>
 <div class="floating-zoom" role="group" aria-label="Керування кресленням">
