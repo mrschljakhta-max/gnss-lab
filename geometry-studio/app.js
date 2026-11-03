@@ -234,7 +234,56 @@ function visibleEntity(e,full=false){
  if(type==='link'&&(!state.projection.links||mode!=='both'))return false;
  return true;
 }
-function labelOffset(p){if(p.offset)return [p.offset.dx,p.offset.dy];if(p.label.endsWith('1'))return [3.1,4.8];if(p.label.endsWith('2'))return [3.1,-2.8];return [3.2,-3.2];}
+const SUBSCRIPT_DIGITS='₀₁₂₃₄₅₆₇₈₉';
+function printablePointLabel(label){return String(label||'').replace(/([0-9]+)$/,numbers=>[...numbers].map(n=>SUBSCRIPT_DIGITS[Number(n)]).join(''));}
+function pointLabelMetrics(zoom=state.zoom){
+ const z=clamp(Number(zoom)||1,.35,3.5);
+ // SVG viewport: 297 mm viewBox is displayed at 594 CSS px before zoom.
+ // 11.5–22 CSS px keeps labels legible while still growing with the drawing.
+ const screenFont=clamp(14.4*Math.pow(z,.34),11.5,22);
+ const screenGap=9+Math.min(6,Math.max(0,z-1)*2);
+ return {fontSize:screenFont/(2*z),gap:screenGap/(2*z),halo:2.7/(2*z)};
+}
+function labelOffset(p,metrics=pointLabelMetrics()){
+ const side=p.offset?.dx<0?-1:1;
+ const down=p.offset?.dy!=null?p.offset.dy>=0:/1$/.test(String(p.label||''));
+ const x=side*Math.max(metrics.gap,Math.abs(p.offset?.dx||0));
+ const upBaseline=Math.max(metrics.fontSize*.45,Math.abs(p.offset?.dy||0));
+ const downBaseline=Math.max(metrics.fontSize*1.2,Math.abs(p.offset?.dy||0));
+ return [x,down?downBaseline:-upBaseline];
+}
+function refreshPointLabels(){
+ const metrics=pointLabelMetrics();
+ for(const node of $('drawingLayer').querySelectorAll('.point-label')){
+  const id=node.getAttribute('data-point-id'),p=id?get(id):null;
+  if(p){
+   const [dx,dy]=labelOffset(p,metrics);
+   node.setAttribute('x',p.x+dx);node.setAttribute('y',p.y+dy);
+  }else if(node.hasAttribute('data-profile-x')){
+   const x=Number(node.getAttribute('data-profile-x'));
+   const y=Number(node.getAttribute('data-profile-y'));
+   const left=x>260;
+   node.setAttribute('x',x+(left?-metrics.gap:metrics.gap));
+   node.setAttribute('y',y-Math.max(metrics.fontSize*.45,2));
+   node.setAttribute('text-anchor',left?'end':'start');
+  }
+  node.setAttribute('font-size',metrics.fontSize);
+  node.setAttribute('stroke-width',metrics.halo);
+ }
+}
+function standardizeExportLabels(svg){
+ const metrics={fontSize:3.8,gap:3.8,halo:.75};
+ for(const node of svg.querySelectorAll('.point-label')){
+  const id=node.getAttribute('data-point-id'),p=id?get(id):null;
+  if(p){const [dx,dy]=labelOffset(p,metrics);node.setAttribute('x',p.x+dx);node.setAttribute('y',p.y+dy);}
+  else if(node.hasAttribute('data-profile-x')){
+   const x=Number(node.getAttribute('data-profile-x')),y=Number(node.getAttribute('data-profile-y'));
+   const left=x>260;node.setAttribute('x',x+(left?-3.8:3.8));node.setAttribute('y',y-2.1);
+   node.setAttribute('text-anchor',left?'end':'start');
+  }
+  node.setAttribute('font-size',metrics.fontSize);node.setAttribute('stroke-width',metrics.halo);
+ }
+}
 function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints(e);if(!pts)return;let {a,b}=pts;if(e.extent==='line'){
  const d=minus(b,a);const ext=e.region==='plan'?{minX:15,minY:192,maxX:281,maxY:306}:e.region==='front'?{minX:15,minY:40,maxX:281,maxY:187}:e.region==='drawing'?{minX:15,minY:38,maxX:281,maxY:307}:{minX:0,minY:0,maxX:297,maxY:420};
  let samples=[];if(Math.abs(d.x)>1e-9){samples.push({x:ext.minX,y:a.y+(ext.minX-a.x)*d.y/d.x},{x:ext.maxX,y:a.y+(ext.maxX-a.x)*d.y/d.x});}
@@ -248,7 +297,7 @@ function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints
  if(e.label){const m=plus(a,times(minus(b,a),.58));const label=makeSVG('text',{x:m.x+3,y:m.y-3,class:'line-label','pointer-events':'none'},parent);label.textContent=e.label;}
 }
 function drawPoint(parent,p,selected=false,interactive=true){const radius=p.small?1.1:1.5;makeSVG('circle',{cx:p.x,cy:p.y,r:selected?radius+1.0:radius,fill:selected?'#f59e0b':'#fff',stroke:selected?'#c66c0a':p.color,'stroke-width':p.small?.6:.75,'data-id':interactive?p.id:undefined},parent);if(interactive)makeSVG('circle',{cx:p.x,cy:p.y,r:3.8,fill:'transparent','data-id':p.id},parent);
- const [dx,dy]=labelOffset(p);const text=makeSVG('text',{x:p.x+dx,y:p.y+dy,class:'point-label','pointer-events':'none'},parent);text.textContent=p.label.replace(/1$/,'₁').replace(/2$/,'₂');}
+ const metrics=pointLabelMetrics(),[dx,dy]=labelOffset(p,metrics);const text=makeSVG('text',{x:p.x+dx,y:p.y+dy,class:'point-label','data-point-id':p.id,'font-size':metrics.fontSize,'stroke-width':metrics.halo,'pointer-events':'none'},parent);text.textContent=printablePointLabel(p.label);}
 function legendText(parent,x,y,text,color='#5b6e83',size=3.3,weight='normal'){const t=makeSVG('text',{x,y,fill:color,'font-size':size,'font-family':'Arial,sans-serif','font-weight':weight,'pointer-events':'none'},parent);t.textContent=text;return t;}
 function baseDecor(layer){
  if(state.paperMode==='blank'){return;}
@@ -300,7 +349,9 @@ function renderProfileProjection(parent){
  }
  for(const [name,p] of points){
   makeSVG('circle',{cx:p.x,cy:p.y,r:1.35,fill:'#fff',stroke:COLORS.base,'stroke-width':.65},g);
-  legendText(g,Math.min(p.x+2.5,277),Math.max(p.y-2,321),name+'₃','#294a65',3.05);
+  const metrics=pointLabelMetrics(),left=p.x>260;
+  const text=makeSVG('text',{x:p.x+(left?-metrics.gap:metrics.gap),y:p.y-Math.max(metrics.fontSize*.45,2),'data-profile-x':p.x,'data-profile-y':p.y,'text-anchor':left?'end':'start',class:'point-label','font-size':metrics.fontSize,'stroke-width':metrics.halo,'pointer-events':'none'},g);
+  text.textContent=printablePointLabel(name+'3');
  }
  if(!points.size)legendText(g,170,350,'Спочатку додайте точки X, Y, Z','#778b9d',2.8);
 }
@@ -408,7 +459,7 @@ function moveZoom(factor,clientPoint=null){
  updatePaperTransform();
 }
 function fitPaper(){const box=$('canvasViewport');if(!box.clientWidth||!box.clientHeight)return;const factor=Math.min((box.clientWidth-50)/594,(box.clientHeight-65)/840,1.14);state.zoom=clamp(factor,.35,1.14);state.pan={x:(box.clientWidth-594*state.zoom)/2,y:Math.max(15,(box.clientHeight-840*state.zoom)/2)};updatePaperTransform();}
-function updatePaperTransform(){const wrap=$('paperWrap');wrap.style.transform=`translate(${state.pan.x}px,${state.pan.y}px) scale(${state.zoom})`;const viewport=$('canvasViewport');viewport.style.setProperty('--minor-step',`${10*state.zoom}px`);viewport.style.setProperty('--major-step',`${50*state.zoom}px`);viewport.style.setProperty('--grid-offset-x',`${state.pan.x}px`);viewport.style.setProperty('--grid-offset-y',`${state.pan.y}px`);$('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`;if($('zoomPercent'))$('zoomPercent').textContent=`${Math.round(state.zoom*100)}%`;}
+function updatePaperTransform(){const wrap=$('paperWrap');wrap.style.transform=`translate(${state.pan.x}px,${state.pan.y}px) scale(${state.zoom})`;const viewport=$('canvasViewport');viewport.style.setProperty('--minor-step',`${10*state.zoom}px`);viewport.style.setProperty('--major-step',`${50*state.zoom}px`);viewport.style.setProperty('--grid-offset-x',`${state.pan.x}px`);viewport.style.setProperty('--grid-offset-y',`${state.pan.y}px`);$('zoomLabel').textContent=`${Math.round(state.zoom*100)}%`;if($('zoomPercent'))$('zoomPercent').textContent=`${Math.round(state.zoom*100)}%`;refreshPointLabels();}
 function stopPlay(){if(state.playing){clearInterval(state.playing);state.playing=null;}$('stepPlay').textContent='▶ Пуск';}
 function autoplay(){if(state.playing){stopPlay();return;}if(state.step>=6)state.step=0;setMode('auto');render();$('stepPlay').textContent='Ⅱ Пауза';state.playing=setInterval(()=>{if(state.step>=6){stopPlay();return;}state.step++;render();},1450);}
 function setStep(step){stopPlay();state.step=clamp(step,0,6);if(state.mode==='auto')render();}
@@ -419,13 +470,13 @@ function addPoint3D(){const name=$('add3Name').value.trim().replace(/[^A-Za-zА-
 }
 function exportBlob(text,type,name){const a=document.createElement('a');const u=URL.createObjectURL(new Blob([text],{type}));a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}
 function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none',projection:state.projection},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
-function exportSVG(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');cl.setAttribute('xmlns','http://www.w3.org/2000/svg');exportBlob(new XMLSerializer().serializeToString(cl),'image/svg+xml;charset=utf-8','geometry-studio-A3.svg');toast('SVG-креслення збережено');}
+function exportSVG(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');cl.setAttribute('xmlns','http://www.w3.org/2000/svg');exportBlob(new XMLSerializer().serializeToString(cl),'image/svg+xml;charset=utf-8','geometry-studio-A3.svg');toast('SVG-креслення збережено');}
 function addExplicitPrintGrid(svg){
  const g=svg.querySelector('#gridLayer');if(!g)return;g.replaceChildren();if(!state.grid)return;
  for(let x=0;x<=A3.width+.01;x+=5){makeSVG('line',{x1:x,y1:0,x2:x,y2:420,stroke:x%25===0?'#a9bfd3':'#d5e2ed','stroke-width':x%25===0?.23:.11},g);}
  for(let y=0;y<=A3.height+.01;y+=5){makeSVG('line',{x1:0,y1:y,x2:297,y2:y,stroke:y%25===0?'#a9bfd3':'#d5e2ed','stroke-width':y%25===0?.23:.11},g);}
 }
-function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');addExplicitPrintGrid(cl);$('printSheet').replaceChildren(cl);window.print();}
+function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');addExplicitPrintGrid(cl);$('printSheet').replaceChildren(cl);window.print();}
 function importJSON(file){file.text().then(txt=>{try{const obj=JSON.parse(txt);if(!Array.isArray(obj.entities)||obj.entities.length>5000)throw Error('Некоректна структура проєкту');for(const e of obj.entities){if(!['point','line','path','circle','angle','shape','dimension'].includes(e.type))throw Error('Невідомий тип об’єкта');if(e.type==='point'&&(!Number.isFinite(e.x)||!Number.isFinite(e.y)))throw Error('Некоректні координати');if(['path','shape','angle'].includes(e.type)&&(!Array.isArray(e.points)||e.points.length>3000||!e.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))))throw Error('Некоректні точки фігури');}
  saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
 function init(){
