@@ -246,3 +246,26 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 .selected-style-panel :is(button,input):focus-visible{outline:2px solid #18a2ae;outline-offset:3px}
 .selected-drawing{filter:drop-shadow(0 0 1px rgba(235,151,34,.65))}
 @media(max-width:700px){.selected-style-panel{top:62px;right:10px;width:min(290px,calc(100vw - 20px))}}
+
+/* Vector-accurate zoom: SVG is painted at its actual CSS dimensions on every step.
+   Do not promote the sheet into a cached scaled compositor bitmap. */
+#canvasViewport .paper-wrap{
+ will-change:auto!important;
+ transform:none!important;
+ backface-visibility:visible;
+}
+#canvasViewport #sheet{
+ shape-rendering:geometricPrecision;
+ text-rendering:geometricPrecision;
+ image-rendering:auto;
+}
+#canvasViewport #drawingLayer :is(line,path,polyline,polygon,rect,circle,ellipse),
+#canvasViewport #previewLayer :is(line,path,polyline,polygon,rect,circle,ellipse),
+#canvasViewport #axesLayer :is(line,path,polyline,polygon,rect,circle,ellipse){
+ shape-rendering:geometricPrecision;
+}
+#canvasViewport #drawingLayer text,
+#canvasViewport #axesLayer text,
+#canvasViewport #previewLayer text{ text-rendering:geometricPrecision; }
+/* A drop shadow applies a raster blur to precision strokes; use the exact vector stroke. */
+#canvasViewport .selected-drawing{filter:none!important;}
