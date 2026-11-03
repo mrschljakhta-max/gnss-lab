@@ -191,3 +191,25 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 
 /* Maintain physical-size labels independent of on-screen zoom on paper exports */
 @media print{#printSheet .point-label{font-size:3.8px!important;stroke-width:.75px!important;fill:#172c45!important}}
+
+
+/* Cursor editing: vertices reshape; outlines drag linked shapes; blank grid pans. */
+#canvasViewport.cursor-on-vertex:not(.panning){cursor:crosshair!important}
+#canvasViewport.cursor-on-geometry:not(.panning){cursor:move!important}
+#canvasViewport #drawingLayer [data-id]{cursor:inherit!important}
+#canvasViewport #drawingLayer [data-edit-index]{cursor:crosshair!important}
+.floating-zoom .floating-zoom__undo{
+ width:36px;height:33px;display:grid;place-items:center;
+ border:0;border-radius:9px;background:transparent;color:#167582;
+ cursor:pointer;transition:background .15s,color .15s;
+}
+.floating-zoom .floating-zoom__undo:hover:not(:disabled){
+ background:#e2f2f4;color:#005a67;
+}
+.floating-zoom .floating-zoom__undo:disabled{opacity:.38;cursor:default}
+.floating-zoom .floating-zoom__undo svg{width:20px;height:20px}
+.floating-zoom .floating-zoom__separator{
+ align-self:stretch;width:1px;background:#dbe6ec;
+ margin:5px 3px 5px 1px;
+}
+.floating-zoom button:focus-visible{outline:2px solid #18a2ae;outline-offset:2px}
