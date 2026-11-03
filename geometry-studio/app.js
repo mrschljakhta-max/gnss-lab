@@ -901,7 +901,7 @@ function init(){
  $('modeManual').addEventListener('click',()=>setMode('manual'));$('modeAuto').addEventListener('click',()=>setMode('auto'));
  $('btnNew').addEventListener('click',newBlank);$('btnExample').addEventListener('click',startExample);
  $('btnPrint').addEventListener('click',printPDF);$('btnSave').addEventListener('click',exportJSON);$('btnSVG').addEventListener('click',exportSVG);$('btnLoad').addEventListener('click',()=>$('fileImport').click());$('fileImport').addEventListener('change',e=>{if(e.target.files?.[0])importJSON(e.target.files[0]);e.target.value='';});
- $('btnUndo').addEventListener('click',undo);$('btnRedo').addEventListener('click',redo);
+ $('btnUndo').addEventListener('click',undo);$('floatingUndo')?.addEventListener('click',undo);$('btnRedo').addEventListener('click',redo);
  $('showGrid').checked=state.grid;$('showGrid').addEventListener('change',e=>{state.grid=e.target.checked;render();});
  $('showIntersections').addEventListener('change',e=>{state.showIntersections=e.target.checked;redraw();});
  $('gridSize').value=String(state.snap);$('gridSize').addEventListener('change',e=>{state.snap=Number(e.target.value);saveLocal();toast(state.snap?`Прив’язка: ${state.snap} мм`:'Прив’язку вимкнено');});
@@ -1007,10 +1007,17 @@ function init(){
  });
  window.addEventListener('blur',()=>{shiftPreviewHeld=false;});
  document.addEventListener('keydown',e=>{if(e.key==='Tab'&&!e.shiftKey&&!drawerIsOpen()&&(!document.activeElement||document.activeElement===document.body||document.activeElement===edge)){e.preventDefault();openDrawer();$('drawerClose').focus();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
- if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return;}
+ if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();e.shiftKey?redo():undo();return;}
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}
  if(e.key==='Delete'||e.key==='Backspace'){deleteSelected();return;}
- if(e.key==='Escape'){closeToolMenu();closeShapeMenu();closeDrawer();state.pending=null;state.selected=null;render();return;}
+ if(e.key==='Escape'){
+  closeToolMenu();closeShapeMenu();closeDrawer();
+  if(state.pending?.undoBefore){
+   const before=JSON.parse(state.pending.undoBefore);
+   state.entities=deep(before.entities);state.counter=before.counter;
+  }
+  state.pending=null;state.selected=null;render();return;
+ }
  if(e.key===' '){e.preventDefault();setTool('pan');return;}if(e.key.toLowerCase()==='t'&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();toggleToolMenu();return;}
  const keys={v:'select',p:'pencil',l:'ruler',i:'line',e:'eraser',c:'compass'};if(keys[e.key?.toLowerCase()])setTool(keys[e.key.toLowerCase()]);
  });
