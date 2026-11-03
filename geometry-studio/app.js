@@ -895,14 +895,41 @@ function initializeExtensionUI(){
  $('extendCancel').addEventListener('click',extensionCancel);
 }
 
+
+let lineLabelDraft=null;
+function lineAnnotationValue(text){return String(text??'').trim().slice(0,18);}
+function updateLineAnnotation(text,commit=false){
+ const selected=get(state.selected);
+ if(selected?.type!=='line')return;
+ if(!lineLabelDraft||lineLabelDraft.id!==selected.id)
+  lineLabelDraft={id:selected.id,before:snapshotForUndo()};
+ selected.label=lineAnnotationValue(text);
+ if(commit){
+  const before=lineLabelDraft.before;
+  lineLabelDraft=null;
+  if(before!==snapshotForUndo())pushUndoBefore(before,'Змінено позначення відрізка');
+  render();
+ }else{
+  redraw();
+  saveLocalDebounced();
+ }
+}
+
 function updateSelectedStyleUI(){
  const panel=$('selectedStylePanel');if(!panel)return;
  const targets=editableStyleTargets();
  panel.hidden=!targets.length;
- if(!targets.length){updateExtensionPanel();return;}
+ if(!targets.length){
+  $('selectedLineLabelRow').hidden=true;
+  updateExtensionPanel();return;
+ }
  const selected=get(state.selected),current=targets[0];
+ const labelField=$('selectedLineLabel');
+ $('selectedLineLabelRow').hidden=selected?.type!=='line';
+ if(selected?.type==='line'&&document.activeElement!==labelField)
+  labelField.value=selected.label||'';
  const family=targets.length>1;
- const title=family?'Трикутник · '+targets.length+' сторони':entityTitle(selected)+(selected.label?' · '+selected.label:'');
+ const title=family?'Трикутник · '+targets.length+' сторони':entityTitle(selected)+(selected.label?' · '+printablePointLabel(selected.label):'');
  $('selectedStyleName').textContent=title;
  $('selectedStyleScope').textContent=family?
   'Колір і товщина застосовуються до всіх сторін цього трикутника.':
@@ -950,6 +977,18 @@ function endStyleChange(property,value){
 }
 function initializeSelectedStyleUI(){
  const panel=$('selectedStylePanel');if(!panel)return;
+ const annotation=$('selectedLineLabel');
+ if(annotation){
+  annotation.addEventListener('input',e=>updateLineAnnotation(e.target.value,false));
+  annotation.addEventListener('change',e=>updateLineAnnotation(e.target.value,true));
+  annotation.addEventListener('keydown',e=>{
+   if(e.key==='Enter'){e.preventDefault();annotation.blur();}
+  });
+  $('selectedLineLabelClear')?.addEventListener('click',()=>{
+   updateLineAnnotation('',true);
+   annotation.value='';
+  });
+ }
  $('selectedStyleClose').addEventListener('click',()=>{extensionCancel();state.selected=null;render();});
  panel.querySelectorAll('[data-style-color]').forEach(btn=>btn.addEventListener('click',()=>{
   commitSelectedStyle('color',btn.dataset.styleColor);
