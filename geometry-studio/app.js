@@ -537,6 +537,225 @@ function ensurePoint(world){const pt=snapped(world);if(pt.id)return pt.id;const 
 function lineCandidateFromEvent(ev,world){const id=ev.target.getAttribute('data-id');const e=get(id);if(e?.type==='line')return e;let winner=null,dist=4;for(const l of state.entities){if(l.type!=='line'||!visibleEntity(l))continue;const v=linePoints(l);if(!v)continue;const foot=foot2(world,v.a,v.b);if(!foot)continue;const segV=minus(v.b,v.a),t=dot(minus(foot,v.a),segV)/dot(segV,segV);if(l.extent==='segment'&&(t<0||t>1))continue;const d=len(world,foot);if(d<dist){winner=l;dist=d;}}return winner;}
 function findClickEntity(ev,world){const el=ev.target.closest('[data-id]');let e=el?get(el.getAttribute('data-id')):null;if(!e){e=nearestPoint(world,3.5)||lineCandidateFromEvent(ev,world);}return e;}
 
+
+/* CURSOR EDITOR
+ * Point/vertex > figure outline > blank canvas.
+ * An outline drag translates its entire connected figure; a handle drag
+ * adjusts geometry. Projection partners follow X but retain their own Y/Z.
+ */
+function dragTolerance(){
+ return Math.max(1.35,Math.min(4.5,8/Math.max(.7,2*state.zoom)));
+}
+function distanceToEdge(p,a,b){
+ const vx=b.x-a.x,vy=b.y-a.y,den=vx*vx+vy*vy;
+ if(den<1e-10)return Math.hypot(p.x-a.x,p.y-a.y);
+ const t=clamp(((p.x-a.x)*vx+(p.y-a.y)*vy)/den,0,1);
+ return Math.hypot(p.x-a.x-t*vx,p.y-a.y-t*vy);
+}
+function primitiveVertices(e){
+ if(!e)return [];
+ if((e.type==='shape'||e.type==='path'||e.type==='angle')&&e.points){
+  if(e.type==='shape'&&e.kind==='rectangle'&&e.points.length>=2)return rectCorners(e.points[0],e.points[1]);
+  return e.points;
+ }
+ if(e.type==='dimension'){
+  const a=pointOf(e.a),b=pointOf(e.b);
+  return a&&b?[a,b]:[];
+ }
+ if(e.type==='circle'&&e.center)return [
+  {x:e.center.x,y:e.center.y},
+  {x:e.center.x+e.radius,y:e.center.y}
+ ];
+ return [];
+}
+function isGeometryEditable(e){
+ return !!e&&visibleEntity(e)&&(
+  e.type==='line'&&!['projection','guide'].includes(e.kind)||
+  ['path','shape','circle','angle','dimension'].includes(e.type)
+ );
+}
+function geometryEdgeDistance(e,p){
+ if(e.type==='line'){
+  const v=linePoints(e);
+  if(!v)return Infinity;
+  if(e.extent==='line'){
+   const d={x:v.b.x-v.a.x,y:v.b.y-v.a.y},den=d.x*d.x+d.y*d.y;
+   if(den<1e-10)return Infinity;
+   const t=((p.x-v.a.x)*d.x+(p.y-v.a.y)*d.y)/den;
+   return Math.hypot(p.x-v.a.x-t*d.x,p.y-v.a.y-t*d.y);
+  }
+  return distanceToEdge(p,v.a,v.b);
+ }
+ if(e.type==='circle'&&e.center)return Math.abs(Math.hypot(p.x-e.center.x,p.y-e.center.y)-e.radius);
+ if(e.type==='shape'&&e.kind==='ellipse'&&e.points?.length>=2){
+  const a=e.points[0],b=e.points[1],cx=(a.x+b.x)/2,cy=(a.y+b.y)/2,rx=Math.abs(a.x-b.x)/2,ry=Math.abs(a.y-b.y)/2;
+  if(rx<.001||ry<.001)return Infinity;
+  const angle=Math.atan2((p.y-cy)/ry,(p.x-cx)/rx);
+  return Math.hypot(p.x-(cx+rx*Math.cos(angle)),p.y-(cy+ry*Math.sin(angle)));
+ }
+ const verts=primitiveVertices(e);
+ if(verts.length<2)return Infinity;
+ let best=Infinity;
+ for(let k=1;k<verts.length;k++)best=Math.min(best,distanceToEdge(p,verts[k-1],verts[k]));
+ if(e.type==='shape'&&e.kind!=='ellipse')best=Math.min(best,distanceToEdge(p,verts[verts.length-1],verts[0]));
+ if(e.type==='angle'&&verts.length===3)best=Math.min(best,distanceToEdge(p,verts[0],verts[2]));
+ return best;
+}
+function connectedLinePointIds(line){
+ const ids=new Set(),visited=new Set(),todo=[line.id];
+ const category=line.kind==='triangle'?'triangle':line.kind;
+ while(todo.length){
+  const id=todo.pop();
+  if(visited.has(id))continue;
+  visited.add(id);
+  const l=get(id);
+  if(!l||l.type!=='line'||l.kind!==category||!isGeometryEditable(l))continue;
+  for(const pid of [l.a,l.b]){
+   if(typeof pid!=='string')continue;
+   const p=get(pid);
+   if(!p||p.type!=='point'||p.derivation)continue;
+   if(ids.has(pid))continue;
+   ids.add(pid);
+   for(const other of state.entities){
+    if(other.type==='line'&&other.kind===category&&isGeometryEditable(other)&&(other.a===pid||other.b===pid)){
+      todo.push(other.id);
+    }
+   }
+  }
+ }
+ return [...ids];
+}
+function geometryTargetAt(event,p){
+ if(!p||state.mode!=='manual')return null;
+ const tolerance=dragTolerance();
+ let closestPoint=null,pointDistance=tolerance+1;
+ for(const e of state.entities){
+  if(e.type!=='point'||e.derivation||!visibleEntity(e))continue;
+  const d=Math.hypot(e.x-p.x,e.y-p.y);
+  if(d<pointDistance){pointDistance=d;closestPoint=e;}
+ }
+ if(closestPoint&&pointDistance<=tolerance)return {kind:'point',id:closestPoint.id};
+ // Vertices of a primitive can be moved even before the primitive is selected.
+ let vertex=null,vertexDistance=tolerance+1;
+ for(const e of state.entities){
+  if(!isGeometryEditable(e)||e.type==='line')continue;
+  const vertices=primitiveVertices(e);
+  for(let i=0;i<vertices.length;i++){
+   const v=vertices[i];
+   if(!v)continue;
+   const d=Math.hypot(v.x-p.x,v.y-p.y);
+   if(d<vertexDistance){vertex={kind:'vertex',id:e.id,index:i};vertexDistance=d;}
+  }
+ }
+ if(vertex&&vertexDistance<=tolerance)return vertex;
+ let body=null,bodyDistance=tolerance+1;
+ const directId=event?.target?.closest?.('[data-id]')?.getAttribute('data-id');
+ for(const e of state.entities){
+  if(!isGeometryEditable(e))continue;
+  const d=geometryEdgeDistance(e,p);
+  if(d<=tolerance&&(d<bodyDistance||(Math.abs(d-bodyDistance)<.001&&e.id===directId))){
+    bodyDistance=d;body={kind:'body',id:e.id};
+  }
+ }
+ return bodyDistance<=tolerance?body:null;
+}
+function snapshotForUndo(){
+ return JSON.stringify({entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter});
+}
+function projectionMateIds(ids){
+ const origin=new Set(ids),extra=new Set();
+ for(const line of state.entities){
+  if(line.type!=='line'||line.kind!=='projection')continue;
+  for(const [a,b] of [[line.a,line.b],[line.b,line.a]]){
+   if(origin.has(a)&&typeof b==='string'&&!origin.has(b)){
+    const point=get(b);if(point?.type==='point'&&!point.derivation)extra.add(b);
+   }
+  }
+ }
+ return [...extra];
+}
+function beginCursorGeometryDrag(target,p){
+ if(!target)return null;
+ const figure=get(target.id);
+ const pointIds=target.kind==='point'?[target.id]:
+  figure?.type==='line'&&target.kind==='body'?connectedLinePointIds(figure):[];
+ const mates=projectionMateIds(pointIds);
+ const originals=new Map(state.entities.map(e=>[e.id,deep(e)]));
+ return {...target,at:p,pointIds,mates,originals,undoBefore:snapshotForUndo()};
+}
+function applyCursorGeometryDrag(drag,p){
+ if(!drag||!p)return;
+ const dx=p.x-drag.at.x,dy=p.y-drag.at.y;
+ if(drag.kind==='point'||drag.kind==='body'&&drag.pointIds.length){
+  for(const id of drag.pointIds){
+   const dest=get(id),src=drag.originals.get(id);
+   if(dest?.type==='point'&&src){dest.x=src.x+dx;dest.y=src.y+dy;}
+  }
+  for(const id of drag.mates){
+   const dest=get(id),src=drag.originals.get(id);
+   if(dest?.type==='point'&&src){dest.x=src.x+dx;dest.y=src.y;}
+  }
+  return;
+ }
+ const entity=get(drag.id),before=drag.originals.get(drag.id);
+ if(!entity||!before)return;
+ if(drag.kind==='body'){
+  const shift=v=>({x:v.x+dx,y:v.y+dy});
+  if(entity.type==='line'){
+   if(typeof before.a==='object')entity.a=shift(before.a);
+   if(typeof before.b==='object')entity.b=shift(before.b);
+  }else if(entity.type==='circle'&&before.center){
+   entity.center=shift(before.center);
+  }else if(Array.isArray(before.points)){
+   entity.points=before.points.map(shift);
+  }else if(entity.type==='dimension'){
+   entity.a=typeof before.a==='object'?shift(before.a):before.a;
+   entity.b=typeof before.b==='object'?shift(before.b):before.b;
+  }
+  return;
+ }
+ if(drag.kind!=='vertex')return;
+ const i=drag.index;
+ if(entity.type==='circle'){
+  if(i===0){entity.center={x:before.center.x+dx,y:before.center.y+dy};}
+  else entity.radius=Math.max(.4,Math.hypot(p.x-before.center.x,p.y-before.center.y));
+ }else if(entity.type==='shape'&&entity.kind==='rectangle'&&before.points?.length>=2){
+  const a=before.points[0],b=before.points[1];
+  if(i===0){entity.points=[{x:p.x,y:p.y},deep(b)];}
+  if(i===1){entity.points=[{x:a.x,y:p.y},{x:p.x,y:b.y}];}
+  if(i===2){entity.points=[deep(a),{x:p.x,y:p.y}];}
+  if(i===3){entity.points=[{x:p.x,y:a.y},{x:b.x,y:p.y}];}
+ }else if(Array.isArray(before.points)){
+  entity.points=deep(before.points);
+  if(entity.points[i])entity.points[i]={x:p.x,y:p.y};
+ }else if(entity.type==='dimension'){
+  const key=i===0?'a':'b';
+  if(typeof before[key]==='object')entity[key]={x:p.x,y:p.y};
+ }
+}
+function finalizeGeometryDrag(drag){
+ if(!drag)return;
+ const after=snapshotForUndo();
+ if(after===drag.undoBefore)return;
+ state.undo.push(drag.undoBefore);
+ if(state.undo.length>70)state.undo.shift();
+ state.redo=[];
+ const selected=get(drag.id);
+ state.selected=selected?.id||null;
+ log(drag.kind==='point'?'Переміщено вершину':drag.kind==='vertex'?'Змінено контур фігури':'Переміщено фігуру');
+ render();
+}
+function showSelectionHandles(layer,e){
+ if(!e||!isGeometryEditable(e)||e.type==='line')return;
+ const verts=primitiveVertices(e);
+ for(let i=0;i<verts.length;i++){
+  const p=verts[i];
+  if(!p)continue;
+  makeSVG('circle',{cx:p.x,cy:p.y,r:2.2,fill:'#fff',stroke:'#e99624','stroke-width':.8,
+    'pointer-events':'none','data-edit-index':i},layer);
+ }
+}
+
 /* SHIFT geometry constraint: lock a straight segment to 0° or 90°
    relative to the sheet's X/Y axes. Constrain after the start is chosen. */
 function isStraightDrawingTool(tool){return tool==='segment'||tool==='ruler'||tool==='line';}
