@@ -1,0 +1,76 @@
+/* Clean full-screen graph paper with a single hover-activated left drawer. */
+html,body{height:100%;overflow:hidden;background:#fbfdff}
+#app{width:100vw;height:100dvh;position:relative;overflow:hidden}
+.stage-shell{position:fixed;inset:0;width:100%;height:100dvh;min-height:0;display:block;background:#fbfdff;overflow:hidden}
+.canvas-viewport{position:absolute;inset:0;width:100%;height:100%;min-height:0;overflow:hidden;background:#fbfdff;cursor:crosshair;touch-action:none}
+.canvas-viewport.grid-on{background-image:linear-gradient(to right,#bdd0e24d 1px,transparent 1px),linear-gradient(to bottom,#bdd0e24d 1px,transparent 1px),linear-gradient(to right,#90acc34d 1px,transparent 1px),linear-gradient(to bottom,#90acc34d 1px,transparent 1px);background-size:var(--minor-step,10px) var(--minor-step,10px),var(--minor-step,10px) var(--minor-step,10px),var(--major-step,50px) var(--major-step,50px),var(--major-step,50px) var(--major-step,50px);background-position:var(--grid-offset-x,0px) var(--grid-offset-y,0px)}
+.paper-wrap{background:transparent!important;box-shadow:none!important;border:0!important;outline:0!important}
+.paper-wrap svg{background:transparent;overflow:visible}
+#sheet>rect:first-of-type{display:none}
+#gridLayer{display:none!important}
+.canvas-help{position:absolute;top:44px;left:30px;right:auto;margin:0;max-width:min(270px,70vw);padding:9px 12px;font-size:12px;line-height:1.4;text-align:left;color:#365e69;background:#fffffff0;border:1px solid #b5d4d8;border-radius:9px;box-shadow:0 8px 25px #293d5a1c;opacity:0;visibility:hidden;transform:translateY(5px);transition:opacity .16s,transform .16s,visibility .16s;pointer-events:none;z-index:10}
+.canvas-help.visible{opacity:1;visibility:visible;transform:none}
+.edge-trigger{position:fixed;left:0;top:0;width:16px;height:100dvh;border:0;background:transparent;color:transparent;cursor:pointer;padding:0;z-index:32}
+.edge-trigger:hover,.edge-trigger:focus-visible{background:linear-gradient(to right,#25909e35,transparent);color:#137c80}
+.studio-drawer{position:fixed;left:0;top:0;bottom:0;width:min(358px,calc(100vw - 25px));z-index:31;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#c3d4dd transparent;background:#f9fcfe;border-right:1px solid #cadde6;box-shadow:12px 0 42px #0b2a3d1c;transform:translateX(calc(-100% - 5px));visibility:hidden;pointer-events:none;transition:transform .25s cubic-bezier(.2,.8,.2,1),visibility .25s}
+.studio-drawer.open{transform:translateX(0);visibility:visible;pointer-events:auto}
+.drawer-head{display:flex;align-items:center;justify-content:space-between;padding:20px 17px 17px;border-bottom:1px solid #e3eaf0;background:white}
+.studio-drawer .brand{min-width:0;color:#1f3549;gap:11px}
+.studio-drawer .brand-mark{background:#122a40;color:#86d2d5;border-color:#314f5c;width:38px;height:38px;flex:none}
+.studio-drawer .brand b{font-size:13px;letter-spacing:1.1px}
+.studio-drawer .brand small{display:block;color:#7e93a4;font-size:9px}
+.drawer-close{width:30px;height:30px;border:0;border-radius:6px;background:transparent;color:#7f96a5;font-size:22px}
+.drawer-close:hover{background:#eaf2f6;color:#143c48}
+.drawer-group{padding:16px 17px;border-bottom:1px solid #e7edf3}
+.drawer-group-heading{margin:0 0 10px;color:#7b91a3;font-size:10px;font-weight:800;letter-spacing:1.2px;text-transform:uppercase}
+.drawer-group .mode-tabs{width:100%;display:grid;grid-template-columns:1fr 1fr;padding:3px;border:1px solid #dce6ec;border-radius:10px;background:#eaf1f5}
+.drawer-group .mode-tabs button{color:#61788c;padding:10px 8px;font-size:12px}
+.drawer-group .mode-tabs button.active{color:#087a83;background:white;box-shadow:0 1px 6px #0b243016}
+.drawer-group .breadcrumb{display:flex;padding-top:11px;gap:5px;color:#889ba8;font-size:11px;line-height:1.4;white-space:normal}
+.drawer-group .breadcrumb strong{color:#29465d;font-size:11px}
+.drawer-group .breadcrumb .sep,.drawer-group .breadcrumb .crumb-dot{display:none}
+.drawer-group .top-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.drawer-group .top-actions .btn{display:block;min-height:40px;white-space:normal;border-radius:8px;font-size:11px}
+.drawer-group .top-actions .btn.muted{background:white;color:#2d526a;border:1px solid #d6e3eb}
+.drawer-group #menuButton{display:none!important}
+.studio-drawer #btnNew,.studio-drawer #btnExample{display:block!important}
+.studio-drawer .top-actions .btn span{display:inline!important}
+.drawer-group .toolrail{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;width:100%;padding:0;background:none;border:0;box-shadow:none;min-height:0;max-height:none;overflow:visible}
+.drawer-group .rail-caption,.drawer-group .rail-split{display:none}
+.drawer-group .tool{width:100%;min-height:64px;display:flex;background:white;color:#45687b;border:1px solid #dce8ee;border-radius:10px;padding:6px 2px;gap:1px}
+.drawer-group .tool span{font-size:24px;height:29px;line-height:29px}
+.drawer-group .tool small{font-size:10px}
+.drawer-group .tool.active{background:#e6f5f3;color:#087e80;border-color:#9cd4ce}
+.drawer-group .tool:hover{background:#eaf3f5;border-color:#b5d6da}
+.drawer-group .rail-end{display:flex;align-items:center;justify-content:center;grid-column:1/-1;gap:8px;margin-top:1px}
+.drawer-group .rail-mini{width:50%;height:34px;border:1px solid #dce7ed;background:white;border-radius:8px;font-size:22px}
+.drawer-group .canvas-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:center;gap:10px;white-space:normal;font-size:11px;color:#516a7c}
+.drawer-group .canvas-actions .switch-label{display:flex!important;gap:6px;align-items:center}
+.drawer-group .canvas-actions select,.studio-drawer #gridSize{display:block!important;width:100%;grid-column:1/-1;min-height:35px;font-size:12px}
+.drawer-group .canvas-icon{width:100%;height:32px;border-radius:7px}
+.studio-drawer #zoomLabel{display:flex!important;justify-content:center;align-items:center}
+.drawer-group #zoomReset{grid-column:1/-1}
+.drawer-status .canvas-bottom{display:flex;position:static;flex-direction:column;align-items:flex-start;gap:5px;background:none;border:0;padding:12px 0 0;font-size:10px}
+.drawer-status .canvas-bottom span{display:block!important}
+.drawer-status .status-chip{display:flex!important}
+.drawer-group .auto-strip{display:flex;flex-direction:column;align-items:stretch;gap:12px;min-height:0;border:0;background:none;padding:0}
+.drawer-group .auto-strip.hidden,.drawer-group.group-steps:has(.auto-strip.hidden){display:none}
+.drawer-group .step-head strong{font-size:13px}
+.drawer-group .step-head p{font-size:11px}
+.drawer-group .step-controls{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.drawer-group .step-controls .btn{padding:8px 3px;font-size:11px;white-space:normal}
+.drawer-group .step-controls input{grid-column:1/-1;width:100%;margin:0}
+.drawer-group .inspector{display:block;position:static;transform:none!important;width:100%;min-height:0;max-width:none;overflow:visible;box-shadow:none;border:0;background:none;padding:0}
+.drawer-group .inspector-header{display:none}
+.drawer-group .inspector-tabs{padding:0;gap:5px;margin-bottom:2px}
+.drawer-group .inspector-tabs button{font-size:11px;padding:10px 7px}
+.drawer-group .inspector-content{display:block;overflow:visible;padding:0;min-height:0;max-height:none}
+.drawer-group .inspector-content.hidden{display:none}
+.drawer-group .panel-section{padding:15px 0;border-color:#e8eef3}
+.drawer-group .panel-section:first-child{padding-top:14px}
+.drawer-group .inspector-footer{padding:15px 0 0}
+.toast{left:50%;top:18px;bottom:auto;max-width:360px;transform:translate(-50%,-12px);font-size:12px;text-align:center}
+.toast.show{transform:translate(-50%,0)}
+@media(max-width:750px){.studio-drawer{width:min(350px,calc(100vw - 25px))}.edge-trigger{width:21px}.edge-trigger::after{content:'›';position:absolute;top:calc(50% - 29px);left:0;width:13px;height:58px;border-radius:0 8px 8px 0;background:#40677b90;color:white;display:grid;place-items:center;font-size:16px}.drawer-group{padding:14px}}
+@media(prefers-reduced-motion:reduce){.studio-drawer,.canvas-help{transition:none!important}}
+@media print{html,body,#app{width:297mm!important;height:420mm!important;overflow:visible!important;background:white!important}.stage-shell,.edge-trigger,.studio-drawer,.toast{display:none!important}.print-only{display:block!important;width:297mm;height:420mm}#printSheet,#printSheet svg{display:block!important;width:297mm!important;height:420mm!important}#printSheet #gridLayer{display:block!important}#printSheet>svg>rect:first-of-type{display:block!important}}
