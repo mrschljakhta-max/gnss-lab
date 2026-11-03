@@ -206,7 +206,7 @@ function createExample(){
  log('Завантажено варіант 15');render();saveLocal();
 }
 function setMode(mode){if(!['auto','manual'].includes(mode))return;state.mode=mode;state.selected=null;state.pending=null;stopPlay();$('autoStrip').classList.toggle('hidden',mode!=='auto');$('modeManual').classList.toggle('active',mode==='manual');$('modeAuto').classList.toggle('active',mode==='auto');$('statusMode').textContent=mode==='auto'?'Автопобудова':'Креслення';if(mode==='auto'&&state.paperMode==='blank')createExample();else render();closeDrawer();}
-function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
+function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan'||tool==='select');$('canvasViewport').classList.remove('can-pan','panning');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
 function projectedPlane(e){
  if(!e)return null;
  if(e.type==='point'){
@@ -545,8 +545,8 @@ function constrainedStraightEndpoint(start,raw){
  const free=horizontal?raw.x:raw.y;
  const aligned=state.snap?Math.round(free/state.snap)*state.snap:free;
  return horizontal
-  ?{x:clamp(aligned,0,A3.width),y:start.y,axis:'horizontal'}
-  :{x:start.x,y:clamp(aligned,0,A3.height),axis:'vertical'};
+  ?{x:aligned,y:start.y,axis:'horizontal'}
+  :{x:start.x,y:aligned,axis:'vertical'};
 }
 function ensureExactPointWithUndo(pos){
  const at=state.entities.find(e=>e.type==='point'&&Math.hypot(e.x-pos.x,e.y-pos.y)<1e-7);
@@ -574,7 +574,7 @@ function renderStraightPreview(world,holdingShift){
  }
 }
 
-function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(state.tool==='pan'||state.mode==='auto')return;const p=screenToWorld(ev);if(!p||p.x<0||p.x>A3.width||p.y<0||p.y>A3.height)return;const entity=findClickEntity(ev,p);
+function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(state.tool==='pan'||state.mode==='auto')return;const p=screenToWorld(ev);if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;const entity=findClickEntity(ev,p);
  if(['compass','circle','rectangle','protractor','curve','shapes','square','dimension','projection'].includes(state.tool)){handleDraftingClicks(state.tool,p,ev);return;}
  if(state.tool==='select'){state.selected=entity?.id||null;render();return;}
  if(state.tool==='erase'||state.tool==='eraser'){if(entity){state.selected=entity.id;deleteSelected();}return;}
@@ -667,7 +667,7 @@ function init(){
  const isHoverless=matchMedia('(hover:none)');if(isHoverless.matches){edge.setAttribute('title','Натисни, щоб відкрити інструменти');}
 
  const viewport=$('canvasViewport'),svg=$('sheet');let down=null;let suppressClick=false;let lastStraightCursor=null,shiftPreviewHeld=false;const touchPointers=new Map();let pinch=null;
- svg.addEventListener('click',e=>{if(suppressClick){suppressClick=false;return;}onCanvasClick(e);});
+ viewport.addEventListener('click',e=>{if(suppressClick){suppressClick=false;return;}if(e.button===0)onCanvasClick(e);});
  svg.addEventListener('contextmenu',e=>{e.preventDefault();state.pending=null;render();});
  svg.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
  svg.addEventListener('pointerdown',e=>{
@@ -679,11 +679,11 @@ function init(){
    }
   }
   if(e.button!==0&&e.button!==1)return;
-  const forcedPan=e.button===1||state.tool==='pan'||(e.shiftKey&&!isStraightDrawingTool(state.tool));
+  const forcedPan=e.button===1||state.tool==='pan'||(state.tool==='select'&&!e.altKey);
   if(state.tool==='pencil'&&state.mode==='manual'&&!forcedPan){const world=screenToWorld(e);if(world){state.stroke={pointerId:e.pointerId,points:[world]};svg.setPointerCapture(e.pointerId);e.preventDefault();return;}}
   const world=screenToWorld(e);const entity=world?findClickEntity(e,world):null;
-  const dragPoint=state.mode==='manual'&&state.tool==='select'&&entity?.type==='point'&&!entity.derivation?entity:null;
-  down={startX:e.clientX,startY:e.clientY,panX:state.pan.x,panY:state.pan.y,dragPoint:forcedPan?null:dragPoint?.id,original:dragPoint&&!forcedPan?{x:dragPoint.x,y:dragPoint.y}:null,backgroundPan:forcedPan||(!entity&&state.tool!=='pencil'),moved:false,world};
+  const dragPoint=state.mode==='manual'&&state.tool==='select'&&e.altKey&&entity?.type==='point'&&!entity.derivation?entity:null;
+  down={startX:e.clientX,startY:e.clientY,panX:state.pan.x,panY:state.pan.y,dragPoint:forcedPan?null:dragPoint?.id,original:dragPoint&&!forcedPan?{x:dragPoint.x,y:dragPoint.y}:null,backgroundPan:forcedPan,moved:false,world};
   if(forcedPan){e.preventDefault();viewport.classList.add('panning');}
   svg.setPointerCapture(e.pointerId);
  });
@@ -693,7 +693,7 @@ function init(){
   if(pinch&&touchPointers.size>=2){const [a,b]=[...touchPointers.values()];const newDist=Math.hypot(a.x-b.x,a.y-b.y);const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};const bounds=viewport.getBoundingClientRect();
    state.zoom=clamp(pinch.zoom*newDist/Math.max(1,pinch.distance),.38,3.5);state.pan={x:midpoint.x-bounds.left-pinch.paperX*state.zoom,y:midpoint.y-bounds.top-pinch.paperY*state.zoom};updatePaperTransform();suppressClick=true;return;}
   const world=screenToWorld(e);if(world){$('cursorCoords').textContent=`X: ${fmt(world.x,1)} мм · Y: ${fmt(world.y,1)} мм`;lastStraightCursor=world;if(isStraightDrawingTool(state.tool)&&state.pending?.start)renderStraightPreview(world,e.shiftKey||shiftPreviewHeld);}
-  if(!down&&world&&state.tool!=='pencil')viewport.classList.toggle('can-pan',!findClickEntity(e,world));
+  if(!down)viewport.classList.toggle('can-pan',state.tool==='select'||state.tool==='pan');
   if(!down)return;const dx=e.clientX-down.startX,dy=e.clientY-down.startY;
   if(Math.hypot(dx,dy)>4)down.moved=true;
   if(!down.moved)return;
@@ -703,6 +703,19 @@ function init(){
  svg.addEventListener('pointerup',e=>{
   if(state.stroke&&state.stroke.pointerId===e.pointerId){const pts=state.stroke.points;state.stroke=null;if(pts.length>=2){recordPrimitive('path',{points:pts},'Проведено олівцем');}else{$('previewLayer').replaceChildren();}down=null;suppressClick=true;setTimeout(()=>{suppressClick=false;},0);return;}
   if(e.pointerType==='touch'){touchPointers.delete(e.pointerId);if(pinch){if(touchPointers.size<2)pinch=null;down=null;suppressClick=true;setTimeout(()=>{suppressClick=false;},0);return;}}
+  if(down?.moved&&!down.backgroundPan&&!down.dragPoint&&state.mode==='manual'){
+   const gestureTool=state.tool;
+   const straight=isStraightDrawingTool(gestureTool);
+   const twoStep=['rectangle','circle','compass'].includes(gestureTool);
+   if(straight||twoStep){
+    const startWorld=down.world,endWorld=screenToWorld(e);
+    if(startWorld&&endWorld&&Math.hypot(endWorld.x-startWorld.x,endWorld.y-startWorld.y)>1){
+     const eventAt=(x,y)=>({clientX:x,clientY:y,target:e.target,shiftKey:e.shiftKey});
+     if(!state.pending)onCanvasClick(eventAt(down.startX,down.startY));
+     if(state.pending)onCanvasClick(eventAt(e.clientX,e.clientY));
+    }
+   }
+  }
   if(down?.dragPoint&&down.moved){const p=get(down.dragPoint);if(p&&down.original&&len(p,down.original)>.001){const after={x:p.x,y:p.y};p.x=down.original.x;p.y=down.original.y;saveUndo(`Переміщено точку ${p.label}`);p.x=after.x;p.y=after.y;state.selected=p.id;render();}}
   if(down?.moved){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}down=null;viewport.classList.remove('panning');
  });
@@ -711,7 +724,7 @@ function init(){
  // On graph-paper area beyond the A3 drawing viewport, drag to pan the sheet.
  let emptyDrag=null;
  viewport.addEventListener('pointerdown',e=>{
-   if(e.target.closest('#paperWrap')||e.button!==0)return;
+   if(e.target.closest('#paperWrap')||(e.button!==0&&e.button!==1)||((state.tool!=='select'&&state.tool!=='pan')&&e.button!==1))return;
    emptyDrag={x:e.clientX,y:e.clientY,panX:state.pan.x,panY:state.pan.y,id:e.pointerId};
    viewport.setPointerCapture(e.pointerId);
  });
