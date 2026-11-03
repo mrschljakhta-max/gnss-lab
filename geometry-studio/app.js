@@ -21,9 +21,14 @@ const drawerEl=()=>document.getElementById('studioDrawer');
 const drawerIsOpen=()=>drawerEl()?.classList.contains('open');
 const toolMenuEl=()=>document.getElementById('toolsPopover');
 const toolMenuIsOpen=()=>toolMenuEl()?.classList.contains('open');
-function openToolMenu(){const p=toolMenuEl(),b=$('toolsFab'); if(!p)return; p.classList.add('open'); p.setAttribute('aria-hidden','false'); b?.setAttribute('aria-expanded','true');}
+function openToolMenu(){closeShapeMenu();const p=toolMenuEl(),b=$('toolsFab'); if(!p)return; p.classList.add('open'); p.setAttribute('aria-hidden','false'); b?.setAttribute('aria-expanded','true');}
 function closeToolMenu(){const p=toolMenuEl(),b=$('toolsFab'); if(!p)return; p.classList.remove('open'); p.setAttribute('aria-hidden','true'); b?.setAttribute('aria-expanded','false');}
 function toggleToolMenu(){toolMenuIsOpen()?closeToolMenu():openToolMenu();}
+const shapeMenuEl=()=>document.getElementById('shapesPopover');
+const shapeMenuIsOpen=()=>shapeMenuEl()?.classList.contains('open');
+function openShapeMenu(){closeToolMenu();const p=shapeMenuEl(),b=$('shapesFab');if(!p)return;p.classList.add('open');p.setAttribute('aria-hidden','false');b?.setAttribute('aria-expanded','true');}
+function closeShapeMenu(){const p=shapeMenuEl(),b=$('shapesFab');if(!p)return;p.classList.remove('open');p.setAttribute('aria-hidden','true');b?.setAttribute('aria-expanded','false');}
+function toggleShapeMenu(){shapeMenuIsOpen()?closeShapeMenu():openShapeMenu();}
 function openDrawer(){
  clearTimeout(drawerCloseTimer);
  const d=drawerEl(),edge=document.getElementById('edgeTrigger');
@@ -117,7 +122,7 @@ function recordPrimitive(type,geometry,message){saveUndo(message);state.selected
 function handleDraftingClicks(tool,p,event){
  const point=snapped(p),pos={x:point.x,y:point.y};
  if(tool==='projection'){const horizontal=Boolean(event?.shiftKey);saveUndo('Проведено проєкційну лінію');state.selected=addLine(horizontal?{x:0,y:pos.y}:{x:pos.x,y:0},horizontal?{x:297,y:pos.y}:{x:pos.x,y:420},{color:COLORS.guide,dash:'dashed',width:.35,label:''});render();return;}
- if(tool==='compass'){
+ if(tool==='compass'||tool==='circle'){
   if(!state.pending){state.pending={points:[pos]};render();return;}
   const center=state.pending.points[0],radius=len(center,pos);if(radius<.4){toast('Задайте радіус більший за 0');return;}
   recordPrimitive('circle',{center,radius},'Побудовано коло');return;
@@ -130,10 +135,10 @@ function handleDraftingClicks(tool,p,event){
   else{recordPrimitive('shape',{kind:'triangle',points},'Побудовано трикутник');}
   return;
  }
- if(tool==='shapes'){
+ if(tool==='shapes'||tool==='rectangle'){
   if(!state.pending){state.pending={points:[pos]};render();return;}
   const a=state.pending.points[0];if(len(a,pos)<.5){toast('Потрібна друга точка');return;}
-  recordPrimitive('shape',{kind:state.shapeKind,points:[a,pos]},state.shapeKind==='ellipse'?'Побудовано еліпс':'Побудовано прямокутник');return;
+  const kind=tool==='rectangle'?'rectangle':state.shapeKind;recordPrimitive('shape',{kind,points:[a,pos]},kind==='ellipse'?'Побудовано еліпс':'Побудовано прямокутник');return;
  }
  if(tool==='square'){
   if(!state.pending){state.pending={points:[pos]};render();return;}
@@ -201,7 +206,7 @@ function createExample(){
  log('Завантажено варіант 15');render();saveLocal();
 }
 function setMode(mode){if(!['auto','manual'].includes(mode))return;state.mode=mode;state.selected=null;state.pending=null;stopPlay();$('autoStrip').classList.toggle('hidden',mode!=='auto');$('modeManual').classList.toggle('active',mode==='manual');$('modeAuto').classList.toggle('active',mode==='auto');$('statusMode').textContent=mode==='auto'?'Автопобудова':'Креслення';if(mode==='auto'&&state.paperMode==='blank')createExample();else render();closeDrawer();}
-function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();showCanvasHint(manualHint());}
+function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
 function visibleEntity(e,full=false){return full||state.mode==='manual'||e.stage<=state.step;}
 function labelOffset(p){if(p.offset)return [p.offset.dx,p.offset.dy];if(p.label.endsWith('1'))return [3.1,4.8];if(p.label.endsWith('2'))return [3.1,-2.8];return [3.2,-3.2];}
 function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints(e);if(!pts)return;let {a,b}=pts;if(e.extent==='line'){
@@ -247,7 +252,7 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
 }
 function updateStepUI(){let step=state.step;$('stepTitle').textContent=STEPS[step][0];$('stepDescription').textContent=STEPS[step][1];$('stepCount').textContent=`${String(step+1).padStart(2,'0')} / 07`;$('stepRange').value=String(step);$('stepPrev').disabled=step===0;$('stepNext').disabled=step===6;$('stepNext').textContent=step===6?'Завершено ✓':'Далі →';$('docName').textContent=state.paperMode==='blank'?'Нове креслення':'Відстань від точки до площини';$('docVariant').textContent=state.paperMode==='blank'?'A3 • клітинка 5 мм':'Варіант 15';$('canvasHelp').textContent=state.mode==='auto'?STEPS[step][1]:manualHint();}
 function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Esc — скасувати.';if(['perp','parallel'].includes(state.tool))return 'Тепер натисніть на точку, через яку треба провести побудову.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
- return ({pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Оберіть опорну пряму, потім точку для перпендикуляра.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
+ return ({pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',circle:'Вкажіть центр кола, потім точку на його окружності.',rectangle:'Вкажіть дві протилежні вершини прямокутника.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Оберіть опорну пряму, потім точку для перпендикуляра.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
 function render(){redraw();renderInspector();saveLocalDebounced();}
 function renderInspector(){
  document.querySelectorAll('.inspector-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
@@ -284,7 +289,7 @@ function ensurePoint(world){const pt=snapped(world);if(pt.id)return pt.id;const 
 function lineCandidateFromEvent(ev,world){const id=ev.target.getAttribute('data-id');const e=get(id);if(e?.type==='line')return e;let winner=null,dist=4;for(const l of state.entities){if(l.type!=='line'||!visibleEntity(l))continue;const v=linePoints(l);if(!v)continue;const foot=foot2(world,v.a,v.b);if(!foot)continue;const segV=minus(v.b,v.a),t=dot(minus(foot,v.a),segV)/dot(segV,segV);if(l.extent==='segment'&&(t<0||t>1))continue;const d=len(world,foot);if(d<dist){winner=l;dist=d;}}return winner;}
 function findClickEntity(ev,world){const el=ev.target.closest('[data-id]');let e=el?get(el.getAttribute('data-id')):null;if(!e){e=nearestPoint(world,3.5)||lineCandidateFromEvent(ev,world);}return e;}
 function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(state.tool==='pan'||state.mode==='auto')return;const p=screenToWorld(ev);if(!p||p.x<0||p.x>A3.width||p.y<0||p.y>A3.height)return;const entity=findClickEntity(ev,p);
- if(['compass','protractor','curve','shapes','square','dimension','projection'].includes(state.tool)){handleDraftingClicks(state.tool,p,ev);return;}
+ if(['compass','circle','rectangle','protractor','curve','shapes','square','dimension','projection'].includes(state.tool)){handleDraftingClicks(state.tool,p,ev);return;}
  if(state.tool==='select'){state.selected=entity?.id||null;render();return;}
  if(state.tool==='erase'||state.tool==='eraser'){if(entity){state.selected=entity.id;deleteSelected();}return;}
  if(state.tool==='point'){saveUndo('Додано точку');const id=ensurePoint(p);state.selected=id;render();return;}
@@ -351,16 +356,16 @@ function init(){
  document.querySelectorAll('.inspector-tabs button').forEach(b=>b.addEventListener('click',()=>{state.tab=b.dataset.tab;renderInspector();}));
  document.querySelectorAll('.swatch').forEach(b=>b.addEventListener('click',()=>setStyle('color',b.dataset.color)));$('customColor').addEventListener('input',e=>setStyle('color',e.target.value));$('linePattern').addEventListener('change',e=>setStyle('dash',e.target.value));$('lineWidth').addEventListener('change',e=>setStyle('width',Number(e.target.value)));
  $('menuButton').addEventListener('click',openDrawer);$('inspectorClose').addEventListener('click',closeDrawer);
- $('toolsFab')?.addEventListener('click',toggleToolMenu);$('toolsPopoverClose')?.addEventListener('click',closeToolMenu);$('shapeKind')?.addEventListener('change',e=>{state.shapeKind=e.target.value;});$('squareAngle')?.addEventListener('change',e=>{state.squareAngle=Number(e.target.value);});
+ $('toolsFab')?.addEventListener('click',toggleToolMenu);$('toolsPopoverClose')?.addEventListener('click',closeToolMenu);$('shapesFab')?.addEventListener('click',toggleShapeMenu);$('shapesPopoverClose')?.addEventListener('click',closeShapeMenu);$('shapeKind')?.addEventListener('change',e=>{state.shapeKind=e.target.value;});$('squareAngle')?.addEventListener('change',e=>{state.squareAngle=Number(e.target.value);});
  const edge=$('edgeTrigger'),drawer=$('studioDrawer');
  edge.addEventListener('pointerenter',e=>{if(e.pointerType!=='touch')openDrawer();});
  edge.addEventListener('click',openDrawer);
  drawer.addEventListener('pointerenter',()=>clearTimeout(drawerCloseTimer));
  drawer.addEventListener('pointerleave',e=>{if(e.pointerType!=='touch')scheduleDrawerClose();});
  $('drawerClose').addEventListener('click',closeDrawer);
- $('canvasViewport').addEventListener('pointerdown',()=>{if(drawerIsOpen())closeDrawer(); if(toolMenuIsOpen())closeToolMenu();});
+ $('canvasViewport').addEventListener('pointerdown',()=>{if(drawerIsOpen())closeDrawer(); if(toolMenuIsOpen())closeToolMenu(); if(shapeMenuIsOpen())closeShapeMenu();});
  document.addEventListener('pointermove',e=>{lastPointer={x:e.clientX,y:e.clientY};},{passive:true});
- document.addEventListener('pointerdown',e=>{if(drawerIsOpen()&&!drawer.contains(e.target)&&e.target!==edge)closeDrawer(); const toolsFab=$('toolsFab'), toolsPopover=toolMenuEl(); if(toolMenuIsOpen()&&toolsPopover&&!toolsPopover.contains(e.target)&&e.target!==toolsFab&&!toolsFab?.contains(e.target))closeToolMenu();});
+ document.addEventListener('pointerdown',e=>{if(drawerIsOpen()&&!drawer.contains(e.target)&&e.target!==edge)closeDrawer(); const toolsFab=$('toolsFab'), toolsPopover=toolMenuEl(); if(toolMenuIsOpen()&&toolsPopover&&!toolsPopover.contains(e.target)&&e.target!==toolsFab&&!toolsFab?.contains(e.target))closeToolMenu(); const shapesFab=$('shapesFab'),shapesPopover=shapeMenuEl();if(shapeMenuIsOpen()&&shapesPopover&&!shapesPopover.contains(e.target)&&!shapesFab?.contains(e.target))closeShapeMenu();});
  const isHoverless=matchMedia('(hover:none)');if(isHoverless.matches){edge.setAttribute('title','Натисни, щоб відкрити інструменти');}
 
  const viewport=$('canvasViewport'),svg=$('sheet');let down=null;let suppressClick=false;const touchPointers=new Map();let pinch=null;
@@ -421,7 +426,7 @@ function init(){
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return;}
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}
  if(e.key==='Delete'||e.key==='Backspace'){deleteSelected();return;}
- if(e.key==='Escape'){closeToolMenu();closeDrawer();state.pending=null;state.selected=null;render();return;}
+ if(e.key==='Escape'){closeToolMenu();closeShapeMenu();closeDrawer();state.pending=null;state.selected=null;render();return;}
  if(e.key===' '){e.preventDefault();setTool('pan');return;}if(e.key.toLowerCase()==='t'&&!e.ctrlKey&&!e.altKey&&!e.metaKey){e.preventDefault();toggleToolMenu();return;}
  const keys={v:'select',p:'pencil',l:'ruler',i:'line',e:'eraser',c:'compass'};if(keys[e.key?.toLowerCase()])setTool(keys[e.key.toLowerCase()]);
  });
