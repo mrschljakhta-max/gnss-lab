@@ -10,6 +10,7 @@
 <link href="style.css?v=labels2" rel="stylesheet"/>
 <link href="axes.css?v=axes1" rel="stylesheet"/>
 <link href="triangle-builder.css?v=triangle1" rel="stylesheet"/>
+<link href="point-builder.css?v=point1" rel="stylesheet"/>
 <link href="projection-ui.css?v=projections1" rel="stylesheet"/>
 </head>
 <body>
@@ -75,7 +76,52 @@
   <div class="triangle-error" role="status" aria-live="polite" id="triangleError"></div>
   <p class="triangle-help">Після побудови вершини можна вибирати й переміщувати в режимі «Вибір». Ctrl+Z — скасувати операцію.</p>
  </div>
-</aside><main class="stage-shell">
+</aside>
+<aside class="point-panel" id="pointPanel" aria-label="Параметри точки" aria-hidden="true">
+ <div class="point-panel__header">
+  <div><div class="point-panel__eyebrow">Геометрія / Координати</div><h2 class="point-panel__title">Додати точку</h2></div>
+  <button class="point-panel__close" id="pointClose" type="button" aria-label="Закрити панель точки">×</button>
+ </div>
+ <div class="point-panel__tabs" role="tablist" aria-label="Спосіб додавання точки">
+  <button class="point-panel__tab" data-point-tab="coords" role="tab" aria-selected="true" type="button">За координатами</button>
+  <button class="point-panel__tab" data-point-tab="mouse" role="tab" aria-selected="false" type="button">Мишкою</button>
+ </div>
+ <div class="point-panel__content">
+  <section class="point-panel__mode" id="pointCoordsMode">
+   <p class="point-panel__lead">Введи назву й координати точки в міліметрах. Для завдання №5 сайт автоматично нанесе обидві проєкції та лінію зв’язку.</p>
+   <form id="pointCoordsForm">
+    <label class="point-panel__field">Назва точки
+      <input id="pointName" type="text" maxlength="12" autocomplete="off" value="D" aria-label="Назва точки"/>
+    </label>
+    <label class="point-panel__field">Вигляд
+      <select id="pointProjection" aria-label="Які проєкції точки побудувати">
+       <option value="both" selected>Π₁ + Π₂ — обидві проєкції</option>
+       <option value="pi1">Π₁ — тільки X та Y</option>
+       <option value="pi2">Π₂ — тільки X та Z</option>
+      </select>
+    </label>
+    <div class="point-panel__grid">
+     <label class="point-panel__field">X, мм<input id="pointX" type="number" inputmode="decimal" step="any" value="100" required/></label>
+     <label class="point-panel__field" id="pointYField">Y, мм<input id="pointY" type="number" inputmode="decimal" step="any" value="10"/></label>
+     <label class="point-panel__field" id="pointZField">Z, мм<input id="pointZ" type="number" inputmode="decimal" step="any" value="25"/></label>
+    </div>
+    <div class="point-panel__preview" aria-live="polite">
+     <strong>Буде нанесено</strong>
+     <div id="pointResult1">D₁ (X=100; Y=10)</div>
+     <div id="pointResult2">D₂ (X=100; Z=25)</div>
+    </div>
+    <button class="point-panel__action" id="pointApply" type="button">Нанести точку</button>
+   </form>
+  </section>
+  <section class="point-panel__mode" id="pointMouseMode" hidden>
+   <p class="point-panel__lead">Обери ручне нанесення, а потім натисни місце на клітчастому аркуші. Координати визначаться за положенням курсора.</p>
+   <button class="point-panel__action secondary" id="pointUseMouse" type="button">Вибрати місце на аркуші</button>
+  </section>
+  <div class="point-panel__error" id="pointError" role="status" aria-live="polite"></div>
+  <p class="point-panel__note"><span class="point-panel__example">Приклад для завдання №5:</span> D (100; 10; 25). X — вліво, Y — вниз від осі X, Z — вгору.</p>
+ </div>
+</aside>
+<main class="stage-shell">
 
 <div class="canvas-viewport" id="canvasViewport"><div class="paper-wrap" id="paperWrap"><svg aria-label="Креслення на аркуші A3" id="sheet" viewbox="0 0 297 420" xmlns="http://www.w3.org/2000/svg"><defs><pattern height="5" id="minorGrid" patternunits="userSpaceOnUse" width="5"><path d="M5 0H0V5" fill="none" stroke="#b5c9dd" stroke-opacity=".6" stroke-width=".20"></path></pattern><pattern height="25" id="majorGrid" patternunits="userSpaceOnUse" width="25"><rect fill="url(#minorGrid)" height="25" width="25"></rect><path d="M25 0H0V25" fill="none" stroke="#8ba9c5" stroke-opacity=".6" stroke-width=".35"></path></pattern></defs><rect fill="#fff" height="420" width="297"></rect><g id="gridLayer"><rect fill="url(#majorGrid)" height="420" width="297"></rect></g><g id="drawingLayer"></g><g id="previewLayer"></g></svg></div><div class="canvas-help" id="canvasHelp">Завантажено приклад. Оберіть етап побудови справа або перейдіть до режиму креслення.</div></div>
 
@@ -85,9 +131,10 @@
 <div class="floating-zoom" role="group" aria-label="Масштаб креслення"><button id="zoomMinus" type="button" title="Зменшити масштаб" aria-label="Зменшити масштаб">−</button><button class="floating-zoom__reset" id="zoomPercent" type="button" title="Вписати аркуш у вікно" aria-label="Вписати аркуш у вікно">100%</button><button id="zoomPlus" type="button" title="Збільшити масштаб" aria-label="Збільшити масштаб">+</button></div><div aria-live="polite" class="toast" id="toast" role="status"></div>
 <div class="print-only" id="printArea"><div id="printSheet"></div></div>
 </div>
-<script defer="" src="app.js?v=labels-no-overlap3"></script>
+<script defer="" src="app.js?v=point-entry1"></script>
 <script defer="" src="axes.js?v=axes1"></script>
 <script defer="" src="triangle-builder.js?v=triangle1"></script>
+<script defer="" src="point-builder.js?v=point1"></script>
 <script defer="" src="projection-ui.js?v=projections1"></script>
 </body>
 </html>
