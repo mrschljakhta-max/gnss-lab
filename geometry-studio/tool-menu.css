@@ -1,0 +1,18 @@
+/* Floating tool selector: minimal overlay, independent of the drawing canvas */
+.group-tools { display:none!important; }
+.tools-fab {position:fixed;right:18px;top:16px;z-index:34;display:flex;align-items:center;gap:9px;padding:10px 14px;border:0;border-radius:999px;background:#14354b;color:#fff;box-shadow:0 8px 24px #0b28402e;cursor:pointer}
+.tools-fab:hover,.tools-fab[aria-expanded="true"]{background:#0b6474}
+.tools-fab__icon{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;background:#10a3ad;font-size:13px}
+.tools-fab__label{font-size:12px;font-weight:700}
+.tools-popover{position:fixed;top:62px;right:18px;z-index:33;width:min(340px,calc(100vw - 26px));padding:12px;border-radius:16px;background:#f9fcfe;border:1px solid #d8e4ec;box-shadow:0 16px 40px #132a4033;visibility:hidden;opacity:0;transform:translateY(-5px);pointer-events:none;transition:opacity .16s ease,transform .16s ease,visibility .16s ease}
+.tools-popover.open{visibility:visible;opacity:1;transform:none;pointer-events:auto}
+.tools-popover__head{display:flex;align-items:center;justify-content:space-between;padding:1px 3px 10px 5px;font-size:13px;color:#1b354d}
+.tools-popover__close{background:transparent;border:0;font-size:23px;line-height:1;color:#6f879a;border-radius:7px;cursor:pointer}
+.tools-popover__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.tools-popover .tool{width:100%;min-height:72px;padding:8px 4px;background:#fff;border:1px solid #d5e1ea;border-radius:9px}
+.tools-popover .tool:hover{background:#f3fafb;border-color:#bfe0e4}
+.tools-popover .tool.active{background:#e7f4f5;border-color:#9fd1d7}
+.tools-popover .tool span{font-size:24px;height:28px;line-height:28px}
+.tools-popover .tool small{font-size:10px}
+@media(max-width:700px){.tools-fab{top:12px;right:12px;padding:10px 12px}.tools-popover{top:56px;right:10px;width:min(320px,calc(100vw - 20px))}.tools-popover__grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(prefers-reduced-motion:reduce){.tools-popover{transition:none}}
