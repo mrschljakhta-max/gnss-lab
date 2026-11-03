@@ -206,7 +206,7 @@ function createExample(){
  log('Завантажено варіант 15');render();saveLocal();
 }
 function setMode(mode){if(!['auto','manual'].includes(mode))return;state.mode=mode;state.selected=null;state.pending=null;stopPlay();$('autoStrip').classList.toggle('hidden',mode!=='auto');$('modeManual').classList.toggle('active',mode==='manual');$('modeAuto').classList.toggle('active',mode==='auto');$('statusMode').textContent=mode==='auto'?'Автопобудова':'Креслення';if(mode==='auto'&&state.paperMode==='blank')createExample();else render();closeDrawer();}
-function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan'||tool==='select');$('canvasViewport').classList.remove('can-pan','panning');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
+function setTool(tool){state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan'||tool==='select');$('canvasViewport').classList.remove('can-pan','panning','cursor-on-vertex','cursor-on-geometry');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
 function projectedPlane(e){
  if(!e)return null;
  if(e.type==='point'){
@@ -477,6 +477,7 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
  visible.filter(e=>e.type==='line').forEach(e=>drawLine(l,e,state.selected===e.id));
  visible.filter(e=>!['line','point'].includes(e.type)).forEach(e=>renderPrimitive(l,e,state.selected===e.id));
  visible.filter(e=>e.type==='point').forEach(e=>drawPoint(l,e,state.selected===e.id));
+ if(state.mode==='manual'&&state.selected)showSelectionHandles(l,get(state.selected));
  renderProfileProjection(l);
  if(state.grid)$('gridLayer').style.display='';else $('gridLayer').style.display='none';$('canvasViewport').classList.toggle('grid-on',state.grid);
  const preview=$('previewLayer');preview.replaceChildren();
@@ -898,12 +899,15 @@ function init(){
    }
   }
   if(e.button!==0&&e.button!==1)return;
-  const forcedPan=e.button===1||state.tool==='pan'||(state.tool==='select'&&!e.altKey);
+  const forcedPan=e.button===1||state.tool==='pan';
   if(state.tool==='pencil'&&state.mode==='manual'&&!forcedPan){const world=screenToWorld(e);if(world){state.stroke={pointerId:e.pointerId,points:[world]};viewport.setPointerCapture(e.pointerId);e.preventDefault();return;}}
   const world=screenToWorld(e);const entity=world?findClickEntity(e,world):null;
-  const dragPoint=state.mode==='manual'&&state.tool==='select'&&e.altKey&&entity?.type==='point'&&!entity.derivation?entity:null;
-  down={startX:e.clientX,startY:e.clientY,panX:state.pan.x,panY:state.pan.y,dragPoint:forcedPan?null:dragPoint?.id,original:dragPoint&&!forcedPan?{x:dragPoint.x,y:dragPoint.y}:null,backgroundPan:forcedPan,moved:false,world};
-  if(forcedPan){e.preventDefault();viewport.classList.add('panning');}
+  const candidate=state.tool==='select'&&!forcedPan?geometryTargetAt(e,world):null;
+  const geometry=state.mode==='manual'&&candidate?beginCursorGeometryDrag(candidate,world):null;
+  const shouldPan=forcedPan||(state.tool==='select'&&!geometry);
+  down={startX:e.clientX,startY:e.clientY,panX:state.pan.x,panY:state.pan.y,
+    geometry,backgroundPan:shouldPan,moved:false,world,pointerId:e.pointerId};
+  if(shouldPan){e.preventDefault();viewport.classList.add('panning');}
   viewport.setPointerCapture(e.pointerId);
  });
  viewport.addEventListener('pointermove',e=>{
@@ -912,17 +916,22 @@ function init(){
   if(pinch&&touchPointers.size>=2){const [a,b]=[...touchPointers.values()];const newDist=Math.hypot(a.x-b.x,a.y-b.y);const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};const bounds=viewport.getBoundingClientRect();
    state.zoom=clamp(pinch.zoom*newDist/Math.max(1,pinch.distance),.38,3.5);state.pan={x:midpoint.x-bounds.left-pinch.paperX*state.zoom,y:midpoint.y-bounds.top-pinch.paperY*state.zoom};updatePaperTransform();suppressClick=true;return;}
   const world=screenToWorld(e);if(world){$('cursorCoords').textContent=`X: ${fmt(world.x,1)} мм · Y: ${fmt(world.y,1)} мм`;lastStraightCursor=world;if(isStraightDrawingTool(state.tool)&&state.pending?.start)renderStraightPreview(world,e.shiftKey||shiftPreviewHeld);}
-  if(!down)viewport.classList.toggle('can-pan',state.tool==='select'||state.tool==='pan');
+  if(!down){
+   const candidate=state.tool==='select'?geometryTargetAt(e,world):null;
+   viewport.classList.toggle('cursor-on-vertex',!!candidate&&(candidate.kind==='point'||candidate.kind==='vertex'));
+   viewport.classList.toggle('cursor-on-geometry',!!candidate&&candidate.kind==='body');
+   viewport.classList.toggle('can-pan',(state.tool==='select'&&!candidate)||state.tool==='pan');
+  }
   if(!down)return;const dx=e.clientX-down.startX,dy=e.clientY-down.startY;
   if(Math.hypot(dx,dy)>4)down.moved=true;
   if(!down.moved)return;
   if(down.backgroundPan){state.pan={x:down.panX+dx,y:down.panY+dy};updatePaperTransform();viewport.classList.add('panning');suppressClick=true;}
-  else if(down.dragPoint){const p=get(down.dragPoint);if(p&&world){const candidate=state.snap?{x:Math.round(world.x/state.snap)*state.snap,y:Math.round(world.y/state.snap)*state.snap}:world;p.x=clamp(candidate.x,0,297);p.y=clamp(candidate.y,0,420);redraw();suppressClick=true;}}
+  else if(down.geometry&&world){applyCursorGeometryDrag(down.geometry,world);redraw();suppressClick=true;}
  });
  viewport.addEventListener('pointerup',e=>{
   if(state.stroke&&state.stroke.pointerId===e.pointerId){const pts=state.stroke.points;state.stroke=null;if(pts.length>=2){recordPrimitive('path',{points:pts},'Проведено олівцем');}else{$('previewLayer').replaceChildren();}down=null;suppressClick=true;setTimeout(()=>{suppressClick=false;},0);return;}
   if(e.pointerType==='touch'){touchPointers.delete(e.pointerId);if(pinch){if(touchPointers.size<2)pinch=null;down=null;suppressClick=true;setTimeout(()=>{suppressClick=false;},0);return;}}
-  if(down?.moved&&!down.backgroundPan&&!down.dragPoint&&state.mode==='manual'){
+  if(down?.moved&&!down.backgroundPan&&!down.geometry&&state.mode==='manual'){
    const gestureTool=state.tool;
    const straight=isStraightDrawingTool(gestureTool);
    const twoStep=['rectangle','circle','compass'].includes(gestureTool);
@@ -936,12 +945,21 @@ function init(){
    }
   }
   if(down&&!down.moved&&e.button===0&&state.tool!=='pan'){
-   onCanvasClick(e);
+   if(state.tool==='select'&&down.geometry){state.selected=down.geometry.id;render();}
+   else onCanvasClick(e);
   }
-  if(down?.dragPoint&&down.moved){const p=get(down.dragPoint);if(p&&down.original&&len(p,down.original)>.001){const after={x:p.x,y:p.y};p.x=down.original.x;p.y=down.original.y;saveUndo(`Переміщено точку ${p.label}`);p.x=after.x;p.y=after.y;state.selected=p.id;render();}}
+  if(down?.geometry&&down.moved)finalizeGeometryDrag(down.geometry);
   if(down?.moved){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}down=null;viewport.classList.remove('panning');
  });
- viewport.addEventListener('pointercancel',e=>{state.stroke=null;$('previewLayer').replaceChildren();touchPointers.delete(e.pointerId);if(touchPointers.size<2)pinch=null;down=null;viewport.classList.remove('panning');});
+ viewport.addEventListener('pointercancel',e=>{
+  if(down?.geometry?.undoBefore&&down.moved){
+   const snapshot=JSON.parse(down.geometry.undoBefore);
+   state.entities=deep(snapshot.entities);render();
+  }
+  state.stroke=null;$('previewLayer').replaceChildren();touchPointers.delete(e.pointerId);
+  if(touchPointers.size<2)pinch=null;down=null;
+  viewport.classList.remove('panning','cursor-on-geometry','cursor-on-vertex');
+ });
  viewport.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();moveZoom(e.deltaY<0?1.1:1/1.1,{x:e.clientX,y:e.clientY});},{passive:false});
  // All drawing, point selection, and pan gestures use the complete viewport.
  document.addEventListener('keydown',e=>{
