@@ -14,7 +14,7 @@ const STEPS=[
  ['Основа перпендикуляра H','H₂ = p₂ ∩ U₂V₂. Вертикальна лінія зв’язку дає H₁ на p₁. Виділяємо DH.'],
  ['Справжня довжина DH','Будуємо прямокутний трикутник RST: RS = D₁H₁, ST = |zD − zH|, RT — справжня довжина DH.']
 ];
-const state={mode:'auto',tool:'select',tab:'properties',entities:[],coords3:structuredClone(DEFAULT_3D),step:6,selected:null,pending:null,style:{color:'#233c61',dash:'solid',width:0.65},shapeKind:'rectangle',squareAngle:90,stroke:null,zoom:1,pan:{x:0,y:0},projection:{view:'both',links:true,profile:false},grid:true,showIntersections:false,snap:5,history:[],undo:[],redo:[],counter:0,paperMode:'example',drag:null,playing:null};
+const state={mode:'auto',tool:'select',tab:'properties',entities:[],coords3:structuredClone(DEFAULT_3D),step:6,selected:null,pending:null,style:{color:'#233c61',dash:'solid',width:0.65},shapeKind:'rectangle',squareAngle:90,stroke:null,pointScale:0.6,zoom:1,pan:{x:0,y:0},projection:{view:'both',links:true,profile:false},grid:true,showIntersections:false,snap:5,history:[],undo:[],redo:[],counter:0,paperMode:'example',drag:null,playing:null};
 let toastTimeout=null,persistTimer=null,needFit=true;
 let drawerCloseTimer=null, hintTimer=null, lastPointer={x:window.innerWidth/2,y:window.innerHeight/2};
 const drawerEl=()=>document.getElementById('studioDrawer');
@@ -190,7 +190,7 @@ function pushUndoBefore(snapshot,msg){
  syncUndoControls();
 }
 function saveUndo(msg){pushUndoBefore(snapshotForUndo(),msg);}
-function restoreSnap(obj){state.entities=deep(obj.entities||[]);state.coords3=deep(obj.coords3||DEFAULT_3D);state.counter=obj.counter||state.entities.length;state.paperMode=obj.paperMode||'blank';taskResult=state.paperMode==='example'?computeTask(state.coords3):null;state.selected=null;state.pending=null;render();saveLocal();}
+function restoreSnap(obj){state.entities=deep(obj.entities||[]);state.coords3=deep(obj.coords3||DEFAULT_3D);state.counter=obj.counter||state.entities.length;state.paperMode=obj.paperMode||'blank';state.pointScale=normalizedPointScale(obj.pointScale);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;state.selected=null;state.pending=null;render();saveLocal();}
 function undo(){
  if(state.pending?.undoBefore){
   const before=JSON.parse(state.pending.undoBefore);
@@ -492,8 +492,28 @@ function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints
  if(interactive){makeSVG('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'transparent','stroke-width':5,'data-id':e.id},parent);}
  if(e.label){const m=plus(a,times(minus(b,a),.58));const label=makeSVG('text',{x:m.x+3,y:m.y-3,class:'line-label','pointer-events':'none'},parent);label.textContent=e.label;}
 }
-function drawPoint(parent,p,selected=false,interactive=true){if(p.invalid)return;const radius=p.small?1.1:1.5;if(selected)makeSVG('circle',{cx:p.x,cy:p.y,r:radius+1.3,fill:'none',stroke:'#e99624','stroke-width':.45,'pointer-events':'none'},parent);makeSVG('circle',{cx:p.x,cy:p.y,r:radius,fill:'#fff',stroke:p.color||COLORS.ink,'stroke-width':p.width??(p.small?.6:.75),'data-id':interactive?p.id:undefined},parent);if(interactive)makeSVG('circle',{cx:p.x,cy:p.y,r:3.8,fill:'transparent','data-id':p.id},parent);
- const metrics=pointLabelMetrics(),[dx,dy]=labelOffset(p,metrics);const text=makeSVG('text',{x:p.x+dx,y:p.y+dy,class:'point-label','data-point-id':p.id,'font-size':metrics.fontSize,'stroke-width':metrics.halo,'pointer-events':'none'},parent);text.textContent=printablePointLabel(p.label);}
+function drawPoint(parent,p,selected=false,interactive=true){
+ if(p.invalid)return;
+ const scale=state.pointScale;
+ const radius=(p.small?1.1:1.5)*scale;
+ const stroke=(p.width??(p.small?.6:.75))*Math.max(.55,scale);
+ const glowGap=Math.max(.32,.65*scale);
+ if(selected)makeSVG('circle',{cx:p.x,cy:p.y,r:radius+glowGap,
+   fill:'none',stroke:'#e99624','stroke-width':Math.max(.3,.45*scale),'pointer-events':'none'},parent);
+ makeSVG('circle',{cx:p.x,cy:p.y,r:radius,fill:'#fff',
+   stroke:p.color||COLORS.ink,'stroke-width':stroke,'data-id':interactive?p.id:undefined},parent);
+ // A separate, invisible hit zone keeps tiny markers selectable, without
+ // allowing B₂ to mask a nearby dependent point J₂ when zoomed in.
+ if(interactive){
+  const hitRadius=Math.max(radius+.45,Math.min(5,6/(2*Math.max(.38,state.zoom))));
+  makeSVG('circle',{cx:p.x,cy:p.y,r:hitRadius,
+   fill:'transparent','data-id':p.id},parent);
+ }
+ const metrics=pointLabelMetrics(),[dx,dy]=labelOffset(p,metrics);
+ const text=makeSVG('text',{x:p.x+dx,y:p.y+dy,class:'point-label','data-point-id':p.id,
+  'font-size':metrics.fontSize,'stroke-width':metrics.halo,'pointer-events':'none'},parent);
+ text.textContent=printablePointLabel(p.label);
+}
 function legendText(parent,x,y,text,color='#5b6e83',size=3.3,weight='normal'){const t=makeSVG('text',{x,y,fill:color,'font-size':size,'font-family':'Arial,sans-serif','font-weight':weight,'pointer-events':'none'},parent);t.textContent=text;return t;}
 function baseDecor(layer){
  if(state.paperMode==='blank'){return;}
@@ -544,7 +564,7 @@ function renderProfileProjection(parent){
    stroke:line.color||COLORS.base,'stroke-width':Math.min(line.width||.7,.8)},g);
  }
  for(const [name,p] of points){
-  makeSVG('circle',{cx:p.x,cy:p.y,r:1.35,fill:'#fff',stroke:COLORS.base,'stroke-width':.65},g);
+  makeSVG('circle',{cx:p.x,cy:p.y,r:1.35*state.pointScale,fill:'#fff',stroke:COLORS.base,'stroke-width':.65*Math.max(.55,state.pointScale)},g);
   const metrics=pointLabelMetrics(),left=p.x>260;
   const text=makeSVG('text',{x:p.x+(left?-metrics.gap:metrics.gap),y:p.y-Math.max(metrics.fontSize*.45,2),'data-profile-x':p.x,'data-profile-y':p.y,'text-anchor':left?'end':'start',class:'point-label','font-size':metrics.fontSize,'stroke-width':metrics.halo,'pointer-events':'none'},g);
   text.textContent=printablePointLabel(name+'3');
@@ -883,7 +903,38 @@ function initializeSelectedStyleUI(){
  slider.addEventListener('change',event=>endStyleChange('width',Number(event.target.value)));
 }
 
-function render(){redraw();renderInspector();syncUndoControls();updateSelectedStyleUI();saveLocalDebounced();}
+
+/* One global size setting for all point markers. Labels and lines retain their size. */
+function normalizedPointScale(value){
+ const n=Number(value);
+ return Number.isFinite(n)&&n>0?clamp(Math.round(n*20)/20,.3,1.2):.6;
+}
+let globalPointSizeBefore=null;
+function syncGlobalPointSize(){
+ const range=$('globalPointSize'),value=$('globalPointSizeValue');
+ if(range&&document.activeElement!==range)range.value=String(Math.round(state.pointScale*100));
+ if(value)value.textContent=Math.round(state.pointScale*100)+'%';
+}
+function initializeGlobalPointSize(){
+ const range=$('globalPointSize');
+ if(!range)return;
+ range.addEventListener('pointerdown',()=>{globalPointSizeBefore=snapshotForUndo();});
+ range.addEventListener('focus',()=>{if(!globalPointSizeBefore)globalPointSizeBefore=snapshotForUndo();});
+ range.addEventListener('input',event=>{
+  if(!globalPointSizeBefore)globalPointSizeBefore=snapshotForUndo();
+  state.pointScale=normalizedPointScale(Number(event.target.value)/100);
+  syncGlobalPointSize();redraw();saveLocalDebounced();
+ });
+ range.addEventListener('change',event=>{
+  if(!globalPointSizeBefore)globalPointSizeBefore=snapshotForUndo();
+  state.pointScale=normalizedPointScale(Number(event.target.value)/100);
+  if(globalPointSizeBefore!==snapshotForUndo())pushUndoBefore(globalPointSizeBefore,'Змінено розмір усіх точок');
+  globalPointSizeBefore=null;render();
+ });
+ syncGlobalPointSize();
+}
+
+function render(){redraw();renderInspector();syncUndoControls();updateSelectedStyleUI();syncGlobalPointSize();saveLocalDebounced();}
 window.GeometryStudioViewportAPI={
  zoomIn:()=>moveZoom(1.2),
  zoomOut:()=>moveZoom(1/1.2),
@@ -924,7 +975,7 @@ function toast(text){const t=$('toast');t.textContent=text;t.classList.add('show
 function saveLocalDebounced(){clearTimeout(persistTimer);persistTimer=setTimeout(saveLocal,450);}
 function saveLocal(){
  const payload={entities:state.entities,coords3:state.coords3,counter:state.counter,paperMode:state.paperMode,
-  mode:state.mode,step:state.step,grid:state.grid,snap:state.snap,projection:state.projection,history:state.history.slice(0,15),
+  mode:state.mode,step:state.step,grid:state.grid,snap:state.snap,projection:state.projection,pointScale:state.pointScale,history:state.history.slice(0,15),
   undo:state.undo.slice(-24),redo:state.redo.slice(-24)};
  // Preserve the drawing even if many previous snapshots would exceed storage quota.
  let data=JSON.stringify(payload);
@@ -939,7 +990,7 @@ function saveLocal(){
   try{localStorage.setItem('geometry-studio-v1',JSON.stringify(payload));}catch(_){}
  }
 }
-function loadLocal(){try{const str=localStorage.getItem('geometry-studio-v1');if(!str)return false;const p=JSON.parse(str);if(!Array.isArray(p.entities)||p.entities.length>7000)return false;state.entities=p.entities;state.coords3=p.coords3||structuredClone(DEFAULT_3D);state.counter=p.counter||p.entities.length;state.paperMode=p.paperMode||'example';state.step=clamp(Number(p.step)||0,0,6);state.grid=p.grid!==false;state.projection=(p.projection&&['both','pi1','pi2'].includes(p.projection.view))?{view:p.projection.view,links:p.projection.links!==false,profile:!!p.projection.profile}:{view:'both',links:true,profile:false};state.snap=[0,1,5].includes(p.snap)?p.snap:5;state.history=Array.isArray(p.history)?p.history:[];state.mode=['manual','auto'].includes(p.mode)?p.mode:'auto';
+function loadLocal(){try{const str=localStorage.getItem('geometry-studio-v1');if(!str)return false;const p=JSON.parse(str);if(!Array.isArray(p.entities)||p.entities.length>7000)return false;state.entities=p.entities;state.coords3=p.coords3||structuredClone(DEFAULT_3D);state.counter=p.counter||p.entities.length;state.paperMode=p.paperMode||'example';state.step=clamp(Number(p.step)||0,0,6);state.grid=p.grid!==false;state.projection=(p.projection&&['both','pi1','pi2'].includes(p.projection.view))?{view:p.projection.view,links:p.projection.links!==false,profile:!!p.projection.profile}:{view:'both',links:true,profile:false};state.snap=[0,1,5].includes(p.snap)?p.snap:5;state.history=Array.isArray(p.history)?p.history:[];state.mode=['manual','auto'].includes(p.mode)?p.mode:'auto';state.pointScale=normalizedPointScale(p.pointScale);
  const safeHistory=list=>Array.isArray(list)?list.filter(v=>typeof v==='string'&&v.length<350000&&v[0]==='{').slice(-24):[];
  state.undo=safeHistory(p.undo);state.redo=safeHistory(p.redo);
  if(state.paperMode==='example')taskResult=computeTask(state.coords3);return true;}catch(e){return false;}}
@@ -1074,7 +1125,7 @@ function geometryTargetAt(event,p){
  return bodyDistance<=tolerance?body:null;
 }
 function snapshotForUndo(){
- return JSON.stringify({entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter});
+ return JSON.stringify({entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,pointScale:state.pointScale});
 }
 function projectionMateIds(ids){
  const origin=new Set(ids),extra=new Set();
@@ -1305,7 +1356,7 @@ function addPoint3D(){const name=$('add3Name').value.trim().replace(/[^A-Za-zА-
  saveUndo(`Додано просторову точку ${name}`);const q1=addPoint(`${name}1`,p1({x,y,z}),{color:state.style.color});const q2=addPoint(`${name}2`,p2({x,y,z}),{color:state.style.color});get(q1).projectionPlane='pi1';get(q2).projectionPlane='pi2';addLine(q1,q2,{dash:'dashed',color:COLORS.guide,width:.35,kind:'projection'});setMode('manual');render();toast(`Створено ${name}₁ та ${name}₂`);
 }
 function exportBlob(text,type,name){const a=document.createElement('a');const u=URL.createObjectURL(new Blob([text],{type}));a.href=u;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1000);}
-function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none',projection:state.projection},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
+function exportJSON(){exportBlob(JSON.stringify({format:'geometry-studio-v1',created:new Date().toISOString(),document:{size:'A3',orientation:'portrait',unit:'mm'},entities:state.entities,coords3:state.coords3,paperMode:state.paperMode,counter:state.counter,axisMode:window.GeometryStudioAxes?.getMode()||'none',projection:state.projection,pointScale:state.pointScale},null,2),'application/json;charset=utf-8','geometry-studio-project.json');toast('JSON-проєкт збережено');}
 function exportSVG(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');cl.setAttribute('xmlns','http://www.w3.org/2000/svg');exportBlob(new XMLSerializer().serializeToString(cl),'image/svg+xml;charset=utf-8','geometry-studio-A3.svg');toast('SVG-креслення збережено');}
 function addExplicitPrintGrid(svg){
  const g=svg.querySelector('#gridLayer');if(!g)return;g.replaceChildren();if(!state.grid)return;
@@ -1314,9 +1365,10 @@ function addExplicitPrintGrid(svg){
 }
 function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previewLayer')?.remove();standardizeExportLabels(cl);cl.removeAttribute('id');cl.setAttribute('width','297mm');cl.setAttribute('height','420mm');addExplicitPrintGrid(cl);$('printSheet').replaceChildren(cl);window.print();}
 function importJSON(file){file.text().then(txt=>{try{const obj=JSON.parse(txt);if(!Array.isArray(obj.entities)||obj.entities.length>5000)throw Error('Некоректна структура проєкту');for(const e of obj.entities){if(!['point','line','path','circle','angle','shape','dimension'].includes(e.type))throw Error('Невідомий тип об’єкта');if(e.type==='point'&&(!Number.isFinite(e.x)||!Number.isFinite(e.y)))throw Error('Некоректні координати');if(['path','shape','angle'].includes(e.type)&&(!Array.isArray(e.points)||e.points.length>3000||!e.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))))throw Error('Некоректні точки фігури');}
- saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
+ saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};state.pointScale=normalizedPointScale(obj.pointScale);render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
 function init(){
  initializeSelectedStyleUI();
+ initializeGlobalPointSize();
  initializeExtensionUI();
  const restored=loadLocal();if(!restored){state.entities=[];state.paperMode='blank';state.mode='manual';state.step=0;state.counter=0;taskResult=null;log('Новий аркуш');}else{if(state.paperMode==='example')taskResult=computeTask(state.coords3);render();}
  document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
