@@ -434,5 +434,71 @@ function init(){
  $('modeManual').classList.toggle('active',state.mode==='manual');$('modeAuto').classList.toggle('active',state.mode==='auto');$('autoStrip').classList.toggle('hidden',state.mode!=='auto');$('statusMode').textContent=state.mode==='auto'?'Автопобудова':'Креслення';
  requestAnimationFrame(()=>{fitPaper();needFit=false;render();});
 }
+
+/* Task 5: safe bridge for the two triangle-construction workflows */
+window.GeometryStudioTriangleAPI={
+ nextLabels(){
+  const used=new Set(state.entities.filter(e=>e.type==='point').map(e=>e.label));
+  for(let i=0;i<50;i++){
+   const suffix=i===0?'':i<=3?'′'.repeat(i):'_'+(i+1);
+   const names=['A','B','C'].map(x=>x+suffix);
+   if(names.every(n=>!used.has(n+'1')&&!used.has(n+'2')))return names;
+  }
+  throw Error('Надто багато трикутників на одному аркуші.');
+ },
+ validateVertex(p){
+  if(!p||!['x','y','z'].every(k=>Number.isFinite(p[k])))throw Error('Введи числові значення X, Y, Z.');
+  const a=p1(p),b=p2(p);
+  if([a,b].some(q=>q.x<0||q.x>A3.width||q.y<0||q.y>A3.height))throw Error('Точка поза межами аркуша A3. Зміни координати.');
+  return {a,b};
+ },
+ validateTriangle(points){
+  if(!Array.isArray(points)||points.length!==3)throw Error('Трикутнику потрібні три точки.');
+  points.forEach(p=>this.validateVertex(p));
+  const n=cross3(sub3(points[1],points[0]),sub3(points[2],points[0]));
+  if(sq3(n)<1e-8)throw Error('Точки лежать на одній прямій. Зміни координати.');
+ },
+ addVertex(label,p){
+  const {a,b}=this.validateVertex(p);
+  if(state.mode==='auto')setMode('manual');
+  saveUndo('Нанесено точку '+label);
+  const plan=addPoint(label+'1',a,{color:COLORS.base});
+  const front=addPoint(label+'2',b,{color:COLORS.base});
+  addLine(plan,front,{color:COLORS.guide,width:.32,dash:'dashed',kind:'projection'});
+  state.pending=null;state.selected=null;render();return {plan,front,label};
+ },
+ updateVertex(pair,p){
+  const {a,b}=this.validateVertex(p);
+  const q1=get(pair?.plan),q2=get(pair?.front);
+  if(q1?.type!=='point'||q2?.type!=='point')throw Error('Ці точки більше не існують на аркуші.');
+  saveUndo('Оновлено точку '+pair.label);
+  Object.assign(q1,a);Object.assign(q2,b);render();return pair;
+ },
+ connectTriangle(pairs,points){
+  this.validateTriangle(points);
+  if(!pairs.every(v=>get(v?.plan)?.type==='point'&&get(v?.front)?.type==='point'))throw Error('Не знайдено всі вершини трикутника.');
+  saveUndo('З’єднано вершини трикутника');
+  for(const suffix of ['plan','front'])for(const [i,j] of [[0,1],[1,2],[2,0]]){
+   addLine(pairs[i][suffix],pairs[j][suffix],{color:COLORS.base,width:.8,kind:'triangle'});
+  }
+  state.selected=null;state.pending=null;render();return true;
+ },
+ createTriangle(points){
+  this.validateTriangle(points);
+  if(state.mode==='auto')setMode('manual');
+  const names=this.nextLabels();
+  saveUndo('Побудовано трикутник ABC за координатами');
+  const pairs=points.map((p,i)=>{
+   const a=p1(p),b=p2(p),plan=addPoint(names[i]+'1',a,{color:COLORS.base}),front=addPoint(names[i]+'2',b,{color:COLORS.base});
+   addLine(plan,front,{color:COLORS.guide,width:.32,dash:'dashed',kind:'projection'});
+   return {plan,front,label:names[i]};
+  });
+  for(const suffix of ['plan','front'])for(const [i,j] of [[0,1],[1,2],[2,0]]){
+   addLine(pairs[i][suffix],pairs[j][suffix],{color:COLORS.base,width:.8,kind:'triangle'});
+  }
+  state.selected=null;state.pending=null;render();return pairs;
+ }
+};
+
 init();
 })();
