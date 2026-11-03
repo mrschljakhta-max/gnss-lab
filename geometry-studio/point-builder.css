@@ -1,0 +1,49 @@
+/* Geometry Studio — precise point positioning, task 5 */
+.point-panel{
+ position:fixed;right:15px;top:72px;bottom:16px;z-index:43;
+ display:flex;flex-direction:column;width:min(365px,calc(100vw - 30px));
+ border:1px solid #d7e5ed;border-radius:18px;background:rgba(253,254,255,.99);
+ box-shadow:0 18px 50px #102b4438;overflow:hidden;
+ visibility:hidden;pointer-events:none;transform:translateX(calc(100% + 32px));
+ transition:transform .23s cubic-bezier(.2,.75,.2,1),visibility .23s;
+}
+.point-panel.open{visibility:visible;pointer-events:auto;transform:translateX(0)}
+.point-panel__header{padding:18px 19px 15px;display:flex;align-items:start;justify-content:space-between;border-bottom:1px solid #e5edf3}
+.point-panel__eyebrow{font-size:9px;letter-spacing:1.35px;color:#0b8390;font-weight:800;text-transform:uppercase}
+.point-panel__title{font-size:19px;line-height:1.25;color:#19354b;margin:5px 0 0}
+.point-panel__close{width:30px;height:30px;background:#f0f6f8;color:#58748b;border:0;border-radius:9px;font-size:21px;cursor:pointer}
+.point-panel__close:hover{background:#e2f0f2}
+.point-panel__tabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:12px 15px;border-bottom:1px solid #e5edf3}
+.point-panel__tab{border:1px solid #e1ebf0;border-radius:9px;background:#f4f7fa;color:#638098;padding:10px 5px;font-size:12px;font-weight:650;cursor:pointer}
+.point-panel__tab[aria-selected="true"]{background:#e4f5f5;border-color:#a4d4d6;color:#086e79}
+.point-panel__content{min-height:0;overflow:auto;padding:18px 18px 23px;overscroll-behavior:contain}
+.point-panel__mode[hidden]{display:none!important}
+.point-panel__lead{font-size:12px;line-height:1.55;color:#647e91;margin:0 0 17px}
+.point-panel__field{display:flex;flex-direction:column;gap:6px;margin:0 0 13px;color:#48677d;font-size:11px;font-weight:650}
+.point-panel__field[hidden]{display:none!important}
+.point-panel__field input,.point-panel__field select{
+ width:100%;min-height:40px;padding:9px 12px;border:1px solid #d4e3eb;border-radius:9px;
+ background:#fff;color:#1f3c56;font-size:14px;line-height:1.2;outline:none;
+ font-variant-numeric:tabular-nums;
+}
+.point-panel__field input:focus,.point-panel__field select:focus{border-color:#61bec7;box-shadow:0 0 0 3px #37b5c11f}
+.point-panel__grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.point-panel__grid .point-panel__field{min-width:0}
+.point-panel__grid input{padding:10px;text-align:center;font-weight:700}
+.point-panel__preview{padding:12px 13px;margin:4px 0 17px;background:#f2f7fa;border:1px solid #e0eaf0;border-radius:11px;color:#36586c}
+.point-panel__preview strong{display:block;font-size:11px;margin-bottom:6px;color:#315269}
+.point-panel__preview div{font-size:12px;line-height:1.7;font-weight:650;font-variant-numeric:tabular-nums}
+.point-panel__action{
+ width:100%;border:0;background:#087f87;color:#fff;border-radius:10px;
+ min-height:44px;padding:12px;font-size:12px;font-weight:750;cursor:pointer;
+ transition:background .16s ease,transform .16s ease
+}
+.point-panel__action:hover{background:#066973;transform:translateY(-1px)}
+.point-panel__action.secondary{background:#eef5f8;border:1px solid #d6e4eb;color:#365e72}
+.point-panel__action.secondary:hover{background:#e2eff4}
+.point-panel__note{font-size:10px;line-height:1.55;color:#7a91a1;margin:14px 0 0}
+.point-panel__error{margin:9px 0 0;font-size:12px;color:#b63c4c;font-weight:650;line-height:1.4}
+.point-panel__error:empty{display:none}
+.point-panel__example{color:#0a777c;font-weight:700}
+@media(max-width:700px){.point-panel{top:61px;bottom:10px;right:9px;width:min(365px,calc(100vw - 18px))}}
+@media(prefers-reduced-motion:reduce){.point-panel{transition:none!important}}
