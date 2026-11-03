@@ -486,7 +486,7 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
  updateStepUI();
 }
 function updateStepUI(){let step=state.step;$('stepTitle').textContent=STEPS[step][0];$('stepDescription').textContent=STEPS[step][1];$('stepCount').textContent=`${String(step+1).padStart(2,'0')} / 07`;$('stepRange').value=String(step);$('stepPrev').disabled=step===0;$('stepNext').disabled=step===6;$('stepNext').textContent=step===6?'Завершено ✓':'Далі →';$('docName').textContent=state.paperMode==='blank'?'Нове креслення':'Відстань від точки до площини';$('docVariant').textContent=state.paperMode==='blank'?'A3 • клітинка 5 мм':'Варіант 15';$('canvasHelp').textContent=state.mode==='auto'?STEPS[step][1]:manualHint();}
-function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Esc — скасувати.';if(['perp','parallel'].includes(state.tool))return 'Тепер натисніть на точку, через яку треба провести побудову.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
+function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Shift — строго горизонтально (0°) або вертикально (90°). Esc — скасувати.';if(['perp','parallel'].includes(state.tool))return 'Тепер натисніть на точку, через яку треба провести побудову.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
  return ({pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',circle:'Вкажіть центр кола, потім точку на його окружності.',rectangle:'Вкажіть дві протилежні вершини прямокутника.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Оберіть опорну пряму, потім точку для перпендикуляра.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
 function render(){redraw();renderInspector();saveLocalDebounced();}
 window.GeometryStudioViewportAPI={
@@ -536,6 +536,44 @@ function snapped(p){const existing=nearestPoint(p,4);if(existing)return {x:exist
 function ensurePoint(world){const pt=snapped(world);if(pt.id)return pt.id;const p=nearestPoint(pt,.4);if(p)return p.id;return addPoint(`P${state.counter+1}`,pt,{color:state.style.color});}
 function lineCandidateFromEvent(ev,world){const id=ev.target.getAttribute('data-id');const e=get(id);if(e?.type==='line')return e;let winner=null,dist=4;for(const l of state.entities){if(l.type!=='line'||!visibleEntity(l))continue;const v=linePoints(l);if(!v)continue;const foot=foot2(world,v.a,v.b);if(!foot)continue;const segV=minus(v.b,v.a),t=dot(minus(foot,v.a),segV)/dot(segV,segV);if(l.extent==='segment'&&(t<0||t>1))continue;const d=len(world,foot);if(d<dist){winner=l;dist=d;}}return winner;}
 function findClickEntity(ev,world){const el=ev.target.closest('[data-id]');let e=el?get(el.getAttribute('data-id')):null;if(!e){e=nearestPoint(world,3.5)||lineCandidateFromEvent(ev,world);}return e;}
+
+/* SHIFT geometry constraint: lock a straight segment to 0° or 90°
+   relative to the sheet's X/Y axes. Constrain after the start is chosen. */
+function isStraightDrawingTool(tool){return tool==='segment'||tool==='ruler'||tool==='line';}
+function constrainedStraightEndpoint(start,raw){
+ const horizontal=Math.abs(raw.x-start.x)>=Math.abs(raw.y-start.y);
+ const free=horizontal?raw.x:raw.y;
+ const aligned=state.snap?Math.round(free/state.snap)*state.snap:free;
+ return horizontal
+  ?{x:clamp(aligned,0,A3.width),y:start.y,axis:'horizontal'}
+  :{x:start.x,y:clamp(aligned,0,A3.height),axis:'vertical'};
+}
+function ensureExactPointWithUndo(pos){
+ const at=nearestPoint(pos,.25);
+ if(at)return at.id;
+ saveUndo('Додано опорну точку');
+ return addPoint(`P${state.counter+1}`,pos,{color:state.style.color});
+}
+function renderStraightPreview(world,holdingShift){
+ if(!isStraightDrawingTool(state.tool)||!state.pending?.start)return;
+ const start=pointOf(state.pending.start);
+ if(!start)return;
+ const preview=$('previewLayer');
+ preview.replaceChildren();
+ makeSVG('circle',{cx:start.x,cy:start.y,r:3,stroke:'#0d9fa9','stroke-width':.8,fill:'none','stroke-dasharray':'1.7 1.3'},preview);
+ if(!world||!Number.isFinite(world.x)||!Number.isFinite(world.y))return;
+ const endpoint=holdingShift?constrainedStraightEndpoint(start,world):snapped(world);
+ if(len(start,endpoint)<.15)return;
+ makeSVG('line',{x1:start.x,y1:start.y,x2:endpoint.x,y2:endpoint.y,stroke:'#087d94','stroke-width':.95,'stroke-dasharray':'3 1.5','stroke-linecap':'round','pointer-events':'none'},preview);
+ makeSVG('circle',{cx:endpoint.x,cy:endpoint.y,r:1.7,fill:'#f5ffff',stroke:'#087d94','stroke-width':.7,'pointer-events':'none'},preview);
+ if(holdingShift){
+  const label=endpoint.axis==='horizontal'?'0°  ·  горизонталь':'90°  ·  вертикаль';
+  const x=clamp(endpoint.x+3,5,235),y=clamp(endpoint.y-3,7,412);
+  const t=makeSVG('text',{x,y,fill:'#0b6575',stroke:'#fff','stroke-width':1.3,'paint-order':'stroke','font-family':'Arial, sans-serif','font-size':4.3,'font-weight':700,'pointer-events':'none'},preview);
+  t.textContent=label;
+ }
+}
+
 function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(state.tool==='pan'||state.mode==='auto')return;const p=screenToWorld(ev);if(!p||p.x<0||p.x>A3.width||p.y<0||p.y>A3.height)return;const entity=findClickEntity(ev,p);
  if(['compass','circle','rectangle','protractor','curve','shapes','square','dimension','projection'].includes(state.tool)){handleDraftingClicks(state.tool,p,ev);return;}
  if(state.tool==='select'){state.selected=entity?.id||null;render();return;}
@@ -543,7 +581,11 @@ function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(stat
  if(state.tool==='point'){saveUndo('Додано точку');const id=ensurePoint(p);state.selected=id;render();return;}
  if(['segment','line','ruler'].includes(state.tool)){
   if(!state.pending){state.pending={start:ensurePointWithUndo(p)};render();return;}
-  const end=ensurePointWithUndo(p);const first=state.pending.start;
+  const first=state.pending.start;
+  const origin=pointOf(first);
+  const endpoint=ev.shiftKey&&origin?constrainedStraightEndpoint(origin,p):p;
+  if(!origin||len(origin,endpoint)<.15){toast('Оберіть іншу точку');return;}
+  const end=ev.shiftKey?ensureExactPointWithUndo(endpoint):ensurePointWithUndo(endpoint);
   if(first===end){toast('Оберіть іншу точку');return;}
   saveUndo(`Побудовано ${state.tool==='line'?'пряму':'відрізок'}`);state.selected=addLine(first,end,{extent:state.tool==='line'?'line':'segment',...state.style});state.pending=null;render();return;
  }
@@ -624,7 +666,7 @@ function init(){
  document.addEventListener('pointerdown',e=>{if(drawerIsOpen()&&!drawer.contains(e.target)&&e.target!==edge)closeDrawer(); const toolsFab=$('toolsFab'), toolsPopover=toolMenuEl(); if(toolMenuIsOpen()&&toolsPopover&&!toolsPopover.contains(e.target)&&e.target!==toolsFab&&!toolsFab?.contains(e.target))closeToolMenu(); const shapesFab=$('shapesFab'),shapesPopover=shapeMenuEl();if(shapeMenuIsOpen()&&shapesPopover&&!shapesPopover.contains(e.target)&&!shapesFab?.contains(e.target))closeShapeMenu();});
  const isHoverless=matchMedia('(hover:none)');if(isHoverless.matches){edge.setAttribute('title','Натисни, щоб відкрити інструменти');}
 
- const viewport=$('canvasViewport'),svg=$('sheet');let down=null;let suppressClick=false;const touchPointers=new Map();let pinch=null;
+ const viewport=$('canvasViewport'),svg=$('sheet');let down=null;let suppressClick=false;let lastStraightCursor=null,shiftPreviewHeld=false;const touchPointers=new Map();let pinch=null;
  svg.addEventListener('click',e=>{if(suppressClick){suppressClick=false;return;}onCanvasClick(e);});
  svg.addEventListener('contextmenu',e=>{e.preventDefault();state.pending=null;render();});
  svg.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
@@ -637,7 +679,7 @@ function init(){
    }
   }
   if(e.button!==0&&e.button!==1)return;
-  const forcedPan=e.button===1||e.shiftKey||state.tool==='pan';
+  const forcedPan=e.button===1||state.tool==='pan'||(e.shiftKey&&!isStraightDrawingTool(state.tool));
   if(state.tool==='pencil'&&state.mode==='manual'&&!forcedPan){const world=screenToWorld(e);if(world){state.stroke={pointerId:e.pointerId,points:[world]};svg.setPointerCapture(e.pointerId);e.preventDefault();return;}}
   const world=screenToWorld(e);const entity=world?findClickEntity(e,world):null;
   const dragPoint=state.mode==='manual'&&state.tool==='select'&&entity?.type==='point'&&!entity.derivation?entity:null;
@@ -650,7 +692,7 @@ function init(){
   if(e.pointerType==='touch'&&touchPointers.has(e.pointerId))touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pinch&&touchPointers.size>=2){const [a,b]=[...touchPointers.values()];const newDist=Math.hypot(a.x-b.x,a.y-b.y);const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};const bounds=viewport.getBoundingClientRect();
    state.zoom=clamp(pinch.zoom*newDist/Math.max(1,pinch.distance),.38,3.5);state.pan={x:midpoint.x-bounds.left-pinch.paperX*state.zoom,y:midpoint.y-bounds.top-pinch.paperY*state.zoom};updatePaperTransform();suppressClick=true;return;}
-  const world=screenToWorld(e);if(world)$('cursorCoords').textContent=`X: ${fmt(world.x,1)} мм · Y: ${fmt(world.y,1)} мм`;
+  const world=screenToWorld(e);if(world){$('cursorCoords').textContent=`X: ${fmt(world.x,1)} мм · Y: ${fmt(world.y,1)} мм`;lastStraightCursor=world;if(isStraightDrawingTool(state.tool)&&state.pending?.start)renderStraightPreview(world,e.shiftKey||shiftPreviewHeld);}
   if(!down&&world&&state.tool!=='pencil')viewport.classList.toggle('can-pan',!findClickEntity(e,world));
   if(!down)return;const dx=e.clientX-down.startX,dy=e.clientY-down.startY;
   if(Math.hypot(dx,dy)>4)down.moved=true;
@@ -681,6 +723,13 @@ function init(){
  viewport.addEventListener('pointerup',e=>{if(emptyDrag?.id===e.pointerId)emptyDrag=null;});
  viewport.addEventListener('pointercancel',()=>{emptyDrag=null;});
 
+ document.addEventListener('keydown',e=>{
+  if(e.key==='Shift'&&!e.repeat){shiftPreviewHeld=true;if(lastStraightCursor)renderStraightPreview(lastStraightCursor,true);}
+ });
+ document.addEventListener('keyup',e=>{
+  if(e.key==='Shift'){shiftPreviewHeld=false;if(lastStraightCursor)renderStraightPreview(lastStraightCursor,false);}
+ });
+ window.addEventListener('blur',()=>{shiftPreviewHeld=false;});
  document.addEventListener('keydown',e=>{if(e.key==='Tab'&&!e.shiftKey&&!drawerIsOpen()&&(!document.activeElement||document.activeElement===document.body||document.activeElement===edge)){e.preventDefault();openDrawer();$('drawerClose').focus();return;}if(['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName))return;
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){e.preventDefault();undo();return;}
  if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){e.preventDefault();redo();return;}
