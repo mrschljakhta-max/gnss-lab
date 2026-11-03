@@ -668,26 +668,26 @@ function init(){
 
  const viewport=$('canvasViewport'),svg=$('sheet');let down=null;let suppressClick=false;let lastStraightCursor=null,shiftPreviewHeld=false;const touchPointers=new Map();let pinch=null;
  viewport.addEventListener('click',e=>{if(suppressClick){suppressClick=false;return;}if(e.button===0)onCanvasClick(e);});
- svg.addEventListener('contextmenu',e=>{e.preventDefault();state.pending=null;render();});
- svg.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
- svg.addEventListener('pointerdown',e=>{
+ viewport.addEventListener('contextmenu',e=>{e.preventDefault();state.pending=null;render();});
+ viewport.addEventListener('auxclick',e=>{if(e.button===1)e.preventDefault();});
+ viewport.addEventListener('pointerdown',e=>{
   if(e.pointerType==='touch'){
    touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
    if(touchPointers.size===2){
     const [a,b]=[...touchPointers.values()];const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};const bounds=viewport.getBoundingClientRect();
-    pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom:state.zoom,paperX:(midpoint.x-bounds.left-state.pan.x)/state.zoom,paperY:(midpoint.y-bounds.top-state.pan.y)/state.zoom};down=null;svg.setPointerCapture(e.pointerId);return;
+    pinch={distance:Math.hypot(a.x-b.x,a.y-b.y),zoom:state.zoom,paperX:(midpoint.x-bounds.left-state.pan.x)/state.zoom,paperY:(midpoint.y-bounds.top-state.pan.y)/state.zoom};down=null;viewport.setPointerCapture(e.pointerId);return;
    }
   }
   if(e.button!==0&&e.button!==1)return;
   const forcedPan=e.button===1||state.tool==='pan'||(state.tool==='select'&&!e.altKey);
-  if(state.tool==='pencil'&&state.mode==='manual'&&!forcedPan){const world=screenToWorld(e);if(world){state.stroke={pointerId:e.pointerId,points:[world]};svg.setPointerCapture(e.pointerId);e.preventDefault();return;}}
+  if(state.tool==='pencil'&&state.mode==='manual'&&!forcedPan){const world=screenToWorld(e);if(world){state.stroke={pointerId:e.pointerId,points:[world]};viewport.setPointerCapture(e.pointerId);e.preventDefault();return;}}
   const world=screenToWorld(e);const entity=world?findClickEntity(e,world):null;
   const dragPoint=state.mode==='manual'&&state.tool==='select'&&e.altKey&&entity?.type==='point'&&!entity.derivation?entity:null;
   down={startX:e.clientX,startY:e.clientY,panX:state.pan.x,panY:state.pan.y,dragPoint:forcedPan?null:dragPoint?.id,original:dragPoint&&!forcedPan?{x:dragPoint.x,y:dragPoint.y}:null,backgroundPan:forcedPan,moved:false,world};
   if(forcedPan){e.preventDefault();viewport.classList.add('panning');}
-  svg.setPointerCapture(e.pointerId);
+  viewport.setPointerCapture(e.pointerId);
  });
- svg.addEventListener('pointermove',e=>{
+ viewport.addEventListener('pointermove',e=>{
   if(state.stroke&&state.stroke.pointerId===e.pointerId){const p=screenToWorld(e);if(p){const points=state.stroke.points;if(len(points[points.length-1],p)>.6){points.push({x:clamp(p.x,0,297),y:clamp(p.y,0,420)});const preview=$('previewLayer');preview.replaceChildren();makeSVG('polyline',{points:points.map(q=>q.x+','+q.y).join(' '),fill:'none',stroke:state.style.color,'stroke-width':state.style.width,'stroke-linecap':'round','stroke-linejoin':'round'},preview);}}return;}
   if(e.pointerType==='touch'&&touchPointers.has(e.pointerId))touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pinch&&touchPointers.size>=2){const [a,b]=[...touchPointers.values()];const newDist=Math.hypot(a.x-b.x,a.y-b.y);const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};const bounds=viewport.getBoundingClientRect();
@@ -700,7 +700,7 @@ function init(){
   if(down.backgroundPan){state.pan={x:down.panX+dx,y:down.panY+dy};updatePaperTransform();viewport.classList.add('panning');suppressClick=true;}
   else if(down.dragPoint){const p=get(down.dragPoint);if(p&&world){const candidate=state.snap?{x:Math.round(world.x/state.snap)*state.snap,y:Math.round(world.y/state.snap)*state.snap}:world;p.x=clamp(candidate.x,0,297);p.y=clamp(candidate.y,0,420);redraw();suppressClick=true;}}
  });
- svg.addEventListener('pointerup',e=>{
+ viewport.addEventListener('pointerup',e=>{
   if(state.stroke&&state.stroke.pointerId===e.pointerId){const pts=state.stroke.points;state.stroke=null;if(pts.length>=2){recordPrimitive('path',{points:pts},'Проведено олівцем');}else{$('previewLayer').replaceChildren();}down=null;suppressClick=true;setTimeout(()=>{suppressClick=false;},0);return;}
   if(e.pointerType==='touch'){touchPointers.delete(e.pointerId);if(pinch){if(touchPointers.size<2)pinch=null;down=null;suppressClick=true;setTimeout(()=>{suppressClick=false;},0);return;}}
   if(down?.moved&&!down.backgroundPan&&!down.dragPoint&&state.mode==='manual'){
@@ -719,23 +719,9 @@ function init(){
   if(down?.dragPoint&&down.moved){const p=get(down.dragPoint);if(p&&down.original&&len(p,down.original)>.001){const after={x:p.x,y:p.y};p.x=down.original.x;p.y=down.original.y;saveUndo(`Переміщено точку ${p.label}`);p.x=after.x;p.y=after.y;state.selected=p.id;render();}}
   if(down?.moved){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}down=null;viewport.classList.remove('panning');
  });
- svg.addEventListener('pointercancel',e=>{state.stroke=null;$('previewLayer').replaceChildren();touchPointers.delete(e.pointerId);if(touchPointers.size<2)pinch=null;down=null;viewport.classList.remove('panning');});
+ viewport.addEventListener('pointercancel',e=>{state.stroke=null;$('previewLayer').replaceChildren();touchPointers.delete(e.pointerId);if(touchPointers.size<2)pinch=null;down=null;viewport.classList.remove('panning');});
  viewport.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();moveZoom(e.deltaY<0?1.1:1/1.1,{x:e.clientX,y:e.clientY});},{passive:false});
- // On graph-paper area beyond the A3 drawing viewport, drag to pan the sheet.
- let emptyDrag=null;
- viewport.addEventListener('pointerdown',e=>{
-   if(e.target.closest('#paperWrap')||(e.button!==0&&e.button!==1)||((state.tool!=='select'&&state.tool!=='pan')&&e.button!==1))return;
-   emptyDrag={x:e.clientX,y:e.clientY,panX:state.pan.x,panY:state.pan.y,id:e.pointerId};
-   viewport.setPointerCapture(e.pointerId);
- });
- viewport.addEventListener('pointermove',e=>{
-   if(!emptyDrag||e.pointerId!==emptyDrag.id)return;
-   state.pan={x:emptyDrag.panX+e.clientX-emptyDrag.x,y:emptyDrag.panY+e.clientY-emptyDrag.y};
-   updatePaperTransform();
- });
- viewport.addEventListener('pointerup',e=>{if(emptyDrag?.id===e.pointerId)emptyDrag=null;});
- viewport.addEventListener('pointercancel',()=>{emptyDrag=null;});
-
+ // All drawing, point selection, and pan gestures use the complete viewport.
  document.addEventListener('keydown',e=>{
   if(e.key==='Shift'&&!e.repeat){shiftPreviewHeld=true;if(lastStraightCursor)renderStraightPreview(lastStraightCursor,true);}
  });
