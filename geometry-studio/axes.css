@@ -51,3 +51,29 @@
   .axes-fab__icon{width:19px;height:19px}
 }
 @media(prefers-reduced-motion:reduce){.axes-popover{transition:none}}
+/* Numbered X-axis scale — compact controls live inside the Axes picker. */
+.axis-scale-controls{
+ margin-top:12px;padding:12px 11px 10px;background:#f1f7fa;
+ border:1px solid #deebf0;border-radius:11px;display:grid;gap:10px
+}
+.axis-scale-controls__head{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.axis-scale-controls__head strong{font-size:12px;color:#2b5368}
+.axis-scale-controls__head span{font-size:10px;color:#7893a7}
+.axis-scale-controls__select{display:grid;gap:5px;color:#52728a;font-size:11px;font-weight:600}
+.axis-scale-controls__select select{
+ width:100%;min-height:37px;border:1px solid #cedee8;border-radius:8px;
+ padding:7px 9px;color:#21425c;background:#fff;font:inherit;outline:none;cursor:pointer
+}
+.axis-scale-controls__select select:focus-visible{outline:2px solid #1594a1;outline-offset:2px}
+.axis-scale-controls__check{display:flex;align-items:flex-start;gap:8px;color:#4c6c82;font-size:11px;line-height:1.4;cursor:pointer}
+.axis-scale-controls__check input{width:15px;height:15px;flex:none;margin:0;accent-color:#0b8796;cursor:pointer}
+.axis-scale-controls p{margin:0;color:#7894a7;font-size:10px;line-height:1.45}
+#axesLayer .coordinate-scale-tick,
+#axesLayer .coordinate-axis-intersection{shape-rendering:geometricPrecision}
+#axesLayer .coordinate-scale-number,
+#axesLayer .coordinate-intersection-label{
+ font-family:Arial,sans-serif;font-weight:600;
+ paint-order:stroke;stroke-linejoin:round;
+ text-rendering:geometricPrecision
+}
+#axesLayer .coordinate-intersection-label{font-weight:700}
