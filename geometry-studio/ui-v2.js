@@ -79,5 +79,5 @@
   const unchanged=previous?.paperMode==='example'&&previous?.mode==='auto'&&
     JSON.stringify(previous.coords3)===JSON.stringify(defaults)&&
     (previous.history||[]).every(item=>item.msg==='Завантажено варіант 15');
-  if(!previous||unchanged)requestAnimationFrame(()=>{document.getElementById('btnNew').click();close()});
+  if(!previous||unchanged)requestAnimationFrame(()=>{document.getElementById('btnNew').click();document.getElementById('toast')?.classList.remove('show');close()});
 })();
