@@ -269,3 +269,36 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 #canvasViewport #previewLayer text{ text-rendering:geometricPrecision; }
 /* A drop shadow applies a raster blur to precision strokes; use the exact vector stroke. */
 #canvasViewport .selected-drawing{filter:none!important;}
+
+/* Precision drafting: extend selected segment to a named intersection. */
+.selected-style-panel{max-height:calc(100dvh - 187px);overflow-y:auto}
+.extend-controls{border-top:1px solid #e3ecf1;padding-top:13px;margin-top:14px}
+.extend-controls[hidden],.extend-options[hidden]{display:none!important}
+.extend-start{display:flex;align-items:center;justify-content:center;gap:7px;width:100%;
+ background:#e6f5f5;color:#087a84;border:1px solid #a5d2d6;border-radius:9px;
+ padding:11px 10px;font-size:12px;font-weight:750;cursor:pointer}
+.extend-start:hover{background:#d6eeee}
+.extend-start span{font-size:17px;line-height:12px}
+.extend-options{padding:12px 0 0}
+.extend-caption{font-size:11px;color:#45657b;font-weight:750;margin:2px 0 8px}
+.extend-endpoints{display:flex;gap:8px;margin-bottom:14px}
+.extend-endpoints button{flex:1;min-width:0;background:#f4f9fa;color:#48677b;
+ border:1px solid #d7e6ec;border-radius:8px;padding:9px 5px;font-size:12px;font-weight:700;cursor:pointer}
+.extend-endpoints button[aria-pressed="true"]{background:#ddf2f1;color:#086d76;border-color:#84c7cb}
+.extend-field{display:flex;flex-direction:column;gap:6px;font-size:11px;font-weight:700;color:#45657b;margin-bottom:14px}
+.extend-field input{width:100%;height:37px;border:1px solid #d4e4ea;border-radius:8px;padding:8px 10px;background:#fff;color:#213e55;font-size:14px;outline:none}
+.extend-field input:focus{border-color:#2a9aa8;box-shadow:0 0 0 3px #20a9bb1a}
+.extend-radio{display:grid;gap:7px;margin-bottom:12px}
+.extend-radio label{font-size:11px;color:#4a677a;display:flex;align-items:center;gap:7px;cursor:pointer}
+.extend-radio input{accent-color:#07858c}
+.extend-status{font-size:11px;line-height:1.5;color:#526e81;background:#f2f7fa;border-radius:8px;padding:9px 10px;margin:0 0 12px}
+.extend-status.error{color:#ab3a48;background:#fff1f2}
+.extend-status.ready{color:#0a797a;background:#e6f5f0}
+.extend-actions{display:flex;gap:7px}
+.extend-actions button{border-radius:9px;min-height:37px;padding:8px 7px;font-size:11px;font-weight:700;cursor:pointer}
+.extend-apply{flex:1;border:0;background:#088992;color:white}
+.extend-apply:hover{background:#08727b}
+.extend-cancel{border:1px solid #d8e6ec;background:white;color:#647e90}
+#canvasViewport.extend-picking{cursor:crosshair!important}
+#canvasViewport.extend-picking .selected-drawing{filter:none}
+@media(max-width:700px){.selected-style-panel{max-height:calc(100dvh - 84px)}}
