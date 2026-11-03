@@ -762,6 +762,7 @@ window.GeometryStudioTriangleAPI={
 
 /* Coordinate point entry for Task 5 and independent Π₁ / Π₂ points. */
 window.GeometryStudioPointAPI={
+ prepareCoordinate(){setTool('select');},
  create({name,view='both',x,y,z}={}){
   const label=String(name??'').trim();
   if(!/^[A-Za-zА-Яа-яІіЇїЄєҐґ][A-Za-zА-Яа-яІіЇїЄєҐґ0-9_'′-]{0,11}$/.test(label)){
