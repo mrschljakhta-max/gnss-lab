@@ -73,6 +73,11 @@
   $('#showGrid').addEventListener('change',alignGrid);
   requestAnimationFrame(()=>{$('#zoomReset').click();alignGrid()});
   // On a new visit begin with blank graph paper; projects previously saved stay intact.
-  const savedBefore=window.__geometrySavedBefore;
-  if(savedBefore===false) requestAnimationFrame(()=>{document.getElementById('btnNew').click();close()});
+  let previous=null;
+  try{previous=JSON.parse(window.__geometrySaveSnapshot||'null')}catch(e){}
+  const defaults={A:{x:180,y:80,z:10},B:{x:70,y:5,z:13},C:{x:55,y:95,z:65},D:{x:100,y:10,z:25}};
+  const unchanged=previous?.paperMode==='example'&&previous?.mode==='auto'&&
+    JSON.stringify(previous.coords3)===JSON.stringify(defaults)&&
+    (previous.history||[]).every(item=>item.msg==='Завантажено варіант 15');
+  if(!previous||unchanged)requestAnimationFrame(()=>{document.getElementById('btnNew').click();close()});
 })();
