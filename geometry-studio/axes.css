@@ -52,6 +52,7 @@
 }
 @media(prefers-reduced-motion:reduce){.axes-popover{transition:none}}
 /* Numbered X-axis scale — compact controls live inside the Axes picker. */
+.axes-popover{max-height:calc(100dvh - 84px);overflow-y:auto;overscroll-behavior:contain}
 .axis-scale-controls{
  margin-top:12px;padding:12px 11px 10px;background:#f1f7fa;
  border:1px solid #deebf0;border-radius:11px;display:grid;gap:10px
