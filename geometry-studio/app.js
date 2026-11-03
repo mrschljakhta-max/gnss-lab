@@ -549,7 +549,7 @@ function constrainedStraightEndpoint(start,raw){
   :{x:start.x,y:clamp(aligned,0,A3.height),axis:'vertical'};
 }
 function ensureExactPointWithUndo(pos){
- const at=nearestPoint(pos,.25);
+ const at=state.entities.find(e=>e.type==='point'&&Math.hypot(e.x-pos.x,e.y-pos.y)<1e-7);
  if(at)return at.id;
  saveUndo('Додано опорну точку');
  return addPoint(`P${state.counter+1}`,pos,{color:state.style.color});
