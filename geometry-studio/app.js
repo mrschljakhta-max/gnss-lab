@@ -89,7 +89,7 @@ function linePoints(l){if(!l||l.type!=='line')return null;const a=pointOf(l.a),b
 function addPrimitive(type,geometry,opt={}){const obj={id:nextId(),type,...geometry,color:opt.color||state.style.color,dash:opt.dash||state.style.dash,width:opt.width??state.style.width,stage:0,label:opt.label||''};state.entities.push(obj);return obj.id;}
 function entityTitle(e){const labels={point:'Точка',line:e?.extent==='line'?'Пряма':'Відрізок',path:'Олівець',circle:'Коло',angle:'Кут',shape:'Фігура',dimension:'Розмір'};return labels[e?.type]||'Об’єкт';}
 function renderPrimitive(layer,e,selected=false){
- const col=selected?'#e89c23':(e.color||state.style.color),wide=selected?Math.max(1.2,e.width):e.width,dash=styleLine(e.dash);let el=null;
+ const col=e.color||state.style.color,wide=e.width??state.style.width,dash=styleLine(e.dash);let el=null;
  const pathAttrs={fill:'none',stroke:col,'stroke-width':wide,'stroke-dasharray':dash,'stroke-linecap':'round','stroke-linejoin':'round','data-id':e.id};
  if(e.type==='path'&&e.points?.length>=2){
   const d=e.curve&&e.points.length===3?`M ${e.points[0].x} ${e.points[0].y} Q ${e.points[1].x} ${e.points[1].y} ${e.points[2].x} ${e.points[2].y}`:'M '+e.points.map(p=>`${p.x} ${p.y}`).join(' L ');
@@ -115,6 +115,7 @@ function renderPrimitive(layer,e,selected=false){
   const mid=alpha+delta/2,t=plus(v,{x:(radius+6)*Math.cos(mid),y:(radius+6)*Math.sin(mid)});
   const label=makeSVG('text',{x:t.x,y:t.y,'text-anchor':'middle','font-size':4.3,'font-weight':'bold',fill:col,'paint-order':'stroke',stroke:'#fff','stroke-width':1.3},g);label.textContent=`${fmt(Math.abs(delta*180/Math.PI),1)}°`;
  }
+ if(selected&&el)el.classList.add('selected-drawing');
  return el;
 }
 function rectCorners(a,b){return [a,{x:b.x,y:a.y},b,{x:a.x,y:b.y}];}
@@ -440,12 +441,12 @@ function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints
  samples=samples.filter(p=>p.x>=ext.minX-.01&&p.x<=ext.maxX+.01&&p.y>=ext.minY-.01&&p.y<=ext.maxY+.01);
  if(samples.length>=2){a=samples[0];b=samples[1];}else return;
  }
- const line=makeSVG('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:selected?'#f59e0b':e.color,'stroke-width':selected?Math.max(e.width,1.1):e.width,'stroke-dasharray':styleLine(e.dash),'stroke-linecap':'round','data-id':interactive?e.id:undefined},parent);
+ const line=makeSVG('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:e.color||state.style.color,'stroke-width':e.width??state.style.width,'stroke-dasharray':styleLine(e.dash),'stroke-linecap':'round','data-id':interactive?e.id:undefined},parent);
  if(selected)line.classList.add('selected-drawing');
  if(interactive){makeSVG('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'transparent','stroke-width':5,'data-id':e.id},parent);}
  if(e.label){const m=plus(a,times(minus(b,a),.58));const label=makeSVG('text',{x:m.x+3,y:m.y-3,class:'line-label','pointer-events':'none'},parent);label.textContent=e.label;}
 }
-function drawPoint(parent,p,selected=false,interactive=true){const radius=p.small?1.1:1.5;makeSVG('circle',{cx:p.x,cy:p.y,r:selected?radius+1.0:radius,fill:selected?'#f59e0b':'#fff',stroke:selected?'#c66c0a':p.color,'stroke-width':p.small?.6:.75,'data-id':interactive?p.id:undefined},parent);if(interactive)makeSVG('circle',{cx:p.x,cy:p.y,r:3.8,fill:'transparent','data-id':p.id},parent);
+function drawPoint(parent,p,selected=false,interactive=true){const radius=p.small?1.1:1.5;if(selected)makeSVG('circle',{cx:p.x,cy:p.y,r:radius+1.3,fill:'none',stroke:'#e99624','stroke-width':.45,'pointer-events':'none'},parent);makeSVG('circle',{cx:p.x,cy:p.y,r:radius,fill:'#fff',stroke:p.color||COLORS.ink,'stroke-width':p.width??(p.small?.6:.75),'data-id':interactive?p.id:undefined},parent);if(interactive)makeSVG('circle',{cx:p.x,cy:p.y,r:3.8,fill:'transparent','data-id':p.id},parent);
  const metrics=pointLabelMetrics(),[dx,dy]=labelOffset(p,metrics);const text=makeSVG('text',{x:p.x+dx,y:p.y+dy,class:'point-label','data-point-id':p.id,'font-size':metrics.fontSize,'stroke-width':metrics.halo,'pointer-events':'none'},parent);text.textContent=printablePointLabel(p.label);}
 function legendText(parent,x,y,text,color='#5b6e83',size=3.3,weight='normal'){const t=makeSVG('text',{x,y,fill:color,'font-size':size,'font-family':'Arial,sans-serif','font-weight':weight,'pointer-events':'none'},parent);t.textContent=text;return t;}
 function baseDecor(layer){
@@ -522,7 +523,89 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
 function updateStepUI(){let step=state.step;$('stepTitle').textContent=STEPS[step][0];$('stepDescription').textContent=STEPS[step][1];$('stepCount').textContent=`${String(step+1).padStart(2,'0')} / 07`;$('stepRange').value=String(step);$('stepPrev').disabled=step===0;$('stepNext').disabled=step===6;$('stepNext').textContent=step===6?'Завершено ✓':'Далі →';$('docName').textContent=state.paperMode==='blank'?'Нове креслення':'Відстань від точки до площини';$('docVariant').textContent=state.paperMode==='blank'?'A3 • клітинка 5 мм':'Варіант 15';$('canvasHelp').textContent=state.mode==='auto'?STEPS[step][1]:manualHint();}
 function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Shift — строго горизонтально (0°) або вертикально (90°). Esc — скасувати.';if(['perp','parallel'].includes(state.tool))return 'Тепер натисніть на точку, через яку треба провести побудову.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
  return ({select:'Перетягуй полотно мишкою. Клацни об’єкт, щоб вибрати. Alt + перетягування — перемістити точку.',pan:'Перетягуй полотно мишкою.',pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',circle:'Вкажіть центр кола, потім точку на його окружності.',rectangle:'Вкажіть дві протилежні вершини прямокутника.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Оберіть опорну пряму, потім точку для перпендикуляра.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
-function render(){redraw();renderInspector();syncUndoControls();saveLocalDebounced();}
+
+/* Contextual style controls for already-drawn geometry. */
+let styleChangeSnapshot=null,styleChangeKind=null;
+function editableStyleTargets(){
+ if(state.tool!=='select'||state.mode!=='manual'||!state.selected)return [];
+ const selected=get(state.selected);
+ if(!selected||!visibleEntity(selected)||!['point','line','shape','circle','path','angle','dimension'].includes(selected.type))return [];
+ // A triangle is a single logical figure; its three connected edges share styling.
+ if(selected.type==='line'&&selected.kind==='triangle'){
+  const ids=new Set(connectedLinePointIds(selected));
+  const sides=state.entities.filter(e=>e.type==='line'&&e.kind==='triangle'&&visibleEntity(e)&&
+    typeof e.a==='string'&&typeof e.b==='string'&&ids.has(e.a)&&ids.has(e.b));
+  if(sides.length)return sides;
+ }
+ return [selected];
+}
+function updateSelectedStyleUI(){
+ const panel=$('selectedStylePanel');if(!panel)return;
+ const targets=editableStyleTargets();
+ panel.hidden=!targets.length;
+ if(!targets.length)return;
+ const selected=get(state.selected),current=targets[0];
+ const family=targets.length>1;
+ const title=family?'Трикутник · '+targets.length+' сторони':entityTitle(selected)+(selected.label?' · '+selected.label:'');
+ $('selectedStyleName').textContent=title;
+ $('selectedStyleScope').textContent=family?
+  'Колір і товщина застосовуються до всіх сторін цього трикутника.':
+  selected.type==='point'?'Зміни застосовуються до маркера вибраної точки.':
+  'Колір і товщина застосовуються до вибраної фігури.';
+ const color=(current.color||state.style.color||'#233c61').toLowerCase();
+ $('selectedStyleCustom').value=/^#[0-9a-f]{6}$/.test(color)?color:'#233c61';
+ document.querySelectorAll('.selected-style-swatch').forEach(btn=>
+  btn.setAttribute('aria-pressed',String(btn.dataset.styleColor?.toLowerCase()===color)));
+ const width=clamp(Number(current.width??(selected.type==='point'?.75:.65)),.2,3);
+ const slider=$('selectedStyleWidth');
+ if(document.activeElement!==slider)slider.value=String(width);
+ $('selectedStyleWidthValue').textContent=width.toLocaleString('uk-UA',{maximumFractionDigits:2})+' мм';
+}
+function mutateSelectedStyle(property,value){
+ const targets=editableStyleTargets();
+ if(!targets.length)return false;
+ for(const item of targets)item[property]=value;
+ return true;
+}
+function commitSelectedStyle(property,value){
+ const targets=editableStyleTargets();
+ if(!targets.length)return;
+ if(targets.every(item=>item[property]===value))return;
+ pushUndoBefore(snapshotForUndo(),property==='color'?'Змінено колір фігури':'Змінено товщину фігури');
+ mutateSelectedStyle(property,value);
+ render();
+}
+function beginStyleChange(property,value){
+ const targets=editableStyleTargets();
+ if(!targets.length)return;
+ if(!styleChangeSnapshot){styleChangeSnapshot=snapshotForUndo();styleChangeKind=property;}
+ mutateSelectedStyle(property,value);
+ redraw();
+ $('selectedStyleWidthValue').textContent=Number($('selectedStyleWidth').value).toLocaleString('uk-UA',{maximumFractionDigits:2})+' мм';
+}
+function endStyleChange(property,value){
+ if(!styleChangeSnapshot){commitSelectedStyle(property,value);return;}
+ mutateSelectedStyle(property,value);
+ const changed=styleChangeSnapshot!==snapshotForUndo();
+ if(changed)pushUndoBefore(styleChangeSnapshot,property==='color'?'Змінено колір фігури':'Змінено товщину фігури');
+ styleChangeSnapshot=null;styleChangeKind=null;
+ render();
+}
+function initializeSelectedStyleUI(){
+ const panel=$('selectedStylePanel');if(!panel)return;
+ $('selectedStyleClose').addEventListener('click',()=>{state.selected=null;render();});
+ panel.querySelectorAll('[data-style-color]').forEach(btn=>btn.addEventListener('click',()=>{
+  commitSelectedStyle('color',btn.dataset.styleColor);
+ }));
+ const picker=$('selectedStyleCustom');
+ picker.addEventListener('input',event=>beginStyleChange('color',event.target.value));
+ picker.addEventListener('change',event=>endStyleChange('color',event.target.value));
+ const slider=$('selectedStyleWidth');
+ slider.addEventListener('input',event=>beginStyleChange('width',Number(event.target.value)));
+ slider.addEventListener('change',event=>endStyleChange('width',Number(event.target.value)));
+}
+
+function render(){redraw();renderInspector();syncUndoControls();updateSelectedStyleUI();saveLocalDebounced();}
 window.GeometryStudioViewportAPI={
  zoomIn:()=>moveZoom(1.2),
  zoomOut:()=>moveZoom(1/1.2),
@@ -896,6 +979,7 @@ function printPDF(){const cl=$('sheet').cloneNode(true);cl.querySelector('#previ
 function importJSON(file){file.text().then(txt=>{try{const obj=JSON.parse(txt);if(!Array.isArray(obj.entities)||obj.entities.length>5000)throw Error('Некоректна структура проєкту');for(const e of obj.entities){if(!['point','line','path','circle','angle','shape','dimension'].includes(e.type))throw Error('Невідомий тип об’єкта');if(e.type==='point'&&(!Number.isFinite(e.x)||!Number.isFinite(e.y)))throw Error('Некоректні координати');if(['path','shape','angle'].includes(e.type)&&(!Array.isArray(e.points)||e.points.length>3000||!e.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))))throw Error('Некоректні точки фігури');}
  saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
 function init(){
+ initializeSelectedStyleUI();
  const restored=loadLocal();if(!restored){state.entities=[];state.paperMode='blank';state.mode='manual';state.step=0;state.counter=0;taskResult=null;log('Новий аркуш');}else{if(state.paperMode==='example')taskResult=computeTask(state.coords3);render();}
  document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
  $('modeManual').addEventListener('click',()=>setMode('manual'));$('modeAuto').addEventListener('click',()=>setMode('auto'));
