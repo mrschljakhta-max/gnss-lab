@@ -252,37 +252,153 @@ function labelOffset(p,metrics=pointLabelMetrics()){
  const downBaseline=Math.max(metrics.fontSize*1.2,Math.abs(p.offset?.dy||0));
  return [x,down?downBaseline:-upBaseline];
 }
-function refreshPointLabels(){
- const metrics=pointLabelMetrics();
- for(const node of $('drawingLayer').querySelectorAll('.point-label')){
-  const id=node.getAttribute('data-point-id'),p=id?get(id):null;
-  if(p){
-   const [dx,dy]=labelOffset(p,metrics);
-   node.setAttribute('x',p.x+dx);node.setAttribute('y',p.y+dy);
-  }else if(node.hasAttribute('data-profile-x')){
-   const x=Number(node.getAttribute('data-profile-x'));
-   const y=Number(node.getAttribute('data-profile-y'));
-   const left=x>260;
-   node.setAttribute('x',x+(left?-metrics.gap:metrics.gap));
-   node.setAttribute('y',y-Math.max(metrics.fontSize*.45,2));
-   node.setAttribute('text-anchor',left?'end':'start');
+/* Smart drafting labels: put text outside geometry, never over a triangle edge or face. */
+function labelRectIntersection(a,b){
+ return a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
+}
+function labelSegmentCrossesRect(a,b,r){
+ let lower=0,upper=1;
+ const dx=b.x-a.x,dy=b.y-a.y;
+ const checks=[[-dx,a.x-r.x],[dx,r.x+r.w-a.x],[-dy,a.y-r.y],[dy,r.y+r.h-a.y]];
+ for(const [p,q] of checks){
+  if(Math.abs(p)<1e-10){if(q<0)return false;continue;}
+  const t=q/p;
+  if(p<0){if(t>upper)return false;if(t>lower)lower=t;}
+  else{if(t<lower)return false;if(t<upper)upper=t;}
+ }
+ return lower<=upper;
+}
+function labelPointInTriangle(point,tri){
+ const crossSign=(a,b,p)=>(b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);
+ const a=crossSign(tri[0],tri[1],point);
+ const b=crossSign(tri[1],tri[2],point);
+ const c=crossSign(tri[2],tri[0],point);
+ return !(a<-.0001||b<-.0001||c<-.0001)||!(a>.0001||b>.0001||c>.0001);
+}
+function labelRectOverTriangle(r,tri){
+ const corners=[{x:r.x,y:r.y},{x:r.x+r.w,y:r.y},{x:r.x+r.w,y:r.y+r.h},{x:r.x,y:r.y+r.h}];
+ if(corners.some(p=>labelPointInTriangle(p,tri)))return true;
+ if(tri.some(p=>p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h))return true;
+ for(let k=0;k<3;k++)if(labelSegmentCrossesRect(tri[k],tri[(k+1)%3],r))return true;
+ return false;
+}
+function labelTriangles(){
+ const adjacency=new Map();
+ const addEdge=(a,b)=>{
+  if(!adjacency.has(a))adjacency.set(a,new Set());
+  adjacency.get(a).add(b);
+ };
+ const eligible=state.entities.filter(e=>e.type==='line'&&e.extent!=='line'&&e.dash==='solid'&&e.kind!=='projection'&&e.kind!=='guide'&&visibleEntity(e)&&typeof e.a==='string'&&typeof e.b==='string');
+ for(const line of eligible){
+  const a=get(line.a),b=get(line.b);
+  if(!a||!b||a.type!=='point'||b.type!=='point')continue;
+  addEdge(a.id,b.id);addEdge(b.id,a.id);
+ }
+ const triangles=[],seen=new Set();
+ for(const [a,neighbors] of adjacency){
+  for(const b of neighbors){
+   if(a>=b)continue;
+   for(const c of adjacency.get(b)||[]){
+    if(b>=c||!neighbors.has(c))continue;
+    const key=[a,b,c].join(':');
+    if(seen.has(key))continue;
+    seen.add(key);
+    const p=[get(a),get(b),get(c)].map(q=>q&&{x:q.x,y:q.y});
+    if(p.every(Boolean)){
+     const area=Math.abs((p[1].x-p[0].x)*(p[2].y-p[0].y)-(p[1].y-p[0].y)*(p[2].x-p[0].x));
+     if(area>1)triangles.push(p);
+    }
+    if(triangles.length>=250)return triangles;
+   }
   }
+ }
+ return triangles;
+}
+function layoutPointLabels(root,metrics){
+ if(!root)return;
+ const labels=[...root.querySelectorAll('.point-label')];
+ if(!labels.length)return;
+ const segments=[];
+ for(const line of root.querySelectorAll('line')){
+  const stroke=line.getAttribute('stroke');
+  if(!stroke||stroke==='none'||stroke==='transparent')continue;
+  const vals=['x1','y1','x2','y2'].map(x=>Number(line.getAttribute(x)));
+  if(vals.every(Number.isFinite))
+   segments.push({a:{x:vals[0],y:vals[1]},b:{x:vals[2],y:vals[3]}});
+ }
+ const triangles=labelTriangles();
+ const markers=[];
+ for(const circle of root.querySelectorAll('circle[data-id]')){
+  const r=Number(circle.getAttribute('r'));
+  if(!Number.isFinite(r)||r>3.6)continue;
+  const cx=Number(circle.getAttribute('cx')),cy=Number(circle.getAttribute('cy'));
+  if(Number.isFinite(cx)&&Number.isFinite(cy))markers.push({x:cx,y:cy,r:r+.5});
+ }
+ const occupied=[];
+ const margin=Math.max(.45,metrics.halo*.5+.4);
+ for(const node of labels){
+  const id=node.getAttribute('data-point-id'),point=id?get(id):null;
+  let x=point?.x,y=point?.y;
+  if(!point&&node.hasAttribute('data-profile-x')){
+   x=Number(node.getAttribute('data-profile-x'));
+   y=Number(node.getAttribute('data-profile-y'));
+  }
+  if(!Number.isFinite(x)||!Number.isFinite(y))continue;
   node.setAttribute('font-size',metrics.fontSize);
   node.setAttribute('stroke-width',metrics.halo);
+  node.setAttribute('x',0);node.setAttribute('y',0);
+  node.setAttribute('text-anchor','start');
+  let width=0,height=0,originX=0,originY=0;
+  try{
+   const bbox=node.getBBox();
+   if(bbox?.width>0&&bbox?.height>0){
+    width=bbox.width;height=bbox.height;originX=bbox.x;originY=bbox.y;
+   }
+  }catch(_){}
+  if(!width||!height){
+   width=Math.max(metrics.fontSize*.65,([...node.textContent].length||2)*metrics.fontSize*.66);
+   height=metrics.fontSize*1.12;
+   originX=0;originY=-height*.83;
+  }
+  // Prefer labels outside the plan/elevation; placement is determined by geometry.
+  const isPlan=point?/1$/.test(point.label):false;
+  const preferred=isPlan?[[-1,1],[1,1],[-1,-1],[1,-1]]:[[-1,-1],[1,-1],[-1,1],[1,1]];
+  const directions=[...preferred,[1,0],[-1,0],[0,-1],[0,1]];
+  let best=null;
+  for(const factor of [1,1.5,2.2,3]){
+   for(let i=0;i<directions.length;i++){
+    const [dx,dy]=directions[i],gap=metrics.gap*factor;
+    const left=dx>0?x+gap:dx<0?x-gap-width:x-width/2;
+    const top=dy>0?y+gap:dy<0?y-gap-height:y-height/2;
+    const box={x:left,y:top,w:width,h:height};
+    const inflated={x:box.x-margin,y:box.y-margin,w:box.w+2*margin,h:box.h+2*margin};
+    let score=i*.12+(factor-1)*7;
+    if(inflated.x<1||inflated.y<1||inflated.x+inflated.w>296||inflated.y+inflated.h>419)score+=200;
+    for(const line of segments)if(labelSegmentCrossesRect(line.a,line.b,inflated))score+=1000;
+    for(const tri of triangles)if(labelRectOverTriangle(inflated,tri))score+=2500;
+    for(const other of occupied)if(labelRectIntersection(other,inflated))score+=3500;
+    for(const marker of markers){
+     const cx=clamp(marker.x,inflated.x,inflated.x+inflated.w);
+     const cy=clamp(marker.y,inflated.y,inflated.y+inflated.h);
+     if((marker.x-cx)**2+(marker.y-cy)**2<(marker.r+margin)**2)score+=600;
+    }
+    // A valid non-overlapping position is always preferred to the initial hint.
+    if(!best||score<best.score)best={score,box};
+    if(score<15)break;
+   }
+   if(best&&best.score<15)break;
+  }
+  if(!best)continue;
+  node.setAttribute('x',best.box.x-originX);
+  node.setAttribute('y',best.box.y-originY);
+  occupied.push({x:best.box.x-margin,y:best.box.y-margin,w:best.box.w+2*margin,h:best.box.h+2*margin});
  }
 }
+function refreshPointLabels(){
+ layoutPointLabels($('drawingLayer'),pointLabelMetrics());
+}
 function standardizeExportLabels(svg){
- const metrics={fontSize:3.8,gap:3.8,halo:.75};
- for(const node of svg.querySelectorAll('.point-label')){
-  const id=node.getAttribute('data-point-id'),p=id?get(id):null;
-  if(p){const [dx,dy]=labelOffset(p,metrics);node.setAttribute('x',p.x+dx);node.setAttribute('y',p.y+dy);}
-  else if(node.hasAttribute('data-profile-x')){
-   const x=Number(node.getAttribute('data-profile-x')),y=Number(node.getAttribute('data-profile-y'));
-   const left=x>260;node.setAttribute('x',x+(left?-3.8:3.8));node.setAttribute('y',y-2.1);
-   node.setAttribute('text-anchor',left?'end':'start');
-  }
-  node.setAttribute('font-size',metrics.fontSize);node.setAttribute('stroke-width',metrics.halo);
- }
+ layoutPointLabels(svg,{fontSize:3.8,gap:4.4,halo:.75});
 }
 function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints(e);if(!pts)return;let {a,b}=pts;if(e.extent==='line'){
  const d=minus(b,a);const ext=e.region==='plan'?{minX:15,minY:192,maxX:281,maxY:306}:e.region==='front'?{minX:15,minY:40,maxX:281,maxY:187}:e.region==='drawing'?{minX:15,minY:38,maxX:281,maxY:307}:{minX:0,minY:0,maxX:297,maxY:420};
@@ -366,6 +482,7 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
  const preview=$('previewLayer');preview.replaceChildren();
  if(state.pending?.start){const p=pointOf(state.pending.start);if(p){makeSVG('circle',{cx:p.x,cy:p.y,r:3.5,stroke:'#15a2ab','stroke-width':.8,fill:'none','stroke-dasharray':'2 1'},preview);}}
  if(state.showIntersections){const ls=visible.filter(e=>e.type==='line'&&e.kind!=='guide'&&!['drawing','front','plan'].includes(e.region));let total=0;for(let i=0;i<ls.length&&total<150;i++){for(let j=i+1;j<ls.length&&total<150;j++){const p=linePoints(ls[i]),q=linePoints(ls[j]);if(!p||!q)continue;const ans=lineIntersect(p.a,p.b,q.a,q.b,ls[i].extent==='segment',ls[j].extent==='segment');if(!ans||ans.point.x<0||ans.point.x>297||ans.point.y<0||ans.point.y>420)continue;total++;makeSVG('circle',{cx:ans.point.x,cy:ans.point.y,r:1.4,fill:'#f59d2e','fill-opacity':.55,stroke:'#fff','stroke-width':.3},preview);}}}
+ refreshPointLabels();
  updateStepUI();
 }
 function updateStepUI(){let step=state.step;$('stepTitle').textContent=STEPS[step][0];$('stepDescription').textContent=STEPS[step][1];$('stepCount').textContent=`${String(step+1).padStart(2,'0')} / 07`;$('stepRange').value=String(step);$('stepPrev').disabled=step===0;$('stepNext').disabled=step===6;$('stepNext').textContent=step===6?'Завершено ✓':'Далі →';$('docName').textContent=state.paperMode==='blank'?'Нове креслення':'Відстань від точки до площини';$('docVariant').textContent=state.paperMode==='blank'?'A3 • клітинка 5 мм':'Варіант 15';$('canvasHelp').textContent=state.mode==='auto'?STEPS[step][1]:manualHint();}
