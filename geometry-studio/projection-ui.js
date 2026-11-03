@@ -11,6 +11,9 @@ const sync=()=>{
  document.querySelectorAll(".projection-option").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.view===config.view)));
  if($("projectionLinks"))$("projectionLinks").checked=!!config.links;
  if($("projectionProfile"))$("projectionProfile").checked=!!config.profile;
+ const n=window.GeometryStudioHistoryAPI?.countManualProjections?.()||0;
+ const cleanup=$("removeLastProjectionGuide");
+ if(cleanup){cleanup.disabled=n===0;cleanup.textContent=n?"Прибрати останню нанесену лінію ("+n+")":"Зайвих проєкційних ліній немає";}
 };
 function close(){
  menu()?.classList.remove("open");
@@ -38,6 +41,10 @@ function init(){
  $("zoomPlus")?.addEventListener("click",()=>api()?.zoomIn());
  $("zoomMinus")?.addEventListener("click",()=>api()?.zoomOut());
  $("zoomPercent")?.addEventListener("click",()=>api()?.resetZoom());
+ $("removeLastProjectionGuide")?.addEventListener("click",()=>{
+  window.GeometryStudioHistoryAPI?.removeLastManualProjection?.();
+  sync();
+ });
  document.addEventListener("pointerdown",e=>{
   if(isOpen()&&!menu().contains(e.target)&&!trigger.contains(e.target))close();
  });
