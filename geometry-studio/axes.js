@@ -34,12 +34,12 @@
     if(!layer){layer=svgElement("g",{id:"axesLayer","aria-label":"Координатні осі"},null);
       sheet.insertBefore(layer,drawing);}
     layer.replaceChildren();
-    const ox=148.5,oy=190;
+    const ox=245,oy=190;
     if(mode!=="none"){
-      // X is the horizontal drafting reference axis (important for task 5).
-      axis(layer,{x:14,y:oy},{x:283,y:oy},"#174a70","X",{x:-1,y:-5});
+      // Monge's task-5 convention: +X goes left, +Y down on plan, +Z up on elevation.
+      axis(layer,{x:283,y:oy},{x:14,y:oy},"#174a70","X",{x:2,y:-5});
       // Origin and a light 10 mm drafting scale.
-      for(let x=ox-120;x<=ox+120;x+=10){
+      for(let x=ox;x>=ox-220;x-=10){
         svgElement("line",{x1:x,y1:oy-1.3,x2:x,y2:oy+1.3,stroke:"#90a5b7",
           "stroke-width":0.22},layer);
       }
@@ -49,10 +49,10 @@
       o.textContent="O";
     }
     if(mode==="xy"){
-      axis(layer,{x:ox,y:385},{x:ox,y:30},"#138f8f","Y",{x:6,y:4});
+      axis(layer,{x:ox,y:30},{x:ox,y:385},"#138f8f","Y",{x:6,y:3});
     } else if(mode==="xyz"){
-      // A readable, explicitly schematic axonometric triad: X horizontal, Y oblique, Z upward.
-      axis(layer,{x:ox,y:oy},{x:45,y:355},"#158d8b","Y",{x:-3,y:7});
+      // Schematic spatial triad: X left, Y diagonal down-right, Z vertically up.
+      axis(layer,{x:ox,y:oy},{x:283,y:315},"#158d8b","Y",{x:-10,y:7});
       axis(layer,{x:ox,y:oy},{x:ox,y:28},"#bf7540","Z",{x:6,y:5});
     }
     document.querySelectorAll(".axis-option").forEach(button=>{
