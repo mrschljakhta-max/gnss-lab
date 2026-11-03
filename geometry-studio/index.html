@@ -7,6 +7,7 @@
   <meta name="description" content="Geometry Studio — параметричні геометричні побудови, нарисна геометрія, перетини, сітка та друк A3.">
   <title>Geometry Studio — креслярська лабораторія</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="ui-v2.css">
 </head>
 <body>
 <div id="app">
@@ -50,6 +51,8 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <div class="print-only" id="printArea"><div id="printSheet"></div></div>
 </div>
+<script>try{window.__geometrySaveSnapshot=localStorage.getItem('geometry-studio-v1')}catch(e){window.__geometrySaveSnapshot='__unavailable__'}</script>
 <script src="app.js" defer></script>
+<script src="ui-v2.js" defer></script>
 </body>
 </html>
