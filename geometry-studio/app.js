@@ -759,5 +759,60 @@ window.GeometryStudioTriangleAPI={
  }
 };
 
+
+/* Coordinate point entry for Task 5 and independent Π₁ / Π₂ points. */
+window.GeometryStudioPointAPI={
+ create({name,view='both',x,y,z}={}){
+  const label=String(name??'').trim();
+  if(!/^[A-Za-zА-Яа-яІіЇїЄєҐґ][A-Za-zА-Яа-яІіЇїЄєҐґ0-9_'′-]{0,11}$/.test(label)){
+   throw Error('Вкажи назву точки, наприклад D або M. До 12 символів.');
+  }
+  if(!['both','pi1','pi2'].includes(view))throw Error('Оберіть правильну площину проєкції.');
+  if(!Number.isFinite(x)||(view!=='pi2'&&!Number.isFinite(y))||(view!=='pi1'&&!Number.isFinite(z))){
+   throw Error('Введи числові координати X, Y та Z для вибраної проєкції.');
+  }
+  const positions=view==='both'
+   ?[{suffix:'1',plane:'pi1',pos:p1({x,y,z})},{suffix:'2',plane:'pi2',pos:p2({x,y,z})}]
+   :view==='pi1'
+    ?[{suffix:'1',plane:'pi1',pos:p1({x,y,z:0})}]
+    :[{suffix:'2',plane:'pi2',pos:p2({x,y:0,z})}];
+  if(positions.some(({pos})=>pos.x<0||pos.x>A3.width||pos.y<0||pos.y>A3.height)){
+   throw Error('Проєкція виходить за межі аркуша А3. Зміни координати.');
+  }
+  if(positions.some(({suffix})=>state.entities.some(e=>e.type==='point'&&e.label===label+suffix))){
+   throw Error('Точка з такою назвою вже є. Зміни назву або вибери іншу.');
+  }
+  if(state.mode==='auto')setMode('manual');
+  saveUndo('Додано точку '+label+' за координатами');
+  const pointIds=positions.map(({suffix,plane,pos})=>{
+   const id=addPoint(label+suffix,pos,{color:COLORS.base});
+   get(id).projectionPlane=plane;
+   return id;
+  });
+  if(pointIds.length===2){
+   addLine(pointIds[0],pointIds[1],{color:COLORS.guide,width:.32,dash:'dashed',kind:'projection'});
+   state.projection={...state.projection,view:'both',links:true};
+  }else{
+   state.projection={...state.projection,view:positions[0].plane};
+  }
+  state.pending=null;
+  setTool('select');
+  state.selected=null;
+  render();
+  return {labels:positions.map(item=>label+item.suffix),pointIds};
+ },
+ activateManual(){
+  if(state.mode==='auto')setMode('manual');
+  setTool('point');
+ },
+ suggestName(){
+  for(const s of ['D','E','F','G','H','M','N','P','Q','R']){
+   if(!state.entities.some(e=>e.type==='point'&&(e.label===s+'1'||e.label===s+'2')))return s;
+  }
+  return 'T'+String(state.counter+1);
+ },
+ listPoints(){return state.entities.filter(e=>e.type==='point').map(e=>e.label)}
+};
+
 init();
 })();
