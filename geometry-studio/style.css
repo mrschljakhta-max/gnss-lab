@@ -316,3 +316,24 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 }
 .global-point-setting p{margin:0;color:#718ca0;font-size:10px;line-height:1.48}
 .global-point-setting input[type=range]:focus-visible{outline:2px solid #168eaa;outline-offset:3px}
+
+/* Naming and repositioning annotations h₁, h₂, f₁ etc. */
+.selected-line-label-control{margin:14px 0 0;padding:13px 0 0;border-top:1px solid #e0e9ef}
+.selected-line-label-control[hidden]{display:none!important}
+.selected-line-label-entry{display:flex;gap:7px;align-items:center;margin:8px 0 7px}
+.selected-line-label-entry input{flex:1;min-width:0;height:39px;padding:8px 10px;
+ border:1px solid #cddfe9;border-radius:8px;background:#fff;color:#1b3d55;
+ font:600 13px/1.3 inherit;outline:none}
+.selected-line-label-entry input:focus{border-color:#2097a1;box-shadow:0 0 0 3px #b3ebee88}
+.selected-line-label-entry button{flex:none;width:37px;height:37px;border:1px solid #d8e5eb;
+ border-radius:8px;background:#f3f7f9;color:#618094;font-size:20px;cursor:pointer}
+.selected-line-label-entry button:hover{background:#e5f1f4;color:#116778}
+.selected-line-label-control p{margin:0;color:#758d9e;font-size:10px;line-height:1.5}
+#drawingLayer .line-label{
+ pointer-events:bounding-box;cursor:grab;user-select:none;
+ fill:#173d56;stroke:#fff;stroke-linejoin:round;stroke-width:.7px;
+ font-family:Arial,"Segoe UI",sans-serif;font-weight:750;
+ paint-order:stroke fill;text-rendering:geometricPrecision
+}
+#canvasViewport.cursor-on-label:not(.panning){cursor:grab!important}
+#canvasViewport.cursor-dragging-label{cursor:grabbing!important}
