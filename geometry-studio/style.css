@@ -302,3 +302,17 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 #canvasViewport.extend-picking{cursor:crosshair!important}
 #canvasViewport.extend-picking .selected-drawing{filter:none}
 @media(max-width:700px){.selected-style-panel{max-height:calc(100dvh - 84px)}}
+
+/* One setting controls all drafted point markers; labels remain independently legible. */
+.global-point-setting{
+ margin-top:13px;padding:13px 11px 8px;
+ border-top:1px solid #dce8ef;background:#f5f9fb;border-radius:0 0 10px 10px;
+}
+.global-point-setting__header{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.global-point-setting__header label{font-size:11px;font-weight:750;color:#345a70;cursor:pointer}
+.global-point-setting__header output{font-size:12px;font-weight:750;color:#087f89;font-variant-numeric:tabular-nums}
+.global-point-setting input[type=range]{
+ display:block;width:100%;margin:12px 0 7px;accent-color:#0d939b;cursor:pointer
+}
+.global-point-setting p{margin:0;color:#718ca0;font-size:10px;line-height:1.48}
+.global-point-setting input[type=range]:focus-visible{outline:2px solid #168eaa;outline-offset:3px}
