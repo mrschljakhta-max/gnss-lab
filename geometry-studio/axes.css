@@ -1,0 +1,53 @@
+/* Axes picker — third control in Geometry Studio */
+.axes-fab{
+  display:flex;align-items:center;gap:8px;border:0;border-radius:999px;
+  background:rgba(20,42,62,.92);color:#fff;padding:10px 14px;
+  font-size:12px;font-weight:700;cursor:pointer;
+  box-shadow:0 10px 28px rgba(8,26,43,.18);
+  transition:background .16s ease,transform .16s ease
+}
+.axes-fab:hover,.axes-fab[aria-expanded="true"]{background:#0b6474;transform:translateY(-1px)}
+.axes-fab__icon{width:22px;height:22px;color:#c0f2f3;flex:none}
+.axes-popover{
+  position:fixed;right:340px;top:64px;z-index:35;
+  width:min(306px,calc(100vw - 24px));
+  padding:14px;border-radius:17px;background:rgba(249,252,254,.99);
+  border:1px solid #d8e4ec;box-shadow:0 18px 44px rgba(18,42,62,.18);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  opacity:0;visibility:hidden;pointer-events:none;transform:translateY(-6px);
+  transition:opacity .16s,visibility .16s,transform .16s
+}
+.axes-popover.open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+.axes-popover__head{display:flex;justify-content:space-between;align-items:center;margin:0 2px 11px 4px;color:#1b354d;font-size:13px}
+.axes-popover__close{border:0;background:transparent;color:#6f879a;border-radius:6px;font-size:24px;line-height:1;cursor:pointer;width:29px;height:29px}
+.axes-popover__close:hover{background:#edf5f7}
+.axes-popover__options{display:grid;gap:8px}
+.axis-option{
+  display:flex;align-items:center;gap:12px;width:100%;text-align:left;
+  padding:11px 12px;border:1px solid #d9e4ee;border-radius:11px;
+  background:#fff;color:#294b63;cursor:pointer;transition:.16s
+}
+.axis-option:hover{background:#eff8f9;border-color:#a4cbd0}
+.axis-option[aria-pressed="true"]{background:#e3f4f3;border-color:#78c4cb}
+.axis-option svg{width:45px;height:45px;flex:none;color:#176c86}
+.axis-option__body{display:flex;flex-direction:column;gap:2px;min-width:0}
+.axis-option__body strong{font-size:12px}
+.axis-option__body small{font-size:10px;color:#71899b;line-height:1.35}
+.axes-popover__clear{
+  margin-top:11px;width:100%;border:1px solid #dce6ec;border-radius:9px;
+  background:#f4f8fb;color:#617d91;padding:9px;font-size:11px;cursor:pointer
+}
+.axes-popover__clear:hover{background:#e9f1f5}
+#axesLayer{pointer-events:none}
+#axesLayer .coordinate-axis{vector-effect:non-scaling-stroke}
+@media(max-width:700px){
+  .axes-fab{padding:9px 11px}
+  .top-right-actions{gap:5px}
+  .axes-popover{top:59px;right:10px}
+}
+@media(max-width:420px){
+  .axes-fab,.shapes-fab,.top-right-actions .tools-fab{padding:8px 9px}
+  .axes-fab span{font-size:11px}
+  .axes-fab__icon{width:19px;height:19px}
+}
+@media(prefers-reduced-motion:reduce){.axes-popover{transition:none}}
