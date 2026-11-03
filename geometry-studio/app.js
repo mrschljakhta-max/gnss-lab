@@ -285,7 +285,7 @@ function setTool(tool){
   const before=JSON.parse(state.pending.undoBefore);
   state.entities=deep(before.entities);state.counter=before.counter;
  }
- state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan'||tool==='select');$('canvasViewport').classList.remove('can-pan','panning','cursor-on-vertex','cursor-on-geometry');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
+ state.stroke=null;state.tool=tool;state.pending=null;state.selected=null;document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool===tool));$('canvasViewport').classList.toggle('pan-cursor',tool==='pan'||tool==='select');$('canvasViewport').classList.remove('can-pan','panning','cursor-on-vertex','cursor-on-geometry','cursor-on-label','cursor-dragging-label');if(state.mode==='auto')setMode('manual');render();closeDrawer();closeToolMenu();closeShapeMenu();showCanvasHint(manualHint());}
 function projectedPlane(e){
  if(!e)return null;
  if(e.type==='point'){
@@ -1153,6 +1153,10 @@ function connectedLinePointIds(line){
 }
 function geometryTargetAt(event,p){
  if(!p||state.mode!=='manual')return null;
+ const labelId=event?.target?.closest?.('[data-line-label-id]')?.getAttribute('data-line-label-id');
+ const labelLine=labelId?get(labelId):null;
+ if(labelLine?.type==='line'&&labelLine.label&&visibleEntity(labelLine))
+  return {kind:'label',id:labelId};
  const tolerance=dragTolerance();
  let closestPoint=null,pointDistance=tolerance+1;
  for(const e of state.entities){
@@ -1212,6 +1216,14 @@ function beginCursorGeometryDrag(target,p){
 function applyCursorGeometryDrag(drag,p){
  if(!drag||!p)return;
  const dx=p.x-drag.at.x,dy=p.y-drag.at.y;
+ if(drag.kind==='label'){
+  const line=get(drag.id),before=drag.originals.get(drag.id);
+  if(line?.type==='line'&&before){
+   line.labelOffset={dx:(Number(before.labelOffset?.dx)||0)+dx,
+    dy:(Number(before.labelOffset?.dy)||0)+dy};
+  }
+  return;
+ }
  if(drag.kind==='point'||drag.kind==='body'&&drag.pointIds.length){
   for(const id of drag.pointIds){
    const dest=get(id),src=drag.originals.get(id);
@@ -1266,7 +1278,7 @@ function finalizeGeometryDrag(drag){
  pushUndoBefore(drag.undoBefore);
  const selected=get(drag.id);
  state.selected=selected?.id||null;
- log(drag.kind==='point'?'Переміщено вершину':drag.kind==='vertex'?'Змінено контур фігури':'Переміщено фігуру');
+ log(drag.kind==='label'?'Переміщено позначення лінії':drag.kind==='point'?'Переміщено вершину':drag.kind==='vertex'?'Змінено контур фігури':'Переміщено фігуру');
  render();
 }
 function showSelectionHandles(layer,e){
@@ -1495,13 +1507,18 @@ function init(){
    const candidate=state.tool==='select'&&extensionState?.stage!=='pick'?geometryTargetAt(e,world):null;
    viewport.classList.toggle('cursor-on-vertex',!!candidate&&(candidate.kind==='point'||candidate.kind==='vertex'));
    viewport.classList.toggle('cursor-on-geometry',!!candidate&&candidate.kind==='body');
+   viewport.classList.toggle('cursor-on-label',!!candidate&&candidate.kind==='label');
    viewport.classList.toggle('can-pan',(state.tool==='select'&&!candidate&&extensionState?.stage!=='pick')||state.tool==='pan');
   }
   if(!down)return;const dx=e.clientX-down.startX,dy=e.clientY-down.startY;
   if(Math.hypot(dx,dy)>4)down.moved=true;
   if(!down.moved)return;
   if(down.backgroundPan){state.pan={x:down.panX+dx,y:down.panY+dy};updatePaperTransform();viewport.classList.add('panning');suppressClick=true;}
-  else if(down.geometry&&world){applyCursorGeometryDrag(down.geometry,world);redraw();suppressClick=true;}
+  else if(down.geometry&&world){
+   applyCursorGeometryDrag(down.geometry,world);
+   viewport.classList.toggle('cursor-dragging-label',down.geometry.kind==='label');
+   redraw();suppressClick=true;
+  }
  });
  viewport.addEventListener('pointerup',e=>{
   if(state.stroke&&state.stroke.pointerId===e.pointerId){const pts=state.stroke.points;state.stroke=null;if(pts.length>=2){recordPrimitive('path',{points:pts},'Проведено олівцем');}else{$('previewLayer').replaceChildren();}down=null;suppressClick=true;setTimeout(()=>{suppressClick=false;},0);return;}
@@ -1524,7 +1541,7 @@ function init(){
    else onCanvasClick(e);
   }
   if(down?.geometry&&down.moved)finalizeGeometryDrag(down.geometry);
-  if(down?.moved){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}down=null;viewport.classList.remove('panning');
+  if(down?.moved){suppressClick=true;setTimeout(()=>{suppressClick=false;},0);}down=null;viewport.classList.remove('panning','cursor-dragging-label');
  });
  viewport.addEventListener('pointercancel',e=>{
   if(down?.geometry?.undoBefore&&down.moved){
@@ -1533,7 +1550,7 @@ function init(){
   }
   state.stroke=null;$('previewLayer').replaceChildren();touchPointers.delete(e.pointerId);
   if(touchPointers.size<2)pinch=null;down=null;
-  viewport.classList.remove('panning','cursor-on-geometry','cursor-on-vertex');
+  viewport.classList.remove('panning','cursor-on-geometry','cursor-on-vertex','cursor-on-label','cursor-dragging-label');
  });
  viewport.addEventListener('wheel',e=>{if(!e.ctrlKey&&!e.metaKey)return;e.preventDefault();moveZoom(e.deltaY<0?1.1:1/1.1,{x:e.clientX,y:e.clientY});},{passive:false});
  // All drawing, point selection, and pan gestures use the complete viewport.
