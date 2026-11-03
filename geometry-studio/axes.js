@@ -48,7 +48,7 @@ function axis(parent,begin,end,color,name,offset){
   fill:"none",stroke:color,"stroke-width":.45,"stroke-linecap":"round","stroke-linejoin":"round"},parent);
  label(parent,name,end.x+offset.x,end.y+offset.y,{color,size:5,weight:700,css:"coordinate-axis-name"});
 }
-function scaleFont(){return Math.max(1.8,Math.min(4.8,10/(2*Math.max(.38,zoom))));}
+function scaleFont(){return Math.max(1.2,Math.min(4.8,9.5/(2*Math.max(.38,zoom))));}
 function markScale(layer){
  if(!scale.ticks&&!scale.numbers)return;
  const step=scale.step,pxPerMm=2*Math.max(.38,zoom),size=scaleFont();
@@ -71,7 +71,7 @@ function markScale(layer){
    const content=String(number),screen=x*pxPerMm;
    // Avoid overlapping text, but keep every tick. Zooming reveals extra labels.
    const width=content.length*size*pxPerMm*.54;
-   const minGap=width/2+lastWidth/2+2.1;
+   const minGap=width/2+lastWidth/2+1.5;
    if(lastScreen!==null&&Math.abs(screen-lastScreen)<minGap)continue;
    label(layer,content,x,O.y+2.1+size,{size,color:"#436b89",weight:600});
    lastScreen=screen;lastWidth=width;
