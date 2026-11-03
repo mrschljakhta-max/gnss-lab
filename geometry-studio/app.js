@@ -539,11 +539,242 @@ function editableStyleTargets(){
  }
  return [selected];
 }
+/* Exact continuation of a line through its original endpoints. */
+let extensionState=null;
+function extensionGeometry(base,target,endpoint){
+ if(!base||!target||base.type!=='line'||target.type!=='line'||base.id===target.id)return null;
+ const v=linePoints(base),q=linePoints(target);if(!v||!q)return null;
+ const solution=lineIntersect(v.a,v.b,q.a,q.b,false,target.extent!=='line');
+ if(!solution)return null;
+ const eps=1e-5;
+ if(endpoint==='a'&&solution.t>=-eps)return null;
+ if(endpoint==='b'&&solution.t<=1+eps)return null;
+ return solution;
+}
+function extensionFreeGeometry(base,endpoint,world){
+ const v=linePoints(base);if(!v||!world)return null;
+ const d=minus(v.b,v.a),n=dot(d,d);if(n<1e-10)return null;
+ const t=dot(minus(world,v.a),d)/n;
+ if((endpoint==='a'&&t>=-.005)||(endpoint==='b'&&t<=1.005))return null;
+ return {point:plus(v.a,times(d,t)),t};
+}
+function extensionPointPosition(derivation){
+ const base=get(derivation.base);
+ if(!base)return null;
+ if(derivation.kind==='extensionIntersection')return extensionGeometry(base,get(derivation.target),derivation.endpoint)?.point||null;
+ if(derivation.kind==='extensionParam'){
+  const v=linePoints(base);return v&&Number.isFinite(derivation.t)?
+    plus(v.a,times(minus(v.b,v.a),derivation.t)):null;
+ }
+ return null;
+}
+function extensionEndpointLabel(value,fallback){
+ const p=typeof value==='string'?get(value):null;
+ return p?.label?printablePointLabel(p.label):fallback;
+}
+function extensionNormalizeLabel(raw){
+ const map={'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9'};
+ const label=String(raw||'').trim().replace(/[₀-₉]/g,c=>map[c]);
+ if(!/^[A-Za-zА-Яа-яІіЇїЄєҐґ][A-Za-zА-Яа-яІіЇїЄєҐґ0-9_'′-]{0,11}$/.test(label))
+   throw Error('Вкажіть коротку назву точки, наприклад J₂.');
+ if(state.entities.some(p=>p.type==='point'&&p.label===label))
+   throw Error('Точка '+printablePointLabel(label)+' вже існує. Вкажіть іншу назву.');
+ return label;
+}
+function extensionMessage(message,kind='normal'){
+ const el=$('extendStatus');if(!el)return;
+ el.textContent=message;
+ el.classList.toggle('error',kind==='error');
+ el.classList.toggle('ready',kind==='ready');
+}
+function extensionSource(){
+ const base=extensionState?get(extensionState.base):null;
+ return base?.type==='line'?base:null;
+}
+function extensionSetEndpoint(endpoint){
+ if(!extensionState||!['a','b'].includes(endpoint))return;
+ extensionState.endpoint=endpoint;
+ document.querySelectorAll('#extendEndpoints button').forEach(btn=>
+  btn.setAttribute('aria-pressed',String(btn.dataset.endpoint===endpoint)));
+ extensionMessage('Натисніть «Почати», а потім виберіть цільову лінію на кресленні.');
+}
+function updateExtensionPanel(){
+ const controls=$('extensionControls'),options=$('extendOptions');
+ if(!controls||!options)return;
+ const chosen=get(state.selected);
+ const supported=state.mode==='manual'&&state.tool==='select'&&chosen?.type==='line'&&
+  chosen.extent!=='line'&&chosen.kind!=='projection'&&chosen.kind!=='extension';
+ controls.hidden=!supported;
+ if(!supported){
+  if(extensionState)extensionState=null;
+  options.hidden=true;
+  $('canvasViewport')?.classList.remove('extend-picking');
+  return;
+ }
+ if(extensionState&&extensionState.base!==chosen.id){extensionState=null;options.hidden=true;}
+ options.hidden=!extensionState;
+ if(extensionState){
+  const source=extensionSource();if(!source)return;
+  const optionsGroup=$('extendEndpoints');
+  const key=source.id+':'+String(source.a)+':'+String(source.b);
+  if(optionsGroup.dataset.sourceKey!==key){
+   optionsGroup.dataset.sourceKey=key;
+   optionsGroup.replaceChildren();
+   for(const [endpoint,fallback] of [['a','A'],['b','B']]){
+    const btn=document.createElement('button');
+    btn.type='button';btn.dataset.endpoint=endpoint;
+    btn.textContent=extensionEndpointLabel(source[endpoint],fallback);
+    btn.setAttribute('aria-label','Продовжити за точку '+btn.textContent);
+    btn.addEventListener('click',()=>extensionSetEndpoint(endpoint));
+    optionsGroup.append(btn);
+   }
+  }
+  optionsGroup.querySelectorAll('button').forEach(btn=>
+   btn.setAttribute('aria-pressed',String(btn.dataset.endpoint===extensionState.endpoint)));
+  $('extendActivate').textContent=extensionState.stage==='pick'?'Виберіть лінію на аркуші':'Почати';
+  $('extendActivate').disabled=extensionState.stage==='pick';
+ }
+}
+function extensionBegin(){
+ const base=get(state.selected);if(base?.type!=='line')return;
+ extensionState={base:base.id,endpoint:'a',stage:'setup',mode:'intersection'};
+ const labels=[extensionEndpointLabel(base.a,'A'),extensionEndpointLabel(base.b,'B')];
+ // Keep a descriptive-geometric point name, not an auto-numbered P marker.
+ $('extendPointName').value=state.entities.some(p=>p.type==='point'&&p.label==='J2')?'J3':'J2';
+ $('extendEndpoints').dataset.sourceKey='';
+ $('extendOptions').hidden=false;
+ document.querySelector('#extensionControls input[value="intersection"]').checked=true;
+ updateExtensionPanel();
+ extensionMessage('Оберіть кінець '+labels.join(' або ')+' й натисніть «Почати».');
+}
+function extensionCancel(){
+ extensionState=null;
+ $('extendOptions')?.setAttribute('hidden','');
+ $('canvasViewport')?.classList.remove('extend-picking');
+ $('previewLayer')?.replaceChildren();
+ if(state.mode==='manual')updateExtensionPanel();
+}
+function extensionActivate(){
+ if(!extensionSource())return;
+ const selected=document.querySelector('#extensionControls input[name="extendMethod"]:checked');
+ extensionState.mode=selected?.value==='free'?'free':'intersection';
+ try{extensionNormalizeLabel($('extendPointName').value);}catch(e){extensionMessage(e.message,'error');return;}
+ extensionState.stage='pick';
+ $('extendActivate').disabled=true;
+ $('extendActivate').textContent='Виберіть на аркуші';
+ $('canvasViewport').classList.add('extend-picking');
+ extensionMessage(extensionState.mode==='free'
+  ?'Наведіть курсор за вибраний кінець. Лінія залишиться строго на тій самій прямій. Натисніть для завершення.'
+  :'Наведіть курсор на лінію, з якою має перетнутися продовження, та натисніть на неї.');
+}
+function extensionTargetAt(event,p){
+ if(!extensionState||!p)return null;
+ const source=extensionSource();
+ if(!source)return null;
+ const candidateId=event?.target?.closest?.('[data-id]')?.getAttribute('data-id');
+ let winner=null,dist=Math.max(2.2,dragTolerance());
+ for(const line of state.entities){
+  if(line.type!=='line'||!visibleEntity(line)||line.id===source.id||
+    line.kind==='projection'||line.kind==='extension')continue;
+  const d=geometryEdgeDistance(line,p);
+  if(d<=dist&&(d<dist-.001||line.id===candidateId)){
+   dist=d;winner=line;
+  }
+ }
+ return winner;
+}
+function extensionChoice(event,p){
+ if(!extensionState)return null;
+ const base=extensionSource();if(!base)return null;
+ if(extensionState.mode==='free')return {result:extensionFreeGeometry(base,extensionState.endpoint,p),target:null};
+ const target=extensionTargetAt(event,p);
+ return {result:target?extensionGeometry(base,target,extensionState.endpoint):null,target};
+}
+function drawExtensionPreview(world,event){
+ if(extensionState?.stage!=='pick'||!world)return;
+ const base=extensionSource(),v=linePoints(base);
+ if(!v)return;
+ const layer=$('previewLayer');
+ layer.replaceChildren();
+ const origin=extensionState.endpoint==='a'?v.a:v.b;
+ const d=minus(v.b,v.a),m=Math.hypot(d.x,d.y);
+ if(m<1e-7)return;
+ const forward=extensionState.endpoint==='a'?-1:1;
+ const projected=extensionChoice(event,world);
+ const end=projected?.result?.point||plus(origin,times(d,forward*55/m));
+ makeSVG('line',{x1:origin.x,y1:origin.y,x2:end.x,y2:end.y,
+  stroke:'#e98b35','stroke-width':.8,'stroke-dasharray':'3 1.6','stroke-linecap':'round','pointer-events':'none'},layer);
+ if(projected?.result){
+  makeSVG('circle',{cx:end.x,cy:end.y,r:2.35,fill:'#fff',stroke:'#098f8c',
+   'stroke-width':.8,'pointer-events':'none'},layer);
+  extensionMessage('Точний перетин знайдено. Натисніть, щоб створити '+printablePointLabel($('extendPointName').value||'J2')+'.','ready');
+ }else if(projected?.target){
+  extensionMessage('Перетин не лежить за обраним кінцем, або прямі паралельні. Оберіть іншу лінію.','error');
+ }else{
+  extensionMessage(extensionState.mode==='free'?'Ведіть курсор у напрямку продовження.':
+   'Натисніть на цільову лінію: її перетин буде обчислено автоматично.');
+ }
+}
+function extensionApplyPoint(geometry,target){
+ if(!geometry?.point||!extensionState)return false;
+ const base=extensionSource();
+ if(!base)return false;
+ let label;
+ try{label=extensionNormalizeLabel($('extendPointName').value);}
+ catch(e){extensionMessage(e.message,'error');return false;}
+ const at=base[extensionState.endpoint];
+ if(typeof at!=='string'&&(!at||!Number.isFinite(at.x)||!Number.isFinite(at.y))){
+  extensionMessage('Не вдалося визначити опорну вершину відрізка.','error');return false;
+ }
+ const derivation=extensionState.mode==='intersection'?
+  {kind:'extensionIntersection',base:base.id,target:target.id,endpoint:extensionState.endpoint}:
+  {kind:'extensionParam',base:base.id,t:geometry.t,endpoint:extensionState.endpoint};
+ const before=snapshotForUndo();
+ try{
+  const pointId=addPoint(label,geometry.point,{color:'#128a88',derivation});
+  const point=get(pointId);
+  point.projectionPlane=projectedPlane(base)||undefined;
+  const extensionId=addLine(at,pointId,{kind:'extension',dash:'dashed',
+    color:'#df8735',width:.65,extent:'segment'});
+  get(extensionId).sourceLine=base.id;
+  if(target)get(extensionId).targetLine=target.id;
+  pushUndoBefore(before,'Продовжено відрізок до '+printablePointLabel(label));
+  extensionState=null;
+  state.pending=null;state.selected=pointId;
+  $('canvasViewport').classList.remove('extend-picking');
+  render();
+  toast('Створено '+printablePointLabel(label)+' — точка залежить від вихідних ліній');
+  return true;
+ }catch(e){
+  const snapshot=JSON.parse(before);
+  state.entities=deep(snapshot.entities);state.counter=snapshot.counter;
+  extensionMessage('Помилка побудови: '+e.message,'error');
+  render();return false;
+ }
+}
+function handleExtensionClick(event,p){
+ if(extensionState?.stage!=='pick')return false;
+ const choice=extensionChoice(event,p);
+ if(!choice?.result){
+  extensionMessage(choice?.target?'Ці лінії не перетинаються за обраним кінцем.':
+   'Натисніть саме на цільову лінію, або виберіть вільну довжину.','error');
+  return true;
+ }
+ extensionApplyPoint(choice.result,choice.target);
+ return true;
+}
+function initializeExtensionUI(){
+ if(!$('extendStart'))return;
+ $('extendStart').addEventListener('click',extensionBegin);
+ $('extendActivate').addEventListener('click',extensionActivate);
+ $('extendCancel').addEventListener('click',extensionCancel);
+}
+
 function updateSelectedStyleUI(){
  const panel=$('selectedStylePanel');if(!panel)return;
  const targets=editableStyleTargets();
  panel.hidden=!targets.length;
- if(!targets.length)return;
+ if(!targets.length){updateExtensionPanel();return;}
  const selected=get(state.selected),current=targets[0];
  const family=targets.length>1;
  const title=family?'Трикутник · '+targets.length+' сторони':entityTitle(selected)+(selected.label?' · '+selected.label:'');
@@ -560,6 +791,7 @@ function updateSelectedStyleUI(){
  const slider=$('selectedStyleWidth');
  if(document.activeElement!==slider)slider.value=String(width);
  $('selectedStyleWidthValue').textContent=width.toLocaleString('uk-UA',{maximumFractionDigits:2})+' мм';
+ updateExtensionPanel();
 }
 function mutateSelectedStyle(property,value){
  const targets=editableStyleTargets();
@@ -593,7 +825,7 @@ function endStyleChange(property,value){
 }
 function initializeSelectedStyleUI(){
  const panel=$('selectedStylePanel');if(!panel)return;
- $('selectedStyleClose').addEventListener('click',()=>{state.selected=null;render();});
+ $('selectedStyleClose').addEventListener('click',()=>{extensionCancel();state.selected=null;render();});
  panel.querySelectorAll('[data-style-color]').forEach(btn=>btn.addEventListener('click',()=>{
   commitSelectedStyle('color',btn.dataset.styleColor);
  }));
@@ -1000,6 +1232,7 @@ function importJSON(file){file.text().then(txt=>{try{const obj=JSON.parse(txt);i
  saveUndo('Імпорт проєкту');state.entities=obj.entities;state.counter=Math.max(Number(obj.counter)||0,state.entities.length);state.paperMode=obj.paperMode==='example'?'example':'blank';state.coords3=obj.coords3||deep(DEFAULT_3D);taskResult=state.paperMode==='example'?computeTask(state.coords3):null;setMode('manual');window.GeometryStudioAxes?.setMode(obj.axisMode||'none');state.projection=(obj.projection&&['both','pi1','pi2'].includes(obj.projection.view))?{view:obj.projection.view,links:obj.projection.links!==false,profile:!!obj.projection.profile}:{view:'both',links:true,profile:false};render();toast('Проєкт успішно відкрито');}catch(e){toast(`Не вдалося відкрити JSON: ${e.message}`);}});}
 function init(){
  initializeSelectedStyleUI();
+ initializeExtensionUI();
  const restored=loadLocal();if(!restored){state.entities=[];state.paperMode='blank';state.mode='manual';state.step=0;state.counter=0;taskResult=null;log('Новий аркуш');}else{if(state.paperMode==='example')taskResult=computeTask(state.coords3);render();}
  document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
  $('modeManual').addEventListener('click',()=>setMode('manual'));$('modeAuto').addEventListener('click',()=>setMode('auto'));
