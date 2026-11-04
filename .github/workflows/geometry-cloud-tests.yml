@@ -1,0 +1,29 @@
+name: Geometry Studio cloud tests
+
+on:
+  pull_request:
+    paths:
+      - "geometry-studio/**"
+      - "cloudflare/geometry-studio/**"
+      - ".github/workflows/geometry-cloud-tests.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 4
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check JavaScript syntax
+        run: |
+          node --check geometry-studio/app.js
+          node --check geometry-studio/cloud-projects.js
+          node --check cloudflare/geometry-studio/worker.js
+      - name: Run isolated D1 API tests
+        run: node --test cloudflare/geometry-studio/worker.test.mjs
