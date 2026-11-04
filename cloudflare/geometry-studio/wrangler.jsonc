@@ -8,7 +8,7 @@
     {
       "binding": "DB",
       "database_name": "geometry-studio-db",
-      "database_id": "REPLACE_WITH_D1_DATABASE_ID",
+      "database_id": "ff7f3bd8-98c9-40a9-b46d-fc4867f40846",
       "migrations_dir": "./migrations"
     }
   ],
