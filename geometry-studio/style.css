@@ -384,3 +384,9 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 .extend-confirm:hover:not(:disabled){background:#0b766f}
 .extend-confirm:disabled{opacity:.43;cursor:default}
 .extend-confirm[hidden]{display:none!important}
+
+/* Keep the confirm button legible even in the narrow properties panel. */
+.extend-actions:has(#extendConfirm){display:grid;grid-template-columns:minmax(0,1fr) auto;gap:7px}
+.extend-actions #extendActivate{grid-column:1;grid-row:1}
+.extend-actions #extendCancel{grid-column:2;grid-row:1}
+.extend-actions #extendConfirm{grid-column:1/-1;grid-row:2}
