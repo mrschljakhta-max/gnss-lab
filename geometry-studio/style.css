@@ -390,3 +390,14 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 .extend-actions #extendActivate{grid-column:1;grid-row:1}
 .extend-actions #extendCancel{grid-column:2;grid-row:1}
 .extend-actions #extendConfirm{grid-column:1/-1;grid-row:2}
+
+/* Task 5's one-click finish lives only in the sliding left drawer. */
+.dh-auto-action{margin:12px 0 0;padding-top:12px;border-top:1px solid #e5edf2}
+#btnCompleteDH{display:block;width:100%;padding:12px 10px;border:1px solid #94c9c6;
+ background:#e9f6f4;color:#087b75;border-radius:10px;font:700 12px/1.4 inherit;
+ cursor:pointer;transition:background .15s ease,border-color .15s ease}
+#btnCompleteDH:hover{background:#d3efea;border-color:#198d82}
+#btnCompleteDH:focus-visible{outline:2px solid #0a8f82;outline-offset:2px}
+#completeDHStatus{margin:7px 1px 0;color:#8194a4;font-size:10px;line-height:1.5}
+#completeDHStatus[data-status="success"]{color:#087b75}
+#completeDHStatus[data-status="error"]{color:#b44658}
