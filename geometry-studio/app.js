@@ -919,15 +919,66 @@ function updateLineAnnotation(text,commit=false){
  }
 }
 
+
+/* Rename displayed point labels without changing stable geometric IDs.
+ * Existing segments, projection links and dependent intersections keep working. */
+function normalizeRenamedPointLabel(raw){
+ const map={'₀':'0','₁':'1','₂':'2','₃':'3','₄':'4','₅':'5','₆':'6','₇':'7','₈':'8','₉':'9'};
+ const label=String(raw??'').trim().replace(/[₀-₉]/g,char=>map[char]);
+ if(!/^[A-Za-zА-Яа-яІіЇїЄєҐґ][A-Za-zА-Яа-яІіЇїЄєҐґ0-9_'′-]{0,11}$/.test(label))
+  throw Error('Назва має починатися з літери й містити не більш ніж 12 символів.');
+ return label;
+}
+function pointRenameMessage(message,isError=false){
+ const status=$('selectedPointLabelStatus');
+ if(!status)return;
+ status.textContent=message;
+ status.classList.toggle('error',isError);
+}
+function commitPointRename(){
+ const point=get(state.selected);
+ if(point?.type!=='point')return false;
+ const input=$('selectedPointLabel');
+ if(!input)return false;
+ let label;
+ try{label=normalizeRenamedPointLabel(input.value);}
+ catch(error){pointRenameMessage(error.message,true);return false;}
+ if(state.entities.some(entity=>entity.type==='point'&&entity.id!==point.id&&
+    String(entity.label||'').toLocaleLowerCase('uk-UA')===label.toLocaleLowerCase('uk-UA'))){
+  pointRenameMessage('Точка з назвою '+printablePointLabel(label)+' уже існує. Вибери іншу назву.',true);
+  return false;
+ }
+ if(point.label===label){
+  pointRenameMessage('Назва точки: '+printablePointLabel(label));
+  return true;
+ }
+ const before=snapshotForUndo();
+ point.label=label;
+ pushUndoBefore(before,'Перейменовано точку на '+printablePointLabel(label));
+ render();
+ pointRenameMessage('Збережено: '+printablePointLabel(label));
+ return true;
+}
+
 function updateSelectedStyleUI(){
  const panel=$('selectedStylePanel');if(!panel)return;
  const targets=editableStyleTargets();
  panel.hidden=!targets.length;
  if(!targets.length){
   $('selectedLineLabelRow').hidden=true;
+  $('selectedPointLabelRow').hidden=true;
   updateExtensionPanel();return;
  }
  const selected=get(state.selected),current=targets[0];
+ const pointLabelInput=$('selectedPointLabel');
+ $('selectedPointLabelRow').hidden=selected?.type!=='point';
+ if(selected?.type==='point'){
+  if($('selectedPointLabelRow').dataset.pointId!==selected.id){
+   $('selectedPointLabelRow').dataset.pointId=selected.id;
+   pointRenameMessage('Наприклад, K1 → K₁. Натисни Enter або ✓, щоб зберегти.');
+  }
+  if(document.activeElement!==pointLabelInput)pointLabelInput.value=selected.label||'';
+ }
  const labelField=$('selectedLineLabel');
  $('selectedLineLabelRow').hidden=selected?.type!=='line';
  if(selected?.type==='line'&&document.activeElement!==labelField)
@@ -981,6 +1032,15 @@ function endStyleChange(property,value){
 }
 function initializeSelectedStyleUI(){
  const panel=$('selectedStylePanel');if(!panel)return;
+ const pointInput=$('selectedPointLabel');
+ if(pointInput){
+  pointInput.addEventListener('keydown',event=>{
+   if(event.key==='Enter'){event.preventDefault();commitPointRename();pointInput.blur();}
+  });
+  pointInput.addEventListener('change',commitPointRename);
+  $('selectedPointLabelApply')?.addEventListener('click',commitPointRename);
+ }
+
  const annotation=$('selectedLineLabel');
  if(annotation){
   annotation.addEventListener('input',e=>updateLineAnnotation(e.target.value,false));
