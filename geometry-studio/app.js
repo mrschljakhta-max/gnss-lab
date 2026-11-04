@@ -1296,6 +1296,37 @@ window.GeometryStudioViewportAPI={
  resetZoom:()=>fitPaper(),
  getAxisScaleSegments:()=>axisScaleSegments(),
  getZoom:()=>state.zoom,
+ getExportData:()=>{
+  // Export all valid saved objects: hidden projections must not lose Y/Z in Excel.
+  const stored=state.entities.filter(e=>!e.invalid);
+  const points=stored.filter(e=>e.type==='point').map(p=>({
+   id:p.id,label:p.label,x:p.x,y:p.y,plane:p.projectionPlane||null,
+   source:p.source||null
+  }));
+  const segments=stored.filter(e=>e.type==='line'&&e.extent!=='line').map(e=>{
+   const ends=linePoints(e);
+   if(!ends)return null;
+   const a=typeof e.a==='string'?get(e.a):null,b=typeof e.b==='string'?get(e.b):null;
+   return {
+    id:e.id,label:e.label||'',kind:e.kind||'normal',dash:e.dash||'solid',
+    aLabel:a?.type==='point'?a.label:'',bLabel:b?.type==='point'?b.label:'',
+    a:{x:ends.a.x,y:ends.a.y},b:{x:ends.b.x,y:ends.b.y},
+    length:len(ends.a,ends.b)
+   };
+  }).filter(Boolean);
+  return {points,segments};
+ },
+ getExportSvg:()=>{
+  const clone=$('sheet').cloneNode(true);
+  clone.querySelector('#previewLayer')?.remove();
+  standardizeExportLabels(clone);standardizeExportLineLabels(clone);
+  addExplicitPrintGrid(clone);
+  clone.removeAttribute('id');
+  clone.setAttribute('width','297mm');clone.setAttribute('height','420mm');
+  clone.setAttribute('viewBox','0 0 297 420');
+  clone.setAttribute('xmlns',NS);
+  return new XMLSerializer().serializeToString(clone);
+ },
  getProjection:()=>({...state.projection}),
  setProjection:options=>{
   state.projection={view:['both','pi1','pi2'].includes(options?.view)?options.view:state.projection.view,
