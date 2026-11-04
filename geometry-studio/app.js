@@ -88,6 +88,13 @@ const get=id=>state.entities.find(e=>e.id===id);
 function pointOf(value){if(typeof value==='string'){const x=get(value);return x&&x.type==='point'&&!x.invalid?{x:x.x,y:x.y}:null;}if(value&&Number.isFinite(value.x)&&Number.isFinite(value.y))return value;return null;}
 function linePoints(l){
  if(!l||l.type!=='line')return null;
+ if(l.kind==='extension'&&l.sourceLine&&l.sourceEndpoint){
+  const source=get(l.sourceLine),sourceGeometry=source&&source.id!==l.id?linePoints(source):null;
+  const endpoint=pointOf(l.b);
+  if(!sourceGeometry||!endpoint)return null;
+  const anchor=sourceGeometry[l.sourceEndpoint];
+  return anchor?{a:anchor,b:endpoint}:null;
+ }
  if(l.kind==='perpendicular'&&l.perpendicularBase&&l.perpendicularStart){
   const anchor=pointOf(l.perpendicularStart),base=get(l.perpendicularBase);
   if(!anchor||!base||base.id===l.id)return null;
@@ -938,6 +945,7 @@ function extensionApplyPoint(geometry,target,endpointOverride){
     dash:normalizedLineDash(extensionState.dash||base.dash),
     color:base.color||state.style.color,width:base.width??.65,extent:'segment'});
   get(extensionId).sourceLine=base.id;
+  get(extensionId).sourceEndpoint=chosenEndpoint;
   if(target)get(extensionId).targetLine=target.id;
   pushUndoBefore(before,'Продовжено відрізок до '+printablePointLabel(label));
   extensionState=null;
