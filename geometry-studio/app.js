@@ -1262,7 +1262,20 @@ function loadLocal(){try{const str=localStorage.getItem('geometry-studio-v1');if
 function screenToWorld(event){const svg=$('sheet');const pt=svg.createSVGPoint();pt.x=event.clientX;pt.y=event.clientY;const ctm=svg.getScreenCTM();if(!ctm)return null;const p=pt.matrixTransform(ctm.inverse());return {x:p.x,y:p.y};}
 function nearestPoint(p,limit=5){let best=null,dist=limit;for(const e of state.entities){if(e.type!=='point'||!visibleEntity(e))continue;const d=len(p,e);if(d<dist){best=e;dist=d;}}return best;}
 function nearestIntersection(p,limit=5){const ls=state.entities.filter(e=>e.type==='line'&&visibleEntity(e));let best=null,dist=limit;for(let i=0;i<ls.length;i++)for(let j=i+1;j<ls.length;j++){const a=linePoints(ls[i]),b=linePoints(ls[j]);if(!a||!b)continue;const c=lineIntersect(a.a,a.b,b.a,b.b,ls[i].extent==='segment',ls[j].extent==='segment');if(!c)continue;const d=len(p,c.point);if(d<dist){best=c.point;dist=d;}}return best;}
-function snapped(p){const existing=nearestPoint(p,4);if(existing)return {x:existing.x,y:existing.y,id:existing.id};const ix=nearestIntersection(p,4);if(ix)return ix;if(!state.snap)return p;return {x:Math.round(p.x/state.snap)*state.snap,y:Math.round(p.y/state.snap)*state.snap};}
+function pointSnapRadius(){
+ // Keep selection precise at 200–350% zoom; 4 mm used to swallow nearby new points.
+ return Math.max(.75,Math.min(3.2,8/(2*Math.max(.38,state.zoom))));
+}
+function snapped(p){
+ const radius=pointSnapRadius();
+ const existing=nearestPoint(p,radius);
+ if(existing)return {x:existing.x,y:existing.y,id:existing.id};
+ const intersection=nearestIntersection(p,radius);
+ if(intersection)return intersection;
+ if(!state.snap)return p;
+ return {x:Math.round(p.x/state.snap)*state.snap,
+  y:Math.round(p.y/state.snap)*state.snap};
+}
 function ensurePoint(world){const pt=snapped(world);if(pt.id)return pt.id;const p=nearestPoint(pt,.4);if(p)return p.id;return addPoint(`P${state.counter+1}`,pt,{color:state.style.color});}
 function lineCandidateFromEvent(ev,world){const id=ev.target.getAttribute('data-id');const e=get(id);if(e?.type==='line')return e;let winner=null,dist=4;for(const l of state.entities){if(l.type!=='line'||!visibleEntity(l))continue;const v=linePoints(l);if(!v)continue;const foot=foot2(world,v.a,v.b);if(!foot)continue;const segV=minus(v.b,v.a),t=dot(minus(foot,v.a),segV)/dot(segV,segV);if(l.extent==='segment'&&(t<0||t>1))continue;const d=len(world,foot);if(d<dist){winner=l;dist=d;}}return winner;}
 function findClickEntity(ev,world){const el=ev.target.closest('[data-id]');let e=el?get(el.getAttribute('data-id')):null;if(!e){e=nearestPoint(world,3.5)||lineCandidateFromEvent(ev,world);}return e;}
@@ -1592,7 +1605,24 @@ function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(stat
  if(['compass','circle','rectangle','protractor','curve','shapes','square','dimension','projection'].includes(state.tool)){handleDraftingClicks(state.tool,p,ev);return;}
  if(state.tool==='select'){state.selected=entity?.id||null;render();return;}
  if(state.tool==='erase'||state.tool==='eraser'){if(entity){state.selected=entity.id;deleteSelected();}return;}
- if(state.tool==='point'){saveUndo('Додано точку');const id=ensurePoint(p);state.selected=id;render();return;}
+ if(state.tool==='point'){
+  const nearby=nearestPoint(p,pointSnapRadius());
+  if(nearby){
+   state.selected=nearby.id;render();
+   toast('Це вже існуюча точка '+printablePointLabel(nearby.label||'')+'. Для нової натисніть трохи далі.');
+   return;
+  }
+  const snappedPosition=snapped(p);
+  const intersectionExists=nearestPoint(snappedPosition,.3);
+  if(intersectionExists){
+   state.selected=intersectionExists.id;render();
+   toast('Ця точка вже існує. Виберіть інше місце.');
+   return;
+  }
+  saveUndo('Додано точку');
+  const id=addPoint('P'+(state.counter+1),snappedPosition,{color:state.style.color});
+  state.selected=id;render();return;
+ }
  if(['segment','line','ruler'].includes(state.tool)){
   if(!state.pending){
    const before=snapshotForUndo();
