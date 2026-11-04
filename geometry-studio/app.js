@@ -314,6 +314,8 @@ function projectedPlane(e){
  }
  if(e.type==='line'){
   if(e.kind==='projection')return 'link';
+  if(e.kind==='perpendicular'&&e.perpendicularStart)
+   return projectedPlane(get(e.perpendicularStart));
   const a=get(e.a),b=get(e.b),pa=projectedPlane(a),pb=projectedPlane(b);
   if(pa&&pb)return pa===pb?pa:'link';
  }
@@ -1579,8 +1581,14 @@ function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(stat
   segment.perpendicularStart=point.id;
   segment.perpendicularLength=candidate.signedLength;
   pushUndoBefore(before,'Побудовано перпендикулярний відрізок '+(label||''));
-  state.selected=segmentId;state.pending=null;render();
-  toast('Створено саме відрізок '+(label?printablePointLabel(label):'')+' під кутом 90°');
+  state.selected=segmentId;state.pending=null;
+  // Show segment properties immediately so the name/color/width can be edited.
+  state.tool='select';
+  document.querySelectorAll('.tool').forEach(button=>
+   button.classList.toggle('active',button.dataset.tool==='select'));
+  $('canvasViewport').classList.add('pan-cursor');
+  render();
+  toast('Створено відрізок '+(label?printablePointLabel(label):'')+' під кутом 90°. Можна редагувати його назву.');
   return;
  }
  if(['parallel','intersect'].includes(state.tool)){
