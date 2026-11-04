@@ -1336,6 +1336,64 @@ window.GeometryStudioViewportAPI={
  }
 };
 
+/* Stable bridge for the local/cloud project library.
+   Only normalized editor data is restored; never evaluate project contents. */
+window.GeometryStudioProjectAPI={
+ exportProject:()=>({
+  format:'geometry-studio-project-v2',
+  savedAt:new Date().toISOString(),
+  entities:deep(state.entities),
+  coords3:deep(state.coords3),
+  counter:state.counter,
+  paperMode:state.paperMode,
+  step:state.step,
+  grid:state.grid,
+  snap:state.snap,
+  projection:deep(state.projection),
+  pointScale:state.pointScale,
+  axisMode:window.GeometryStudioAxes?.getMode()||'none',
+  axisScale:window.GeometryStudioAxes?.getScaleSettings?.()||null
+ }),
+ getSvg:()=>window.GeometryStudioViewportAPI.getExportSvg(),
+ newProject:()=>newBlank(),
+ openProject:(project)=>{
+  if(!project||!Array.isArray(project.entities)||project.entities.length>7000)
+   throw Error('Файл креслення має некоректну структуру.');
+  const allowed=new Set(['point','line','path','circle','angle','shape','dimension']);
+  for(const item of project.entities){
+   if(!item||!allowed.has(item.type)||typeof item.id!=='string')
+    throw Error('Креслення містить невідомий об’єкт.');
+   if(item.type==='point'&&(!Number.isFinite(item.x)||!Number.isFinite(item.y)))
+    throw Error('Некоректні координати точки.');
+  }
+  stopPlay();
+  state.entities=deep(project.entities);
+  state.counter=Math.max(0,Number(project.counter)||0,state.entities.length);
+  const coords=project.coords3&&typeof project.coords3==='object'?deep(project.coords3):deep(DEFAULT_3D);
+  state.coords3=coords;
+  state.paperMode=project.paperMode==='example'?'example':'blank';
+  try{taskResult=state.paperMode==='example'?computeTask(coords):null;}
+  catch(_){state.paperMode='blank';taskResult=null;}
+  state.grid=project.grid!==false;
+  state.snap=[0,1,5].includes(project.snap)?project.snap:5;
+  state.pointScale=normalizedPointScale(project.pointScale);
+  state.projection=project.projection&&['both','pi1','pi2'].includes(project.projection.view)
+   ?{view:project.projection.view,links:project.projection.links!==false,profile:!!project.projection.profile}
+   :{view:'both',links:true,profile:false};
+  state.step=6;state.selected=null;state.pending=null;state.undo=[];state.redo=[];
+  state.mode='manual';state.tool='select';state.history=[];
+  $('modeManual').classList.add('active');$('modeAuto').classList.remove('active');
+  $('autoStrip').classList.add('hidden');$('statusMode').textContent='Креслення';
+  document.querySelectorAll('.tool').forEach(b=>b.classList.toggle('active',b.dataset.tool==='select'));
+  $('showGrid').checked=state.grid;$('gridSize').value=String(state.snap);
+  window.GeometryStudioAxes?.setMode(project.axisMode||'none');
+  if(project.axisScale)window.GeometryStudioAxes?.setScaleSettings?.(project.axisScale);
+  render();fitPaper();saveLocal();
+  closeDrawer();
+  return true;
+ }
+};
+
 function renderInspector(){
  document.querySelectorAll('.inspector-tabs button').forEach(b=>b.classList.toggle('active',b.dataset.tab===state.tab));
  for(const tab of ['properties','points','history'])$(tab+'Tab').classList.toggle('hidden',state.tab!==tab);
