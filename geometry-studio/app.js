@@ -84,7 +84,22 @@ function addPoint(label,pos,opt={}){const p={id:nextId(),type:'point',label:labe
 function addLine(a,b,opt={}){const l={id:nextId(),type:'line',a,b,extent:opt.extent||'segment',dash:opt.dash||'solid',color:opt.color||state.style.color,width:opt.width||.65,label:opt.label||'',stage:opt.stage??0,kind:opt.kind||'normal',region:opt.region||null};state.entities.push(l);return l.id;}
 const get=id=>state.entities.find(e=>e.id===id);
 function pointOf(value){if(typeof value==='string'){const x=get(value);return x&&x.type==='point'&&!x.invalid?{x:x.x,y:x.y}:null;}if(value&&Number.isFinite(value.x)&&Number.isFinite(value.y))return value;return null;}
-function linePoints(l){if(!l||l.type!=='line')return null;const a=pointOf(l.a),b=pointOf(l.b);if(!a||!b||len(a,b)<1e-6)return null;return {a,b};}
+function linePoints(l){
+ if(!l||l.type!=='line')return null;
+ if(l.kind==='perpendicular'&&l.perpendicularBase&&l.perpendicularStart){
+  const anchor=pointOf(l.perpendicularStart),base=get(l.perpendicularBase);
+  if(!anchor||!base||base.id===l.id)return null;
+  const vec=linePoints(base);
+  if(!vec||!Number.isFinite(l.perpendicularLength))return null;
+  const d=minus(vec.b,vec.a),length=Math.hypot(d.x,d.y);
+  if(length<1e-8||Math.abs(l.perpendicularLength)<1e-6)return null;
+  const normal={x:-d.y/length,y:d.x/length};
+  return {a:anchor,b:plus(anchor,times(normal,l.perpendicularLength))};
+ }
+ const a=pointOf(l.a),b=pointOf(l.b);
+ if(!a||!b||len(a,b)<1e-6)return null;
+ return {a,b};
+}
 
 function addPrimitive(type,geometry,opt={}){const obj={id:nextId(),type,...geometry,color:opt.color||state.style.color,dash:opt.dash||state.style.dash,width:opt.width??state.style.width,stage:0,label:opt.label||''};state.entities.push(obj);return obj.id;}
 function entityTitle(e){const labels={point:'Точка',line:e?.extent==='line'?'Пряма':'Відрізок',path:'Олівець',circle:'Коло',angle:'Кут',shape:'Фігура',dimension:'Розмір'};return labels[e?.type]||'Об’єкт';}
@@ -668,8 +683,11 @@ function redraw(){recomputeDerived();const l=$('drawingLayer');l.replaceChildren
  updateStepUI();
 }
 function updateStepUI(){let step=state.step;$('stepTitle').textContent=STEPS[step][0];$('stepDescription').textContent=STEPS[step][1];$('stepCount').textContent=`${String(step+1).padStart(2,'0')} / 07`;$('stepRange').value=String(step);$('stepPrev').disabled=step===0;$('stepNext').disabled=step===6;$('stepNext').textContent=step===6?'Завершено ✓':'Далі →';$('docName').textContent=state.paperMode==='blank'?'Нове креслення':'Відстань від точки до площини';$('docVariant').textContent=state.paperMode==='blank'?'A3 • клітинка 5 мм':'Варіант 15';$('canvasHelp').textContent=state.mode==='auto'?STEPS[step][1]:manualHint();}
-function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Shift — строго горизонтально (0°) або вертикально (90°). Esc — скасувати.';if(['perp','parallel'].includes(state.tool))return 'Тепер натисніть на точку, через яку треба провести побудову.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
- return ({select:'Перетягуй полотно мишкою. Клацни об’єкт, щоб вибрати. Alt + перетягування — перемістити точку.',pan:'Перетягуй полотно мишкою.',pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',circle:'Вкажіть центр кола, потім точку на його окружності.',rectangle:'Вкажіть дві протилежні вершини прямокутника.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Оберіть опорну пряму, потім точку для перпендикуляра.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
+function manualHint(){if(state.pending){if(['segment','line','ruler'].includes(state.tool))return 'Оберіть другу точку. Shift — строго горизонтально (0°) або вертикально (90°). Esc — скасувати.';if(state.tool==='perp')return state.pending.start
+ ?'Перпендикуляр: вкажіть третім натисканням довжину відрізка n₁/n₂. Напрям строго 90°.'
+ :'Перпендикуляр: натисніть на точку D₁ або D₂; точка не дублюватиметься.';
+ if(state.tool==='parallel')return 'Натисніть на точку, через яку провести паралельну лінію.';if(state.tool==='intersect')return 'Тепер оберіть другу лінію, щоб створити точку перетину.';if(state.pending?.points)return 'Вкажіть наступну точку побудови. Esc — скасувати.';}
+ return ({select:'Перетягуй полотно мишкою. Клацни об’єкт, щоб вибрати. Alt + перетягування — перемістити точку.',pan:'Перетягуй полотно мишкою.',pencil:'Ведіть олівцем по аркушу, утримуючи кнопку миші.',ruler:'Вкажіть дві точки для точного відрізка.',eraser:'Натисніть на об’єкт, щоб стерти його.',compass:'Вкажіть центр кола, потім точку на колі.',circle:'Вкажіть центр кола, потім точку на його окружності.',rectangle:'Вкажіть дві протилежні вершини прямокутника.',protractor:'Вкажіть вершину кута та кінці двох його сторін.',square:'Вкажіть початкову та кінцеву точки. Напрям буде кратний обраному куту.',curve:'Вкажіть початок, точку згину та кінець кривої.',shapes:'Вкажіть дві вершини прямокутника або еліпса; три точки для трикутника.',dimension:'Вкажіть дві точки для розмірної лінії.',projection:'Натисніть точку для вертикалі. Shift — горизонтальна проєкція.',select:'Клацніть об’єкт для вибору. Перетягніть точку, щоб змінити геометрію.',point:'Клацніть місце на аркуші, щоб поставити точку.',segment:'Оберіть дві точки для створення відрізка.',line:'Оберіть дві точки для нескінченної прямої.',perp:'Перпендикулярний ВІДРІЗОК: спочатку оберіть h₁ або f₂, потім точку D, потім кінець відрізка.',parallel:'Оберіть опорну пряму, потім точку для паралелі.',intersect:'Оберіть дві прямі — сайт обчислить точку перетину.',pan:'Тягніть полотно мишкою.',erase:'Натисніть на точку або лінію, щоб видалити.'})[state.tool];}
 
 /* Contextual style controls for already-drawn geometry. */
 let styleChangeSnapshot=null,styleChangeKind=null;
@@ -1469,6 +1487,42 @@ function renderStraightPreview(world,holdingShift){
  }
 }
 
+
+/* Perpendicular segment: base line → existing anchor → freely chosen length.
+ * The endpoint is constrained to 90° while dragging the pointer. */
+function perpendicularCandidate(base,point,world){
+ const line=linePoints(base),a=pointOf(point);
+ if(!line||!a||!world)return null;
+ const d=minus(line.b,line.a),n=Math.hypot(d.x,d.y);
+ if(n<1e-8)return null;
+ const normal={x:-d.y/n,y:d.x/n};
+ const signedLength=dot(minus(world,a),normal);
+ return {a,b:plus(a,times(normal,signedLength)),signedLength};
+}
+function perpendicularLabel(point){
+ const last=String(point?.label||'').match(/([12])$/);
+ const suffix=last?.[1]||'';
+ const label='n'+suffix;
+ return state.entities.some(e=>e.type==='line'&&e.label===label)?'':label;
+}
+function renderPerpendicularPreview(world){
+ if(state.tool!=='perp'||!state.pending?.start)return;
+ const base=get(state.pending.line),pos=pointOf(state.pending.start);
+ const calculated=perpendicularCandidate(base,pos,world);
+ if(!calculated)return;
+ const layer=$('previewLayer');
+ layer.replaceChildren();
+ const {a,b}=calculated;
+ makeSVG('circle',{cx:a.x,cy:a.y,r:2.5,stroke:'#0f8eaa','stroke-width':.7,
+  fill:'none','pointer-events':'none'},layer);
+ if(Math.abs(calculated.signedLength)<.4)return;
+ makeSVG('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:'#0c9a91',
+  'stroke-width':.9,'stroke-dasharray':'2.7 1.4','stroke-linecap':'round',
+  'pointer-events':'none'},layer);
+ makeSVG('circle',{cx:b.x,cy:b.y,r:1.75,fill:'#fff',stroke:'#0c9a91',
+  'stroke-width':.6,'pointer-events':'none'},layer);
+}
+
 function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(state.tool==='pan'||state.mode==='auto')return;const p=screenToWorld(ev);if(!p||!Number.isFinite(p.x)||!Number.isFinite(p.y))return;if(extensionState?.stage==='pick'){handleExtensionClick(ev,p);return;}const entity=findClickEntity(ev,p);
  if(['compass','circle','rectangle','protractor','curve','shapes','square','dimension','projection'].includes(state.tool)){handleDraftingClicks(state.tool,p,ev);return;}
  if(state.tool==='select'){state.selected=entity?.id||null;render();return;}
@@ -1491,7 +1545,45 @@ function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(stat
   state.selected=addLine(first,end,{extent:state.tool==='line'?'line':'segment',...state.style});
   state.pending=null;render();return;
  }
- if(['perp','parallel','intersect'].includes(state.tool)){
+ if(state.tool==='perp'){
+  if(!state.pending){
+   const line=lineCandidateFromEvent(ev,p);
+   if(!line||line.kind==='projection'||line.kind==='perpendicular'){
+    toast('Спочатку натисніть на опорний відрізок (h₁ або f₂)');return;
+   }
+   state.pending={line:line.id};
+   render();toast('Тепер виберіть точку D₁ або D₂');return;
+  }
+  const base=get(state.pending.line);
+  if(!base||!linePoints(base)){state.pending=null;render();return;}
+  if(!state.pending.start){
+   if(entity?.type!=='point'||!visibleEntity(entity)){
+    toast('Виберіть саме наявну точку D₁ або D₂, не порожнє місце');return;
+   }
+   state.pending.start=entity.id;
+   render();toast('Тепер вкажіть довжину й напрям перпендикуляра третім натисканням');return;
+  }
+  const point=get(state.pending.start);
+  const candidate=perpendicularCandidate(base,point,p);
+  if(!candidate||Math.abs(candidate.signedLength)<1){
+   toast('Вкажіть кінець відрізка далі від вихідної точки');return;
+  }
+  const before=snapshotForUndo();
+  const label=perpendicularLabel(point);
+  const segmentId=addLine(point.id,candidate.b,{
+   extent:'segment',kind:'perpendicular',label,
+   color:state.style.color,dash:state.style.dash,width:state.style.width
+  });
+  const segment=get(segmentId);
+  segment.perpendicularBase=base.id;
+  segment.perpendicularStart=point.id;
+  segment.perpendicularLength=candidate.signedLength;
+  pushUndoBefore(before,'Побудовано перпендикулярний відрізок '+(label||''));
+  state.selected=segmentId;state.pending=null;render();
+  toast('Створено саме відрізок '+(label?printablePointLabel(label):'')+' під кутом 90°');
+  return;
+ }
+ if(['parallel','intersect'].includes(state.tool)){
   if(!state.pending){const l=lineCandidateFromEvent(ev,p);if(!l){toast('Спочатку оберіть опорну лінію');return;}state.pending={line:l.id};render();return;}
   const base=get(state.pending.line),vec=linePoints(base);if(!vec){state.pending=null;return;}
   if(state.tool==='intersect'){
@@ -1500,10 +1592,11 @@ function onCanvasClick(ev){if(state.drag?.moved){state.drag=null;return;}if(stat
    if(!intersection){toast('У цих межах лінії не перетинаються');return;}
    saveUndo('Обчислено точку перетину');state.selected=addPoint(`I${state.counter+1}`,intersection.point,{color:'#0b9c90',derivation:{kind:'intersection',l1:base.id,l2:second.id}});state.pending=null;render();return;
   }
-  saveUndo(state.tool==='perp'?'Побудовано перпендикуляр':'Побудовано паралельну пряму');const id=ensurePoint(p);if(state.tool==='perp'){
-   const foot=foot2(pointOf(id),vec.a,vec.b);if(!foot||len(foot,pointOf(id))<.01){toast('Точка вже лежить на прямій');state.pending=null;render();return;}
-   const footID=addPoint(`H${state.counter+1}`,foot,{color:'#0e968a',derivation:{kind:'foot',line:base.id,point:id}});state.selected=addLine(id,footID,{color:state.style.color,dash:state.style.dash,width:state.style.width});
-  }else{const d=minus(vec.b,vec.a);const length=Math.hypot(d.x,d.y);const other=plus(pointOf(id),times(d,35/length));state.selected=addLine(id,other,{extent:'line',...state.style});}
+  saveUndo('Побудовано паралельну пряму');
+  const id=ensurePoint(p);
+  const d=minus(vec.b,vec.a),length=Math.hypot(d.x,d.y);
+  const other=plus(pointOf(id),times(d,35/length));
+  state.selected=addLine(id,other,{extent:'line',...state.style});
   state.pending=null;render();return;
  }
 }
@@ -1518,7 +1611,7 @@ function deleteSelected(){
   for(const item of state.entities){
    if(removed.has(item.id))continue;
    const d=item.derivation;
-   const dependencies=d?[d.line,d.l1,d.l2,d.point,d.base,d.target].filter(Boolean):[];
+   const dependencies=[...(d?[d.line,d.l1,d.l2,d.point,d.base,d.target]:[]),item.perpendicularBase,item.perpendicularStart].filter(Boolean);
    const endpointRemoved=item.type==='line'&&
     (typeof item.a==='string'&&removed.has(item.a)||typeof item.b==='string'&&removed.has(item.b));
    if(endpointRemoved||dependencies.some(id=>removed.has(id))){
@@ -1643,7 +1736,7 @@ function init(){
   if(e.pointerType==='touch'&&touchPointers.has(e.pointerId))touchPointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pinch&&touchPointers.size>=2){const [a,b]=[...touchPointers.values()];const newDist=Math.hypot(a.x-b.x,a.y-b.y);const midpoint={x:(a.x+b.x)/2,y:(a.y+b.y)/2};const bounds=viewport.getBoundingClientRect();
    state.zoom=clamp(pinch.zoom*newDist/Math.max(1,pinch.distance),.38,3.5);state.pan={x:midpoint.x-bounds.left-pinch.paperX*state.zoom,y:midpoint.y-bounds.top-pinch.paperY*state.zoom};updatePaperTransform();suppressClick=true;return;}
-  const world=screenToWorld(e);if(world){$('cursorCoords').textContent=`X: ${fmt(world.x,1)} мм · Y: ${fmt(world.y,1)} мм`;lastStraightCursor=world;if(isStraightDrawingTool(state.tool)&&state.pending?.start)renderStraightPreview(world,e.shiftKey||shiftPreviewHeld);if(extensionState?.stage==='pick')drawExtensionPreview(world,e);}
+  const world=screenToWorld(e);if(world){$('cursorCoords').textContent=`X: ${fmt(world.x,1)} мм · Y: ${fmt(world.y,1)} мм`;lastStraightCursor=world;if(isStraightDrawingTool(state.tool)&&state.pending?.start)renderStraightPreview(world,e.shiftKey||shiftPreviewHeld);if(state.tool==='perp'&&state.pending?.start)renderPerpendicularPreview(world);if(extensionState?.stage==='pick')drawExtensionPreview(world,e);}
   if(!down){
    const candidate=state.tool==='select'&&extensionState?.stage!=='pick'?geometryTargetAt(e,world):null;
    viewport.classList.toggle('cursor-on-vertex',!!candidate&&(candidate.kind==='point'||candidate.kind==='vertex'));
