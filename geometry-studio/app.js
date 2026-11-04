@@ -1197,6 +1197,98 @@ function initializeGlobalPointSize(){
  syncGlobalPointSize();
 }
 
+
+/* One-operation true length construction for Task 5.
+   Uses precisely the points stored in this browser's existing drawing.
+   Does not reset the sheet or modify the source points. */
+const DH_CONSTRUCTION_TAG='dh-true-length-v1';
+function completeDHStatus(message,isError=false){
+ const output=$('completeDHStatus');
+ if(output){
+  output.textContent=message;
+  output.dataset.status=isError?'error':'success';
+ }
+ toast(message);
+}
+function dhPointByLabel(label,reference){
+ const normalized=value=>String(value||'').replace(/[₀-₉]/g,c=>String('₀₁₂₃₄₅₆₇₈₉'.indexOf(c))).toUpperCase();
+ const matches=state.entities.filter(item=>item.type==='point'&&!item.invalid&&
+  normalized(item.label)===normalized(label));
+ if(!matches.length)throw Error('На кресленні немає точки '+printablePointLabel(label)+'.');
+ if(!reference)return matches[0];
+ return matches.sort((a,b)=>len(a,reference)-len(b,reference))[0];
+}
+function completeTrueDistanceDH(){
+ try{
+  if(state.entities.some(e=>e.dhConstruction===DH_CONSTRUCTION_TAG)){
+   completeDHStatus('Прямокутний трикутник DH уже нанесений. За потреби можна скасувати його через Ctrl+Z.');
+   return true;
+  }
+  const calculated=computeTask(state.coords3);
+  const D1=dhPointByLabel('D1',p1(state.coords3.D));
+  const D2=dhPointByLabel('D2',p2(state.coords3.D));
+  const H1=dhPointByLabel('H1',p1(calculated.H));
+  const H2=dhPointByLabel('H2',p2(calculated.H));
+  const expected={D1:p1(state.coords3.D),D2:p2(state.coords3.D),
+   H1:p1(calculated.H),H2:p2(calculated.H)};
+  const actual={D1,D2,H1,H2};
+  for(const label of ['D1','D2','H1','H2']){
+   if(len(actual[label],expected[label])>1.5)
+    throw Error('Точка '+printablePointLabel(label)+' відхиляється від розрахункового положення більш ніж на 1,5 мм. Перевір її координати.');
+  }
+  if(Math.abs(D1.x-D2.x)>1.3||Math.abs(H1.x-H2.x)>1.3)
+   throw Error('Проєкції D або H не лежать на одній вертикалі. Перевір точки перед побудовою.');
+  const base=minus(H1,D1),baseLength=Math.hypot(base.x,base.y);
+  const height=Math.abs(D2.y-H2.y);
+  if(baseLength<.1||height<.1)throw Error('Недостатня довжина катета DH.');
+  const normal={x:base.y/baseLength,y:-base.x/baseLength};
+  const Tpos=plus(H1,times(normal,height));
+  if(Tpos.x<0||Tpos.x>A3.width||Tpos.y<0||Tpos.y>A3.height)
+   throw Error('Для допоміжної точки T немає місця на аркуші.');
+  const distance=Math.hypot(baseLength,height);
+  if(Math.abs(distance-calculated.dist)>.35)
+   throw Error('Проєкції H₁/H₂ відрізняються від вихідних координат. Точна відстань має бути '+fmt(calculated.dist,3)+' мм. Побудову не змінено.');
+  // All entities below are a single undoable transaction.
+  const before=snapshotForUndo();
+  const tag=id=>{get(id).dhConstruction=DH_CONSTRUCTION_TAG;return id;};
+  let name='T';
+  if(state.entities.some(e=>e.type==='point'&&e.label===name))name='T_DH';
+  const Tid=tag(addPoint(name,Tpos,{color:'#e08029',small:false}));
+  get(Tid).projectionPlane='pi1';
+  tag(addLine(H1.id,Tid,{kind:'measurement',color:'#dc8532',width:1.0,
+   label:'ΔZ = '+fmt(height,3)+' мм',dash:'solid',extent:'segment'}));
+  const DHline=tag(addLine(D1.id,Tid,{kind:'measurement',color:'#b02ec9',width:1.15,
+   label:'DH = '+fmt(distance,3)+' мм',dash:'solid',extent:'segment'}));
+  const markerLength=Math.min(2.4,baseLength*.28,height*.28);
+  const towardD=times(base,-1/baseLength),towardT=normal;
+  const c1=plus(H1,times(towardD,markerLength));
+  const c2=plus(c1,times(towardT,markerLength));
+  const c3=plus(H1,times(towardT,markerLength));
+  tag(addLine(c1,c2,{kind:'measurement-guide',color:'#5b7189',width:.4}));
+  tag(addLine(c2,c3,{kind:'measurement-guide',color:'#5b7189',width:.4}));
+  pushUndoBefore(before,'Побудовано справжню довжину DH = '+fmt(distance,3)+' мм');
+  state.selected=null;
+  state.pending=null;
+  state.mode='manual';
+  state.tool='select';
+  state.paperMode='blank';
+  document.querySelectorAll('.tool').forEach(button=>
+   button.classList.toggle('active',button.dataset.tool==='select'));
+  $('canvasViewport').classList.add('pan-cursor');
+  $('modeManual').classList.add('active');
+  $('modeAuto').classList.remove('active');
+  $('autoStrip').classList.add('hidden');
+  $('statusMode').textContent='Креслення';
+  render();
+  saveLocal();
+  completeDHStatus('Готово: D₁T = '+fmt(distance,3)+' мм; H₁T = '+fmt(height,3)+' мм.');
+  return true;
+ }catch(error){
+  completeDHStatus(error?.message||'Не вдалося побудувати справжню довжину DH.',true);
+  return false;
+ }
+}
+
 function render(){redraw();renderInspector();syncUndoControls();updateSelectedStyleUI();syncGlobalPointSize();saveLocalDebounced();}
 window.GeometryStudioViewportAPI={
  zoomIn:()=>moveZoom(1.2),
@@ -1784,6 +1876,7 @@ function init(){
  document.querySelectorAll('.tool').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
  $('modeManual').addEventListener('click',()=>setMode('manual'));$('modeAuto').addEventListener('click',()=>setMode('auto'));
  $('btnNew').addEventListener('click',newBlank);$('btnExample').addEventListener('click',startExample);
+ $('btnCompleteDH')?.addEventListener('click',completeTrueDistanceDH);
  $('btnPrint').addEventListener('click',printPDF);$('btnSave').addEventListener('click',exportJSON);$('btnSVG').addEventListener('click',exportSVG);$('btnLoad').addEventListener('click',()=>$('fileImport').click());$('fileImport').addEventListener('change',e=>{if(e.target.files?.[0])importJSON(e.target.files[0]);e.target.value='';});
  $('btnUndo').addEventListener('click',undo);$('floatingUndo')?.addEventListener('click',undo);$('btnRedo').addEventListener('click',redo);
  $('showGrid').checked=state.grid;$('showGrid').addEventListener('change',e=>{state.grid=e.target.checked;render();});
@@ -1928,7 +2021,15 @@ function init(){
  });
  window.addEventListener('resize',()=>{if(needFit)fitPaper();});
  $('modeManual').classList.toggle('active',state.mode==='manual');$('modeAuto').classList.toggle('active',state.mode==='auto');$('autoStrip').classList.toggle('hidden',state.mode!=='auto');$('statusMode').textContent=state.mode==='auto'?'Автопобудова':'Креслення';
- requestAnimationFrame(()=>{fitPaper();needFit=false;render();});
+ requestAnimationFrame(()=>{
+  fitPaper();needFit=false;render();
+  const url=new URL(window.location.href);
+  if(url.searchParams.get('complete_dh')==='1'){
+   url.searchParams.delete('complete_dh');
+   window.history.replaceState(null,'',url.pathname+url.search+url.hash);
+   completeTrueDistanceDH();
+  }
+ });
 }
 
 /* Task 5: safe bridge for the two triangle-construction workflows */
