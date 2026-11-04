@@ -198,10 +198,10 @@ async function handle(request,env,origin){
     const id=single[1];
     if(method==='GET'){
       const row=await env.DB.prepare(
-        'SELECT id,title,payload,revision,share_id AS shareId,updated_at AS updatedAt FROM projects WHERE id=? AND user_id=?'
+        'SELECT id,title,payload,svg,revision,share_id AS shareId,updated_at AS updatedAt FROM projects WHERE id=? AND user_id=?'
       ).bind(id,session.userId).first();
       return row?output({
-        id:row.id,title:row.title,snapshot:JSON.parse(row.payload),
+        id:row.id,title:row.title,snapshot:JSON.parse(row.payload),svg:row.svg,
         revision:row.revision,shareId:row.shareId,updatedAt:row.updatedAt
       },200,origin):error(404,'Креслення не знайдено.',origin);
     }
