@@ -332,7 +332,7 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 #drawingLayer .line-label{
  pointer-events:bounding-box;cursor:grab;user-select:none;
  fill:#173d56;stroke:#fff;stroke-linejoin:round;
- font-family:Arial,"Segoe UI",sans-serif;font-weight:750;
+ font-family:Arial,"Segoe UI",sans-serif;font-weight:750;font-style:italic;
  paint-order:stroke fill;text-rendering:geometricPrecision
 }
 #canvasViewport.cursor-on-label:not(.panning){cursor:grab!important}
