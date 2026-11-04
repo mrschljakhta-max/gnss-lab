@@ -337,3 +337,12 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 }
 #canvasViewport.cursor-on-label:not(.panning){cursor:grab!important}
 #canvasViewport.cursor-dragging-label{cursor:grabbing!important}
+
+/* Edit the label of any selected point, including calculated intersections. */
+.selected-point-label-control .selected-line-label-entry button{
+ background:#e6f5f1;border-color:#b6dcd3;color:#087a6d;font-size:17px;
+}
+.selected-point-label-control .selected-line-label-entry button:hover{
+ background:#d3efe8;color:#075e55;
+}
+#selectedPointLabelStatus.error{color:#b43b49}
