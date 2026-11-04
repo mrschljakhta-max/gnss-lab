@@ -3,6 +3,21 @@
 <html lang="uk">
 <head>
 <meta charset="utf-8"/>
+<script>
+/* Keep the browser address clean when visitors arrive from ChatGPT links. */
+(() => {
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('utm_source')?.toLowerCase() === 'chatgpt.com') {
+      url.searchParams.delete('utm_source');
+      window.history.replaceState(window.history.state, '', url.pathname + url.search + url.hash);
+    }
+  } catch (_) {
+    // URL cleanup is optional and must never interrupt the drawing editor.
+  }
+})();
+</script>
+
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <meta content="#101a2c" name="theme-color"/>
 <meta content="Geometry Studio — параметричні геометричні побудови, нарисна геометрія, перетини, сітка та друк A3." name="description"/>
