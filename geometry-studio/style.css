@@ -346,3 +346,10 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
  background:#d3efe8;color:#075e55;
 }
 #selectedPointLabelStatus.error{color:#b43b49}
+
+/* Move point names without dragging their anchors. */
+#drawingLayer .point-label[data-point-label-id]{
+ pointer-events:bounding-box;cursor:grab;user-select:none;
+}
+#canvasViewport.cursor-on-label #drawingLayer .point-label[data-point-label-id]{cursor:grab}
+#canvasViewport.cursor-dragging-label #drawingLayer .point-label[data-point-label-id]{cursor:grabbing}
