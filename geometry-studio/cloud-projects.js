@@ -288,8 +288,12 @@ async function init(){
  if(!CORE()||!$('gspTemplate'))return;
  initPanel();
  try{
-  await localDB();const latest=snapshot();lastFingerprint=fingerprint(latest);
-  if(activeId&&!(await find(activeId)))setActive(null,latest);
+  await localDB();const latest=snapshot();
+  if(activeId){
+   const saved=await find(activeId);
+   if(saved)lastFingerprint=fingerprint(saved.snapshot);
+   else setActive(null,latest);
+  }else lastFingerprint=fingerprint(latest);
  }catch(e){feedback(e.message,true);}
  setInterval(async()=>{
   if(busy||!activeId)return;
