@@ -4,6 +4,7 @@
 const $=id=>document.getElementById(id),CORE=()=>window.GeometryStudioProjectAPI;
 const LOCAL_KEY='geometry-studio-current-project-id',SESSION_KEY='geometry-studio-cloud-token',API_KEY='geometry-studio-worker-url';
 let dbPromise,activeId=localStorage.getItem(LOCAL_KEY)||null,lastFingerprint='',busy=false,cloudList=[],username='';
+let previewUrls=[];
 const now=()=>new Date().toISOString();
 const configuredBase=()=>String(window.GeometryStudioCloudConfig?.apiBase||'').replace(/\/+$/,'');
 const base=()=>configuredBase()||String(localStorage.getItem(API_KEY)||'').replace(/\/+$/,'');
@@ -63,19 +64,19 @@ async function saveCurrent(force=false){
  const title=$('gspTitle')?.value.trim();
  const nextTitle=title&&record.id===activeId?title.slice(0,100):record.title;
  if(!force&&fp===lastFingerprint&&nextTitle===record.title)return record;
- record.snapshot=data;record.title=nextTitle;record.dirty=true;record.updatedAt=now();
+ record.snapshot=data;record.previewSvg=CORE().getSvg();record.title=nextTitle;record.dirty=true;record.updatedAt=now();
  await put(record);lastFingerprint=fp;return record;
 }
 async function saveNew(){
  const data=snapshot(),title=$('gspTitle')?.value.trim()||'Нове креслення';
- const record={id:crypto.randomUUID(),title:title.slice(0,100),snapshot:data,
+ const record={id:crypto.randomUUID(),title:title.slice(0,100),snapshot:data,previewSvg:CORE().getSvg(),
   cloudId:null,revision:null,shareId:null,dirty:true,createdAt:now(),updatedAt:now()};
  await put(record);setActive(record.id,data);return record;
 }
 async function cloudSave(record){
  if(!base()||!key())throw Error('Для хмарного збереження потрібні Worker і вхід.');
  if(record.id!==activeId)throw Error('Спочатку відкрий проєкт у редакторі.');
- const documentData={title:record.title,snapshot:record.snapshot,svg:CORE().getSvg()};
+ const documentData={title:record.title,snapshot:record.snapshot,svg:record.previewSvg||CORE().getSvg()};
  if(record.cloudId){
   const res=await api('/api/projects/'+record.cloudId,{method:'PUT',body:{...documentData,revision:record.revision}});
   record.revision=res.revision;
@@ -113,7 +114,7 @@ async function openCloud(meta){
  const records=await list();let localRecord=records.find(r=>r.cloudId===remote.id);
  if(localRecord?.dirty&&!confirm('У локальній копії є незавантажені зміни. Замінити їх версією з хмари?'))return;
  if(!localRecord)localRecord={id:crypto.randomUUID(),createdAt:now()};
- Object.assign(localRecord,{title:remote.title,snapshot:remote.snapshot,
+ Object.assign(localRecord,{title:remote.title,snapshot:remote.snapshot,previewSvg:remote.svg||'',
   cloudId:remote.id,revision:remote.revision,shareId:remote.shareId,
   updatedAt:now(),dirty:false,syncedAt:now()});
  await put(localRecord);
@@ -180,6 +181,11 @@ function recordCard(record,isCloud=false){
  card.append(element('strong','gsp-card-title',record.title));
  const hint=isCloud?'Хмара':(record.dirty?'Не синхронізовано':record.cloudId?'У хмарі':'Локально');
  card.append(element('span','gsp-card-info',hint+' · '+humanDate(record.updatedAt)));
+ if(!isCloud&&record.previewSvg){
+  const img=element('img','gsp-card-preview');img.alt='Попередній перегляд '+record.title;
+  const url=URL.createObjectURL(new Blob([record.previewSvg],{type:'image/svg+xml;charset=utf-8'}));
+  previewUrls.push(url);img.src=url;card.append(img);
+ }
  const actions=element('div','gsp-card-actions');
  if(isCloud){
   button(actions,'Відкрити',()=>openCloud(record));
@@ -198,6 +204,7 @@ function recordCard(record,isCloud=false){
  card.append(actions);return card;
 }
 async function draw(){
+ previewUrls.forEach(url=>URL.revokeObjectURL(url));previewUrls=[];
  const records=(await list()).sort((a,b)=>String(b.updatedAt).localeCompare(String(a.updatedAt)));
  const localContainer=$('gspLocalList');if(!localContainer)return;
  localContainer.replaceChildren();
