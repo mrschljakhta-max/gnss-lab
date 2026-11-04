@@ -353,3 +353,24 @@ html,body{height:100%;overflow:hidden;background:#fbfdff}
 }
 #canvasViewport.cursor-on-label #drawingLayer .point-label[data-point-label-id]{cursor:grab}
 #canvasViewport.cursor-dragging-label #drawingLayer .point-label[data-point-label-id]{cursor:grabbing}
+
+/* Line type is editable independently of colour and width. */
+.selected-line-dash-control{
+ border-top:1px solid #e1ebef;margin-top:15px;padding-top:13px
+}
+.selected-line-dash-control[hidden]{display:none!important}
+.selected-line-dash-control select,
+.extend-field select{
+ display:block;width:100%;min-height:38px;padding:8px 10px;margin-top:8px;
+ background:#fff;color:#26465c;border:1px solid #cfdee7;border-radius:9px;
+ font-family:inherit;font-size:12px;font-weight:650;cursor:pointer
+}
+.selected-line-dash-control select:focus-visible,
+.extend-field select:focus-visible{
+ outline:2px solid #0c9ba3;outline-offset:2px
+}
+.line-dash-preview{
+ display:block;width:100%;height:22px;box-sizing:border-box;
+ margin:4px 0 0;background:#f5f9fa;border:1px solid #e4edf2;border-radius:6px
+}
+.extend-field select{margin-top:0}
