@@ -78,7 +78,9 @@ const lineIntersect=(a,b,c,d,asSegment=false,bsSegment=false)=>{
  return {point:plus(a,times(r,t)),t,u};
 };
 const foot2=(p,a,b)=>{const d=minus(b,a);if(dot(d,d)<1e-10)return null;return plus(a,times(d,dot(minus(p,a),d)/dot(d,d)));};
-const styleLine=(dash)=>({solid:'',dashed:'3 2',dashdot:'5 1.6 .5 1.6',dotted:'.35 1.65'})[dash]||'';
+const LINE_DASH_TYPES=['solid','dashed','dashdot','dotted'];
+const normalizedLineDash=dash=>LINE_DASH_TYPES.includes(dash)?dash:'solid';
+const styleLine=(dash)=>({solid:'',dashed:'3 2',dashdot:'5 1.6 .5 1.6',dotted:'.35 1.65'})[normalizedLineDash(dash)]||'';
 const nextId=()=>`g${++state.counter}`;
 function addPoint(label,pos,opt={}){const p={id:nextId(),type:'point',label:label||`P${state.counter}`,x:pos.x,y:pos.y,color:opt.color||COLORS.ink,stage:opt.stage??0,small:opt.small??false,derivation:opt.derivation||null,offset:opt.offset||null,source:opt.source||null};state.entities.push(p);return p.id;}
 function addLine(a,b,opt={}){const l={id:nextId(),type:'line',a,b,extent:opt.extent||'segment',dash:opt.dash||'solid',color:opt.color||state.style.color,width:opt.width||.65,label:opt.label||'',stage:opt.stage??0,kind:opt.kind||'normal',region:opt.region||null};state.entities.push(l);return l.id;}
@@ -805,6 +807,7 @@ function updateExtensionPanel(){
 function extensionBegin(){
  const base=get(state.selected);if(base?.type!=='line')return;
  extensionState={base:base.id,endpoint:'a',stage:'setup',mode:'intersection'};
+ $('extendLineDash').value=normalizedLineDash(base.dash);
  const labels=[extensionEndpointLabel(base.a,'A'),extensionEndpointLabel(base.b,'B')];
  // Keep a descriptive-geometric point name, not an auto-numbered P marker.
  $('extendPointName').value=state.entities.some(p=>p.type==='point'&&p.label==='J2')?'J3':'J2';
@@ -825,6 +828,7 @@ function extensionActivate(){
  if(!extensionSource())return;
  const selected=document.querySelector('#extensionControls input[name="extendMethod"]:checked');
  extensionState.mode=selected?.value==='free'?'free':'intersection';
+ extensionState.dash=normalizedLineDash($('extendLineDash').value);
  try{extensionNormalizeLabel($('extendPointName').value);}catch(e){extensionMessage(e.message,'error');return;}
  extensionState.stage='pick';
  $('extendActivate').disabled=true;
@@ -870,7 +874,8 @@ function drawExtensionPreview(world,event){
  const projected=extensionChoice(event,world);
  const end=projected?.result?.point||plus(origin,times(d,forward*55/m));
  makeSVG('line',{x1:origin.x,y1:origin.y,x2:end.x,y2:end.y,
-  stroke:'#e98b35','stroke-width':.8,'stroke-dasharray':'3 1.6','stroke-linecap':'round','pointer-events':'none'},layer);
+  stroke:'#e98b35','stroke-width':.8,'stroke-dasharray':styleLine(extensionState.dash),
+  'stroke-linecap':'round','pointer-events':'none'},layer);
  if(projected?.result){
   makeSVG('circle',{cx:end.x,cy:end.y,r:2.35,fill:'#fff',stroke:'#098f8c',
    'stroke-width':.8,'pointer-events':'none'},layer);
@@ -901,8 +906,9 @@ function extensionApplyPoint(geometry,target){
   const pointId=addPoint(label,geometry.point,{color:'#128a88',derivation});
   const point=get(pointId);
   point.projectionPlane=projectedPlane(base)||undefined;
-  const extensionId=addLine(at,pointId,{kind:'extension',dash:'dashed',
-    color:'#df8735',width:.65,extent:'segment'});
+  const extensionId=addLine(at,pointId,{kind:'extension',
+    dash:normalizedLineDash(extensionState.dash||base.dash),
+    color:base.color||state.style.color,width:base.width??.65,extent:'segment'});
   get(extensionId).sourceLine=base.id;
   if(target)get(extensionId).targetLine=target.id;
   pushUndoBefore(before,'Продовжено відрізок до '+printablePointLabel(label));
@@ -1005,6 +1011,7 @@ function updateSelectedStyleUI(){
  if(!targets.length){
   $('selectedLineLabelRow').hidden=true;
   $('selectedPointLabelRow').hidden=true;
+  $('selectedLineDashRow').hidden=true;
   updateExtensionPanel();return;
  }
  const selected=get(state.selected),current=targets[0];
@@ -1017,6 +1024,14 @@ function updateSelectedStyleUI(){
   }
   if(document.activeElement!==pointLabelInput)pointLabelInput.value=selected.label||'';
  }
+ const dashRow=$('selectedLineDashRow'),dashInput=$('selectedLineDash');
+ dashRow.hidden=selected?.type!=='line';
+ if(selected?.type==='line'){
+  dashInput.value=normalizedLineDash(current.dash);
+  const preview=$('selectedLineDashPreview');
+  preview.setAttribute('stroke-dasharray',styleLine(current.dash));
+  preview.setAttribute('stroke',current.color||state.style.color);
+ }
  const labelField=$('selectedLineLabel');
  $('selectedLineLabelRow').hidden=selected?.type!=='line';
  if(selected?.type==='line'&&document.activeElement!==labelField)
@@ -1025,9 +1040,9 @@ function updateSelectedStyleUI(){
  const title=family?'Трикутник · '+targets.length+' сторони':entityTitle(selected)+(selected.label?' · '+printablePointLabel(selected.label):'');
  $('selectedStyleName').textContent=title;
  $('selectedStyleScope').textContent=family?
-  'Колір і товщина застосовуються до всіх сторін цього трикутника.':
+  'Колір, товщина й тип лінії застосовуються до всіх сторін цього трикутника.':
   selected.type==='point'?'Зміни застосовуються до маркера вибраної точки.':
-  'Колір і товщина застосовуються до вибраної фігури.';
+  'Колір, товщина й тип лінії застосовуються до вибраної фігури.';
  const color=(current.color||state.style.color||'#233c61').toLowerCase();
  $('selectedStyleCustom').value=/^#[0-9a-f]{6}$/.test(color)?color:'#233c61';
  document.querySelectorAll('.selected-style-swatch').forEach(btn=>
@@ -1048,7 +1063,7 @@ function commitSelectedStyle(property,value){
  const targets=editableStyleTargets();
  if(!targets.length)return;
  if(targets.every(item=>item[property]===value))return;
- pushUndoBefore(snapshotForUndo(),property==='color'?'Змінено колір фігури':'Змінено товщину фігури');
+ pushUndoBefore(snapshotForUndo(),property==='color'?'Змінено колір фігури':property==='dash'?'Змінено тип лінії':'Змінено товщину фігури');
  mutateSelectedStyle(property,value);
  render();
 }
@@ -1098,6 +1113,10 @@ function initializeSelectedStyleUI(){
  const picker=$('selectedStyleCustom');
  picker.addEventListener('input',event=>beginStyleChange('color',event.target.value));
  picker.addEventListener('change',event=>endStyleChange('color',event.target.value));
+ const dashSelect=$('selectedLineDash');
+ dashSelect.addEventListener('change',event=>{
+  if(get(state.selected)?.type==='line')commitSelectedStyle('dash',normalizedLineDash(event.target.value));
+ });
  const slider=$('selectedStyleWidth');
  slider.addEventListener('input',event=>beginStyleChange('width',Number(event.target.value)));
  slider.addEventListener('change',event=>endStyleChange('width',Number(event.target.value)));
