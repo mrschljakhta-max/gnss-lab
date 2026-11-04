@@ -506,6 +506,7 @@ function refreshLineLabels(){
   node.setAttribute('x',p.x);node.setAttribute('y',p.y);
   node.setAttribute('font-size',metrics.fontSize);
   node.setAttribute('stroke-width',metrics.halo);
+  node.setAttribute('fill',line.color||state.style.color);
  }
 }
 function standardizeExportLineLabels(svg){
@@ -518,6 +519,7 @@ function standardizeExportLineLabels(svg){
   node.setAttribute('font-size',metrics.fontSize);
   node.setAttribute('stroke-width',metrics.halo);
   node.setAttribute('font-style','italic');
+  node.setAttribute('fill',line.color||state.style.color);
   node.removeAttribute('data-line-label-id');
   node.removeAttribute('data-id');
   node.setAttribute('pointer-events','none');
@@ -539,6 +541,7 @@ function drawLine(parent,e,selected=false,interactive=true){const pts=linePoints
   const label=makeSVG('text',{x:position.x,y:position.y,class:'line-label',
    'data-line-label-id':interactive?e.id:undefined,'data-id':interactive?e.id:undefined,
    'text-anchor':'middle','font-size':metrics.fontSize,'stroke-width':metrics.halo,
+   fill:e.color||state.style.color,
    'font-style':'italic','pointer-events':interactive?'bounding-box':'none'},parent);
   label.textContent=printablePointLabel(e.label);
  }
