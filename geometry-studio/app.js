@@ -440,6 +440,17 @@ function layoutPointLabels(root,metrics){
    height=metrics.fontSize*1.12;
    originX=0;originY=-height*.83;
   }
+  // Explicitly placed names remain fixed relative to their own points.
+  // Automatic collision avoidance continues for all other point names.
+  if(point?.labelOffset&&Number.isFinite(point.labelOffset.dx)&&Number.isFinite(point.labelOffset.dy)){
+   const labelX=point.x+point.labelOffset.dx;
+   const labelY=point.y+point.labelOffset.dy;
+   node.setAttribute('x',labelX);
+   node.setAttribute('y',labelY);
+   occupied.push({x:labelX+originX-margin,y:labelY+originY-margin,
+    w:width+margin*2,h:height+margin*2});
+   continue;
+  }
   // Prefer labels outside the plan/elevation; placement is determined by geometry.
   const isPlan=point?/1$/.test(point.label):false;
   const preferred=isPlan?[[-1,1],[1,1],[-1,-1],[1,-1]]:[[-1,-1],[1,-1],[-1,1],[1,1]];
@@ -479,6 +490,11 @@ function refreshPointLabels(){
 }
 function standardizeExportLabels(svg){
  layoutPointLabels(svg,{fontSize:3.8,gap:4.4,halo:.75});
+ for(const label of svg.querySelectorAll('.point-label')){
+  label.setAttribute('pointer-events','none');
+  label.removeAttribute('data-point-label-id');
+  label.removeAttribute('data-point-id');
+ }
 }
 
 /* Editable annotation attached to the segment: its offset survives vertex moves. */
@@ -565,7 +581,9 @@ function drawPoint(parent,p,selected=false,interactive=true){
  }
  const metrics=pointLabelMetrics(),[dx,dy]=labelOffset(p,metrics);
  const text=makeSVG('text',{x:p.x+dx,y:p.y+dy,class:'point-label','data-point-id':p.id,
-  'font-size':metrics.fontSize,'stroke-width':metrics.halo,'pointer-events':'none'},parent);
+  'data-point-label-id':interactive?p.id:undefined,
+  'font-size':metrics.fontSize,'stroke-width':metrics.halo,
+  'pointer-events':interactive?'bounding-box':'none'},parent);
  text.textContent=printablePointLabel(p.label);
 }
 function legendText(parent,x,y,text,color='#5b6e83',size=3.3,weight='normal'){const t=makeSVG('text',{x,y,fill:color,'font-size':size,'font-family':'Arial,sans-serif','font-weight':weight,'pointer-events':'none'},parent);t.textContent=text;return t;}
@@ -1256,6 +1274,16 @@ function connectedLinePointIds(line){
 }
 function geometryTargetAt(event,p){
  if(!p||state.mode!=='manual')return null;
+ // Clicking the rendered text is distinct from grabbing the underlying vertex.
+ // It works for calculated points too: only the annotation moves, never the point.
+ const pointLabelNode=event?.target?.closest?.('[data-point-label-id]');
+ const pointLabelId=pointLabelNode?.getAttribute('data-point-label-id');
+ const labelPoint=pointLabelId?get(pointLabelId):null;
+ if(labelPoint?.type==='point'&&visibleEntity(labelPoint)){
+  const x=Number(pointLabelNode.getAttribute('x')),y=Number(pointLabelNode.getAttribute('y'));
+  if(Number.isFinite(x)&&Number.isFinite(y))
+   return {kind:'point-label',id:pointLabelId,labelStart:{x,y}};
+ }
  const labelId=event?.target?.closest?.('[data-line-label-id]')?.getAttribute('data-line-label-id');
  const labelLine=labelId?get(labelId):null;
  if(labelLine?.type==='line'&&labelLine.label&&visibleEntity(labelLine))
@@ -1319,6 +1347,16 @@ function beginCursorGeometryDrag(target,p){
 function applyCursorGeometryDrag(drag,p){
  if(!drag||!p)return;
  const dx=p.x-drag.at.x,dy=p.y-drag.at.y;
+ if(drag.kind==='point-label'){
+  const point=get(drag.id),before=drag.originals.get(drag.id);
+  if(point?.type==='point'&&before&&drag.labelStart){
+   point.labelOffset={
+    dx:drag.labelStart.x-before.x+dx,
+    dy:drag.labelStart.y-before.y+dy
+   };
+  }
+  return;
+ }
  if(drag.kind==='label'){
   const line=get(drag.id),before=drag.originals.get(drag.id);
   if(line?.type==='line'&&before){
@@ -1381,7 +1419,7 @@ function finalizeGeometryDrag(drag){
  pushUndoBefore(drag.undoBefore);
  const selected=get(drag.id);
  state.selected=selected?.id||null;
- log(drag.kind==='label'?'Переміщено позначення лінії':drag.kind==='point'?'Переміщено вершину':drag.kind==='vertex'?'Змінено контур фігури':'Переміщено фігуру');
+ log(drag.kind==='point-label'?'Переміщено назву точки':drag.kind==='label'?'Переміщено позначення лінії':drag.kind==='point'?'Переміщено вершину':drag.kind==='vertex'?'Змінено контур фігури':'Переміщено фігуру');
  render();
 }
 function showSelectionHandles(layer,e){
@@ -1610,7 +1648,7 @@ function init(){
    const candidate=state.tool==='select'&&extensionState?.stage!=='pick'?geometryTargetAt(e,world):null;
    viewport.classList.toggle('cursor-on-vertex',!!candidate&&(candidate.kind==='point'||candidate.kind==='vertex'));
    viewport.classList.toggle('cursor-on-geometry',!!candidate&&candidate.kind==='body');
-   viewport.classList.toggle('cursor-on-label',!!candidate&&candidate.kind==='label');
+   viewport.classList.toggle('cursor-on-label',!!candidate&&(candidate.kind==='label'||candidate.kind==='point-label'));
    viewport.classList.toggle('can-pan',(state.tool==='select'&&!candidate&&extensionState?.stage!=='pick')||state.tool==='pan');
   }
   if(!down)return;const dx=e.clientX-down.startX,dy=e.clientY-down.startY;
@@ -1619,7 +1657,7 @@ function init(){
   if(down.backgroundPan){state.pan={x:down.panX+dx,y:down.panY+dy};updatePaperTransform();viewport.classList.add('panning');suppressClick=true;}
   else if(down.geometry&&world){
    applyCursorGeometryDrag(down.geometry,world);
-   viewport.classList.toggle('cursor-dragging-label',down.geometry.kind==='label');
+   viewport.classList.toggle('cursor-dragging-label',['label','point-label'].includes(down.geometry.kind));
    redraw();suppressClick=true;
   }
  });
