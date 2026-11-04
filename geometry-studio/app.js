@@ -710,6 +710,7 @@ function editableStyleTargets(){
 }
 /* Exact continuation of a line through its original endpoints. */
 let extensionState=null;
+let preparedExtension=null;
 function extensionGeometry(base,target,endpoint){
  if(!base||!target||base.type!=='line'||target.type!=='line'||base.id===target.id)return null;
  const v=linePoints(base),q=linePoints(target);if(!v||!q)return null;
@@ -763,6 +764,8 @@ function extensionSource(){
 function extensionSetEndpoint(endpoint){
  if(!extensionState||!['a','b'].includes(endpoint))return;
  extensionState.endpoint=endpoint;
+ preparedExtension=null;
+ const confirm=$('extendConfirm');if(confirm){confirm.disabled=true;confirm.hidden=extensionState.stage!=='pick';}
  document.querySelectorAll('#extendEndpoints button').forEach(btn=>
   btn.setAttribute('aria-pressed',String(btn.dataset.endpoint===endpoint)));
  extensionMessage(extensionState.stage==='pick'?'Оберіть цільову лінію або довільну довжину за цим кінцем.':'Натисніть «Почати», а потім виберіть цільову лінію на кресленні.');
@@ -776,12 +779,15 @@ function updateExtensionPanel(){
  controls.hidden=!supported;
  if(!supported){
   if(extensionState)extensionState=null;
+  preparedExtension=null;
+  const confirm=$('extendConfirm');if(confirm){confirm.hidden=true;confirm.disabled=true;}
   options.hidden=true;
   $('canvasViewport')?.classList.remove('extend-picking');
   return;
  }
  if(extensionState&&extensionState.base!==chosen.id){extensionState=null;options.hidden=true;}
  options.hidden=!extensionState;
+ const confirm=$('extendConfirm');if(confirm){confirm.hidden=extensionState?.stage!=='pick';confirm.disabled=!preparedExtension?.result;}
  if(extensionState){
   const source=extensionSource();if(!source)return;
   const optionsGroup=$('extendEndpoints');
@@ -807,6 +813,7 @@ function updateExtensionPanel(){
 function extensionBegin(){
  const base=get(state.selected);if(base?.type!=='line')return;
  extensionState={base:base.id,endpoint:'a',stage:'setup',mode:'intersection'};
+ preparedExtension=null;
  $('extendLineDash').value=normalizedLineDash(base.dash);
  const labels=[extensionEndpointLabel(base.a,'A'),extensionEndpointLabel(base.b,'B')];
  // Keep a descriptive-geometric point name, not an auto-numbered P marker.
@@ -819,6 +826,8 @@ function extensionBegin(){
 }
 function extensionCancel(){
  extensionState=null;
+ preparedExtension=null;
+ if($('extendConfirm')){$('extendConfirm').hidden=true;$('extendConfirm').disabled=true;}
  $('extendOptions')?.setAttribute('hidden','');
  $('canvasViewport')?.classList.remove('extend-picking');
  $('previewLayer')?.replaceChildren();
@@ -831,6 +840,8 @@ function extensionActivate(){
  extensionState.dash=normalizedLineDash($('extendLineDash').value);
  try{extensionNormalizeLabel($('extendPointName').value);}catch(e){extensionMessage(e.message,'error');return;}
  extensionState.stage='pick';
+ preparedExtension=null;
+ if($('extendConfirm')){$('extendConfirm').hidden=false;$('extendConfirm').disabled=true;}
  $('extendActivate').disabled=true;
  $('extendActivate').textContent=extensionState.mode==='free'?'Вкажіть кінець на аркуші':'Виберіть лінію на аркуші';
  $('canvasViewport').classList.add('extend-picking');
@@ -838,28 +849,37 @@ function extensionActivate(){
   ?'Наведіть курсор за вибраний кінець. Лінія залишиться строго на тій самій прямій. Натисніть для завершення.'
   :'Наведіть курсор на лінію, з якою має перетнутися продовження, та натисніть на неї.');
 }
-function extensionTargetAt(event,p){
+function extensionChoice(event,p){
  if(!extensionState||!p)return null;
- const source=extensionSource();
- if(!source)return null;
- const candidateId=event?.target?.closest?.('[data-id]')?.getAttribute('data-id');
- let winner=null,dist=Math.max(2.2,dragTolerance());
+ const source=extensionSource();if(!source)return null;
+ if(extensionState.mode==='free')
+  return {result:extensionFreeGeometry(source,extensionState.endpoint,p),target:null,endpoint:extensionState.endpoint};
+ // Mouse pointer capture changes event.target into the viewport. Find the nearest
+ // actual geometric target instead of relying on the DOM hit element.
+ const directId=event?.target?.closest?.('[data-id]')?.getAttribute('data-id');
+ const tolerance=Math.max(3.1,dragTolerance());
+ let best=null,nearestInvalid=null,invalidDistance=Infinity;
  for(const line of state.entities){
   if(line.type!=='line'||!visibleEntity(line)||line.id===source.id||
     line.kind==='projection'||line.kind==='extension')continue;
-  const d=geometryEdgeDistance(line,p);
-  if(d<=dist&&(d<dist-.001||line.id===candidateId)){
-   dist=d;winner=line;
-  }
+  const distance=geometryEdgeDistance(line,p);
+  if(distance>tolerance)continue;
+  if(distance<invalidDistance){invalidDistance=distance;nearestInvalid=line;}
+  const endpoint=extensionState.endpoint;
+  const requested=extensionGeometry(source,line,endpoint);
+  // If the user selected the other endpoint inadvertently, allow the only
+  // geometrically valid outward continuation instead of rejecting the point.
+  const reverse=endpoint==='a'?'b':'a';
+  const alternate=requested?null:extensionGeometry(source,line,reverse);
+  const result=requested||alternate;
+  if(!result)continue;
+  const chosenEnd=requested?endpoint:reverse;
+  const preference=(chosenEnd===endpoint?0:.35)+(line.id===directId?-.25:0);
+  const score=distance+preference;
+  if(!best||score<best.score)
+   best={result,target:line,endpoint:chosenEnd,score};
  }
- return winner;
-}
-function extensionChoice(event,p){
- if(!extensionState)return null;
- const base=extensionSource();if(!base)return null;
- if(extensionState.mode==='free')return {result:extensionFreeGeometry(base,extensionState.endpoint,p),target:null};
- const target=extensionTargetAt(event,p);
- return {result:target?extensionGeometry(base,target,extensionState.endpoint):null,target};
+ return best||{result:null,target:nearestInvalid,endpoint:extensionState.endpoint};
 }
 function drawExtensionPreview(world,event){
  if(extensionState?.stage!=='pick'||!world)return;
@@ -871,15 +891,22 @@ function drawExtensionPreview(world,event){
  const d=minus(v.b,v.a),m=Math.hypot(d.x,d.y);
  if(m<1e-7)return;
  const forward=extensionState.endpoint==='a'?-1:1;
- const projected=extensionChoice(event,world);
+ const latest=extensionChoice(event,world);
+ if(latest?.result){
+  preparedExtension={...latest,baseId:base.id,mode:extensionState.mode};
+  const confirm=$('extendConfirm');if(confirm){confirm.disabled=false;confirm.hidden=false;}
+ }
+ const projected=latest?.result?latest:(preparedExtension?.baseId===base.id?preparedExtension:null);
+ const chosenEnd=projected?.endpoint||extensionState.endpoint;
+ const actualOrigin=chosenEnd==='a'?v.a:v.b;
  const end=projected?.result?.point||plus(origin,times(d,forward*55/m));
- makeSVG('line',{x1:origin.x,y1:origin.y,x2:end.x,y2:end.y,
+ makeSVG('line',{x1:actualOrigin.x,y1:actualOrigin.y,x2:end.x,y2:end.y,
   stroke:'#e98b35','stroke-width':.8,'stroke-dasharray':styleLine(extensionState.dash),
   'stroke-linecap':'round','pointer-events':'none'},layer);
  if(projected?.result){
   makeSVG('circle',{cx:end.x,cy:end.y,r:2.35,fill:'#fff',stroke:'#098f8c',
    'stroke-width':.8,'pointer-events':'none'},layer);
-  extensionMessage('Точний перетин знайдено. Натисніть, щоб створити '+printablePointLabel($('extendPointName').value||'J2')+'.','ready');
+  extensionMessage('Перетин знайдено. Натисніть «Поставити точку» або клацніть на цільовій лінії.','ready');
  }else if(projected?.target){
   extensionMessage('Перетин не лежить за обраним кінцем, або прямі паралельні. Оберіть іншу лінію.','error');
  }else{
@@ -887,20 +914,21 @@ function drawExtensionPreview(world,event){
    'Натисніть на цільову лінію: її перетин буде обчислено автоматично.');
  }
 }
-function extensionApplyPoint(geometry,target){
+function extensionApplyPoint(geometry,target,endpointOverride){
  if(!geometry?.point||!extensionState)return false;
+ const chosenEndpoint=endpointOverride||extensionState.endpoint;
  const base=extensionSource();
  if(!base)return false;
  let label;
  try{label=extensionNormalizeLabel($('extendPointName').value);}
  catch(e){extensionMessage(e.message,'error');return false;}
- const at=base[extensionState.endpoint];
+ const at=base[chosenEndpoint];
  if(typeof at!=='string'&&(!at||!Number.isFinite(at.x)||!Number.isFinite(at.y))){
   extensionMessage('Не вдалося визначити опорну вершину відрізка.','error');return false;
  }
  const derivation=extensionState.mode==='intersection'?
-  {kind:'extensionIntersection',base:base.id,target:target.id,endpoint:extensionState.endpoint}:
-  {kind:'extensionParam',base:base.id,t:geometry.t,endpoint:extensionState.endpoint};
+  {kind:'extensionIntersection',base:base.id,target:target.id,endpoint:chosenEndpoint}:
+  {kind:'extensionParam',base:base.id,t:geometry.t,endpoint:chosenEndpoint};
  const before=snapshotForUndo();
  try{
   const pointId=addPoint(label,geometry.point,{color:'#128a88',derivation});
@@ -913,6 +941,8 @@ function extensionApplyPoint(geometry,target){
   if(target)get(extensionId).targetLine=target.id;
   pushUndoBefore(before,'Продовжено відрізок до '+printablePointLabel(label));
   extensionState=null;
+  preparedExtension=null;
+  if($('extendConfirm')){$('extendConfirm').hidden=true;$('extendConfirm').disabled=true;}
   state.pending=null;state.selected=pointId;
   $('canvasViewport').classList.remove('extend-picking');
   render();
@@ -927,19 +957,25 @@ function extensionApplyPoint(geometry,target){
 }
 function handleExtensionClick(event,p){
  if(extensionState?.stage!=='pick')return false;
- const choice=extensionChoice(event,p);
+ const current=extensionChoice(event,p);
+ const choice=current?.result?current:preparedExtension;
  if(!choice?.result){
-  extensionMessage(choice?.target?'Ці лінії не перетинаються за обраним кінцем.':
-   'Натисніть саме на цільову лінію, або виберіть вільну довжину.','error');
+  extensionMessage(current?.target?
+   'Перетин не знайдено. Наведіть на цільову лінію або змініть кінець продовження.':
+   'Наведіть на цільову лінію — після появи точки натисніть «Поставити точку».','error');
   return true;
  }
- extensionApplyPoint(choice.result,choice.target);
+ extensionApplyPoint(choice.result,choice.target,choice.endpoint);
  return true;
 }
 function initializeExtensionUI(){
  if(!$('extendStart'))return;
  $('extendStart').addEventListener('click',extensionBegin);
  $('extendActivate').addEventListener('click',extensionActivate);
+ $('extendConfirm')?.addEventListener('click',()=>{
+  if(extensionState?.stage!=='pick'||!preparedExtension?.result)return;
+  extensionApplyPoint(preparedExtension.result,preparedExtension.target,preparedExtension.endpoint);
+ });
  $('extendCancel').addEventListener('click',extensionCancel);
 }
 
