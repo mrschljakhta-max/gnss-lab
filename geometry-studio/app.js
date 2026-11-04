@@ -1297,12 +1297,13 @@ window.GeometryStudioViewportAPI={
  getAxisScaleSegments:()=>axisScaleSegments(),
  getZoom:()=>state.zoom,
  getExportData:()=>{
-  const visible=state.entities.filter(e=>!e.invalid&&visibleEntity(e));
-  const points=visible.filter(e=>e.type==='point').map(p=>({
+  // Export all valid saved objects: hidden projections must not lose Y/Z in Excel.
+  const stored=state.entities.filter(e=>!e.invalid);
+  const points=stored.filter(e=>e.type==='point').map(p=>({
    id:p.id,label:p.label,x:p.x,y:p.y,plane:p.projectionPlane||null,
    source:p.source||null
   }));
-  const segments=visible.filter(e=>e.type==='line'&&e.extent!=='line').map(e=>{
+  const segments=stored.filter(e=>e.type==='line'&&e.extent!=='line').map(e=>{
    const ends=linePoints(e);
    if(!ends)return null;
    const a=typeof e.a==='string'?get(e.a):null,b=typeof e.b==='string'?get(e.b):null;
