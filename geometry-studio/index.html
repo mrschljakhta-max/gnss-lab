@@ -173,6 +173,15 @@
   <div class="selected-style-width-head"><label class="selected-style-label" for="selectedStyleWidth">Товщина лінії</label><output id="selectedStyleWidthValue" for="selectedStyleWidth">0,65 мм</output></div>
   <input id="selectedStyleWidth" class="selected-style-slider" type="range" min="0.2" max="3" step="0.05" value="0.65" aria-label="Товщина лінії в міліметрах"/>
   <div class="selected-style-width-labels"><span>Тонка</span><span>Товста</span></div>
+  <div class="selected-line-label-control selected-point-label-control" id="selectedPointLabelRow" hidden>
+   <label class="selected-style-label" for="selectedPointLabel">Назва точки</label>
+   <div class="selected-line-label-entry">
+    <input id="selectedPointLabel" type="text" maxlength="12" autocomplete="off" spellcheck="false"
+     placeholder="Наприклад, K1 або J2" aria-label="Назва вибраної точки"/>
+    <button id="selectedPointLabelApply" type="button" title="Зберегти назву точки" aria-label="Зберегти назву точки">✓</button>
+   </div>
+   <p id="selectedPointLabelStatus" role="status" aria-live="polite">Наприклад, K1 → K₁. Натисни Enter або ✓, щоб зберегти.</p>
+  </div>
   <div class="selected-line-label-control" id="selectedLineLabelRow" hidden>
    <label class="selected-style-label" for="selectedLineLabel">Позначення відрізка</label>
    <div class="selected-line-label-entry">
