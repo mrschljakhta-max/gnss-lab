@@ -226,6 +226,24 @@ async function handle(request,env,origin){
     return output(await signInUser(env,user),200,origin);
   }
 
+  // A public drawing may be opened as an independent editable copy.
+  // This endpoint never exposes the private edit key or changes the original.
+  const sharedCopy=path.match(/^\/api\/share\/([a-f0-9-]{36})\/copy$/i);
+  if(sharedCopy&&method==='GET'){
+    let row=await env.DB.prepare(
+      'SELECT title,payload FROM guest_projects WHERE share_id=?'
+    ).bind(sharedCopy[1]).first();
+    if(!row)row=await env.DB.prepare(
+      'SELECT title,payload FROM projects WHERE share_id=?'
+    ).bind(sharedCopy[1]).first();
+    if(!row)return error(404,'Це креслення недоступне або посилання відкликано.',origin);
+    try {
+      const snapshot=JSON.parse(row.payload);
+      if(!snapshot||!Array.isArray(snapshot.entities))throw Error('bad snapshot');
+      return output({title:row.title,snapshot},200,origin);
+    }catch(_){return error(500,'Не вдалося відновити креслення.',origin);}
+  }
+
   const shared=path.match(/^\/api\/share\/([a-f0-9-]{36})$/i);
   if(shared&&method==='GET'){
     const guest=await env.DB.prepare(
