@@ -27,7 +27,7 @@
 <link href="triangle-builder.css?v=triangle1" rel="stylesheet"/>
 <link href="point-builder.css?v=point1" rel="stylesheet"/>
 <link href="projection-ui.css?v=undo-projections1" rel="stylesheet"/>
-<link href="cloud-projects.css?v=cloud1" rel="stylesheet"/>
+<link href="cloud-projects.css?v=guest1" rel="stylesheet"/>
 </head>
 <body>
 <div id="app"><button aria-controls="studioDrawer" aria-expanded="false" aria-label="Відкрити меню інструментів" class="edge-trigger" id="edgeTrigger" title="Наведи курсор для відкриття меню · Tab" type="button"><span class="edge-trigger__pill" aria-hidden="true"><span class="edge-trigger__dots"></span><span class="edge-trigger__arrow">›</span></span><span class="sr-only">Відкрити меню інструментів</span></button><div class="top-right-actions"><button class="projection-fab" id="projectionFab" aria-controls="projectionPopover" aria-expanded="false" aria-label="Проєкції" title="Налаштувати проєкції Π1, Π2, Π3" type="button"><svg class="projection-fab__icon" viewBox="0 0 24 24" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 7h20M6 7v12m0 0 6-5 6 5m-6-5V2"/><circle cx="6" cy="7" r="1.5" fill="#d7fcff" stroke="none"/></svg><span>Проєкції</span></button><button aria-controls="axesPopover" aria-expanded="false" aria-label="Осі координат" class="axes-fab" id="axesFab" title="Додати координатні осі" type="button"><svg class="axes-fab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 20V3M3 20h18"/><path d="m3 3-2 3m2-3 2 3m16 14-3-2m3 2-3 2"/><path d="M3 20 15 8" stroke-dasharray="2 2"/></svg><span>Осі</span></button><button aria-controls="shapesPopover" aria-expanded="false" aria-label="Фігури" class="shapes-fab" id="shapesFab" title="Фігури" type="button"><svg class="shapes-fab__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3" width="9" height="9" rx="1.3"></rect><circle cx="17.5" cy="15.5" r="4"></circle><path d="M4 20h7"></path></svg><span>Фігури</span></button><button aria-controls="toolsPopover" aria-expanded="false" aria-label="Інструменти" class="tools-fab" id="toolsFab" title="Інструменти" type="button"><span class="tools-fab__icon"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="3.5" r="1.6"/><path d="M12 5v3m-1 0-6 13m8-13 6 13M9.5 11h5M5 21l-1-2m15 2 1-2"/></svg></span><span class="tools-fab__label">Інструменти</span></button></div><section class="projection-popover" id="projectionPopover" aria-hidden="true" aria-label="Керування проєкціями"><div class="projection-popover__head"><strong>Проєкції</strong><button class="projection-popover__close" id="projectionClose" type="button" aria-label="Закрити меню проєкцій">×</button></div><div class="projection-options"><button class="projection-option" type="button" data-view="both" aria-pressed="true">Π₁ + Π₂ <span>Обидва вигляди</span></button><button class="projection-option" type="button" data-view="pi1" aria-pressed="false">Π₁ <span>Вигляд зверху (X, Y)</span></button><button class="projection-option" type="button" data-view="pi2" aria-pressed="false">Π₂ <span>Вигляд спереду (X, Z)</span></button></div><div class="projection-switches"><label class="projection-switch"><input id="projectionLinks" type="checkbox" checked/> Лінії проєкційного зв'язку</label><label class="projection-switch"><input id="projectionProfile" type="checkbox"/> Показати профіль Π₃ (Y, Z)</label></div><p class="projection-hint">Для завдання №5 достатньо Π₁ + Π₂. Профіль Π₃ додається окремим виглядом.</p><div class="projection-cleanup">
@@ -271,27 +271,29 @@
  <section class="gsp-dialog" role="dialog" aria-modal="true" aria-labelledby="gspHeading">
   <header class="gsp-head"><div><small>GEOMETRY STUDIO</small><h2 id="gspHeading">Мої креслення</h2></div><button type="button" id="gspClose" aria-label="Закрити">×</button></header>
   <div class="gsp-scroll">
-   <div class="gsp-editor-actions"><label>Назва поточного креслення<input id="gspTitle" maxlength="100" placeholder="Завдання №5" value="Нове креслення"/></label>
-    <div class="gsp-buttons"><button type="button" id="gspSave" class="gsp-command">Зберегти поточне</button><button type="button" id="gspNew" class="gsp-command gsp-quiet">Новий аркуш</button></div>
+   <div class="gsp-editor-actions">
+    <label>Назва поточного креслення<input id="gspTitle" maxlength="100" placeholder="Завдання №5" value="Нове креслення"/></label>
+    <div class="gsp-buttons">
+     <button type="button" id="gspSave" class="gsp-command">Зберегти креслення</button>
+     <button type="button" id="gspNew" class="gsp-command gsp-quiet">Новий аркуш</button>
+    </div>
    </div>
    <div id="gspStatus" class="gsp-status" role="status" aria-live="polite"></div>
-   <h3>На цьому пристрої</h3><div id="gspLocalList" class="gsp-list"></div>
-   <details class="gsp-setup"><summary>Налаштування хмари Cloudflare</summary>
-    <label>Адреса Worker (HTTPS)<input id="gspCloudUrl" placeholder="https://geometry-studio-cloud.example.workers.dev" autocomplete="url"/></label>
-    <button id="gspSetCloud" type="button" class="gsp-command gsp-quiet">Підключити Worker</button>
-    <p>Для інших користувачів постійне посилання працюватиме після налаштування cloud-config.js власником сайту.</p>
-   </details>
-   <section class="gsp-account">
-    <h3>Моя хмара <span id="gspAccount"></span></h3>
-    <div id="gspLoginForm">
-      <div class="gsp-inputs"><label>Логін<input id="gspUsername" autocomplete="username" placeholder="polia"/></label>
-      <label>Пароль<input id="gspPassword" type="password" autocomplete="current-password" minlength="12" placeholder="Мінімум 12 символів"/></label>
-      <label>Код запрошення (для реєстрації)<input id="gspInvite" type="password" autocomplete="off" placeholder="Лише для нового акаунта"/></label></div>
-      <div class="gsp-buttons"><button type="button" id="gspLogin" class="gsp-command">Увійти</button><button type="button" id="gspRegister" class="gsp-command gsp-quiet">Зареєструватися</button></div>
+   <h3>Мої проєкти на цьому пристрої</h3>
+   <div id="gspLocalList" class="gsp-list"></div>
+   <section class="gsp-account" aria-label="Хмарне збереження без реєстрації">
+    <h3>Хмара без реєстрації</h3>
+    <p class="gsp-guest-note">Зберігай і ділися кресленнями без логіна та пароля. Публічне посилання дозволяє лише перегляд. Приватне посилання для редагування зберігай тільки для себе — хто його має, той може змінювати креслення.</p>
+    <div class="gsp-buttons">
+      <button type="button" id="gspSync" class="gsp-command">Зберегти в хмарі</button>
+      <button type="button" id="gspImportPrivate" class="gsp-command gsp-quiet">Відкрити приватне посилання</button>
     </div>
-    <div class="gsp-buttons"><button type="button" id="gspSync" class="gsp-command gsp-quiet">Синхронізувати поточне</button><button type="button" id="gspLogout" class="gsp-command gsp-quiet" hidden>Вийти</button></div>
+    <details class="gsp-setup">
+      <summary>Налаштування Cloudflare API</summary>
+      <label>Адреса Worker<input id="gspCloudUrl" autocomplete="off" placeholder="https://geometry-studio-cloud.example.workers.dev"/></label>
+      <button type="button" id="gspSetCloud" class="gsp-command gsp-quiet">Перевірити з'єднання</button>
+    </details>
    </section>
-   <h3>У хмарі</h3><div id="gspCloudList" class="gsp-list"></div>
   </div>
  </section>
 </div>
@@ -305,6 +307,6 @@
 <script defer="" src="projection-ui.js?v=undo-projections1"></script>
 <script defer="" src="export-suite.js?v=exports1"></script>
 <script defer="" src="cloud-config.js?v=cloud1"></script>
-<script defer="" src="cloud-projects.js?v=cloud1"></script>
+<script defer="" src="cloud-projects-guest.js?v=guest1"></script>
 </body>
 </html>
