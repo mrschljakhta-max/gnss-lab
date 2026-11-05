@@ -9,28 +9,29 @@ const ORIGIN='https://mrschljakhta-max.github.io';
 function environment(){
  const sql=new DatabaseSync(':memory:');
  sql.exec(readFileSync(new URL('./migrations/0001_init.sql',import.meta.url),'utf8'));
+ sql.exec(readFileSync(new URL('./migrations/0002_guest_projects.sql',import.meta.url),'utf8'));
  const db={
   prepare(query){
-   return {
-    bind(...values){
-     const stmt=sql.prepare(query);
-     return {
-      first:async()=>stmt.get(...values)||null,
-      all:async()=>({results:stmt.all(...values)}),
-      run:async()=>({meta:{changes:stmt.run(...values).changes}})
-     };
-    }
+   const stmt=sql.prepare(query);
+   let values=[];
+   const statement={
+    bind(...args){values=args;return statement;},
+    first:async()=>stmt.get(...values)||null,
+    all:async()=>({results:stmt.all(...values)}),
+    run:async()=>({meta:{changes:stmt.run(...values).changes}})
    };
+   return statement;
   }
  };
  return {DB:db,INVITE_CODE:'invite-for-testing-only-12345',
   AUTH_LIMITER:{limit:async()=>({success:true})}};
 }
 function client(env,authToken='',origin=ORIGIN){
- return async(path,method='GET',payload)=>{
+ return async(path,method='GET',payload,editKey)=>{
   const headers={Origin:origin};
   if(payload!==undefined)headers['Content-Type']='application/json';
   if(authToken)headers.Authorization='Bearer '+authToken;
+  if(editKey)headers['X-Edit-Key']=editKey;
   const res=await worker.fetch(new Request('https://geometry-studio-cloud.example.workers.dev'+path,{
    method,headers,body:payload===undefined?undefined:JSON.stringify(payload)
   }),env);
@@ -95,4 +96,41 @@ test('CORS and registration protections',async()=>{
  assert.equal((await guest('/api/auth/register','POST',{
   username:'a',password:'too-short',inviteCode:env.INVITE_CODE
  })).status,400);
+});
+
+test('guest saves and sharing need no registration but keep editing private',async()=>{
+ const env=environment(),anonymous=client(env);
+ const created=await anonymous('/api/guest/projects','POST',draft());
+ assert.equal(created.status,201);
+ assert.match(created.data.editKey,/^[a-f0-9]{64}$/);
+ assert.equal(created.data.shareId,null);
+ const id=created.data.id,key=created.data.editKey;
+ assert.equal((await anonymous('/api/guest/projects/'+id)).status,403);
+ assert.equal((await anonymous('/api/guest/projects/'+id,'GET',undefined,'0'.repeat(64))).status,403);
+ const owned=await anonymous('/api/guest/projects/'+id,'GET',undefined,key);
+ assert.equal(owned.status,200);
+ assert.equal(owned.data.snapshot.entities[0].label,'A1');
+ const update=await anonymous('/api/guest/projects/'+id,'PUT',{...draft(),title:'Поля',revision:1},key);
+ assert.equal(update.status,200);
+ assert.equal(update.data.revision,2);
+ assert.equal((await anonymous('/api/guest/projects/'+id,'PUT',{...draft(),revision:1},key)).status,409);
+ const shared=await anonymous('/api/guest/projects/'+id+'/share','POST',{enabled:true},key);
+ assert.equal(shared.status,200);
+ assert.match(shared.data.shareId,/^[a-f0-9-]{36}$/);
+ const view=await anonymous('/api/share/'+shared.data.shareId);
+ assert.equal(view.status,200);
+ assert.equal(view.data.title,'Поля');
+ assert.equal(view.data.snapshot,undefined);
+ assert.equal((await anonymous('/api/guest/projects/'+id+'/share','POST',{enabled:false})).status,403);
+ const revoked=await anonymous('/api/guest/projects/'+id+'/share','POST',{enabled:false},key);
+ assert.equal(revoked.status,200);assert.equal(revoked.data.shareId,null);
+ assert.equal((await anonymous('/api/share/'+shared.data.shareId)).status,404);
+ assert.equal((await anonymous('/api/guest/projects/'+id,'DELETE',undefined,key)).status,204);
+ assert.equal((await anonymous('/api/guest/projects/'+id,'GET',undefined,key)).status,403);
+});
+test('guest create quota and request validation',async()=>{
+ const env=environment(),anonymous=client(env);
+ assert.equal((await anonymous('/api/guest/projects','POST',{title:'Bad',snapshot:{entities:[]},svg:'not svg'})).status,400);
+ for(let i=0;i<11;i++)assert.equal((await anonymous('/api/guest/projects','POST',draft())).status,201);
+ assert.equal((await anonymous('/api/guest/projects','POST',draft())).status,429);
 });
