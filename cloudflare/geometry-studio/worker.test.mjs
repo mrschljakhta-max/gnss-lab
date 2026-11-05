@@ -121,10 +121,16 @@ test('guest saves and sharing need no registration but keep editing private',asy
  assert.equal(view.status,200);
  assert.equal(view.data.title,'Поля');
  assert.equal(view.data.snapshot,undefined);
+ const editableCopy=await anonymous('/api/share/'+shared.data.shareId+'/copy');
+ assert.equal(editableCopy.status,200);
+ assert.equal(editableCopy.data.title,'Поля');
+ assert.equal(editableCopy.data.snapshot.entities[0].label,'A1');
+ assert.equal(editableCopy.data.editKey,undefined);
  assert.equal((await anonymous('/api/guest/projects/'+id+'/share','POST',{enabled:false})).status,403);
  const revoked=await anonymous('/api/guest/projects/'+id+'/share','POST',{enabled:false},key);
  assert.equal(revoked.status,200);assert.equal(revoked.data.shareId,null);
  assert.equal((await anonymous('/api/share/'+shared.data.shareId)).status,404);
+ assert.equal((await anonymous('/api/share/'+shared.data.shareId+'/copy')).status,404);
  assert.equal((await anonymous('/api/guest/projects/'+id,'DELETE',undefined,key)).status,204);
  assert.equal((await anonymous('/api/guest/projects/'+id,'GET',undefined,key)).status,403);
 });
