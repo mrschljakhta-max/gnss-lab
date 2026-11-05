@@ -131,7 +131,9 @@ async function closeShare(rec){
  message('Посилання для перегляду відкликано.');await redraw();
 }
 async function shareEdit(rec){
- if(!rec.editKey||!rec.cloudId){rec=await syncOne(rec);}
+ if(rec.id===activeId)await captureActive(true);
+ rec=await get(rec.id);
+ if(rec.dirty||!rec.editKey||!rec.cloudId)rec=await syncOne(rec);
  await clipboard(privateUrl(rec),'Приватне посилання редагування скопійовано. Не надсилай його стороннім.');
  await redraw();
 }
