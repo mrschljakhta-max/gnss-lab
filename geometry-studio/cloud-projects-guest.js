@@ -143,6 +143,37 @@ async function openLocal(rec){
  active(rec.id,rec.snapshot);$('gspTitle').value=rec.title;
  close();await redraw();
 }
+/**
+ * Turn a publicly shared drawing into an independent local editable project.
+ * A public viewer has no edit capability over the author's original drawing.
+ */
+async function importPublicCopy(shareId){
+ if(!/^[a-f0-9-]{36}$/i.test(shareId))throw Error('Некоректне публічне посилання.');
+ const remote=await api('/api/share/'+shareId+'/copy');
+ if(!remote?.snapshot||!Array.isArray(remote.snapshot.entities))
+  throw Error('Хмарний сервер не повернув об’єкти креслення.');
+ // Preserve the user's active local project before loading another one.
+ await captureActive();
+ CORE().openProject(remote.snapshot);
+ const documentData=CORE().exportProject();
+ const title=(String(remote.title||'Креслення').slice(0,89)+' — копія').slice(0,100);
+ const rec={
+  id:crypto.randomUUID(),title,
+  snapshot:documentData,
+  previewSvg:CORE().getSvg(),
+  createdAt:now(),updatedAt:now(),
+  cloudId:null,editKey:null,revision:null,shareId:null,dirty:true
+ };
+ await put(rec);
+ active(rec.id,documentData);
+ $('gspTitle').value=title;
+ const url=new URL(location.href);
+ url.searchParams.delete('copy');
+ history.replaceState(history.state,'',url.pathname+url.search+url.hash);
+ message('Копію креслення відкрито й збережено на цьому пристрої. Оригінал автора не змінено.');
+ await redraw();
+}
+
 async function importEdit(id,key){
  if(!/^[a-f0-9-]{36}$/i.test(id)||!/^[a-f0-9]{64}$/i.test(key))
   throw Error('Некоректне приватне посилання.');
@@ -293,6 +324,15 @@ async function init(){
    try{await importEdit(fragment[1],fragment[2]);message('Приватне креслення відкрито без входу.');}
    catch(e){message('Помилка приватного посилання: '+e.message,true);}
    history.replaceState(history.state,'',location.pathname+location.search);
+  }else{
+   const copyId=new URLSearchParams(location.search).get('copy');
+   if(copyId){
+    try{await importPublicCopy(copyId);}
+    catch(e){
+     message('Не вдалося відкрити копію: '+e.message,true);
+     await show();
+    }
+   }
   }
  }catch(e){message(e.message,true);}
  setInterval(async()=>{
