@@ -27,7 +27,7 @@ button:disabled{opacity:.45;cursor:default}a.action{background:#2e586b;color:#ff
 <body>
 <header>
  <div><small>GEOMETRY STUDIO · СПІЛЬНИЙ ПЕРЕГЛЯД</small><h1 id="title">Креслення</h1></div>
- <nav><button id="saveSvg" disabled>↓ SVG</button><button id="savePng" disabled>↓ PNG</button><a class="action" href="./">Відкрити редактор</a></nav>
+ <nav><button id="saveSvg" disabled>↓ SVG</button><button id="savePng" disabled>↓ PNG</button><button id="openCopy" disabled title="Створити власну редаговану копію креслення">Редагувати копію</button><a class="action" href="./">Новий аркуш</a></nav>
 </header>
 <div id="status" role="status">Завантаження креслення…</div>
 <main id="stage"><img id="drawing" alt="Креслення Geometry Studio — лише перегляд" hidden></main>
@@ -36,7 +36,7 @@ button:disabled{opacity:.45;cursor:default}a.action{background:#2e586b;color:#ff
 (()=>{
 'use strict';
 const $=id=>document.getElementById(id);
-let svg='',blobUrl='',scale=1;
+let svg='',blobUrl='',scale=1,sharedId='';
 function message(text,bad=false){$('status').textContent=text;$('status').classList.toggle('error',bad);}
 function download(blob,name){
  const a=document.createElement('a'),url=URL.createObjectURL(blob);
@@ -58,15 +58,22 @@ async function load(){
   if(!response.ok)throw Error(result.error||'Креслення недоступне.');
   if(typeof result.svg!=='string'||!result.svg.trimStart().startsWith('<svg'))throw Error('Некоректне креслення.');
   svg=result.svg;
+  sharedId=share;
   blobUrl=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
   $('drawing').src=blobUrl;
   $('drawing').hidden=false;
   $('title').textContent=result.title||'Креслення';
   document.title=($('title').textContent)+' — Geometry Studio';
-  $('saveSvg').disabled=false;$('savePng').disabled=false;
-  message('Доступ лише для перегляду. Автор може відкликати це посилання.');
+  $('saveSvg').disabled=false;$('savePng').disabled=false;$('openCopy').disabled=false;
+  message('Можна створити власну редаговану копію. Оригінал автора не зміниться.');
  }catch(e){message(e.message||'Не вдалося завантажити креслення.',true);}
 }
+$('openCopy').onclick=()=>{
+ if(!sharedId)return;
+ const url=new URL('./',location.href);
+ url.searchParams.set('copy',sharedId);
+ location.assign(url.href);
+};
 $('minus').onclick=()=>zoom(scale/1.2);
 $('plus').onclick=()=>zoom(scale*1.2);
 $('fit').onclick=()=>zoom(1);
