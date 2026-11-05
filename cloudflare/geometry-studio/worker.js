@@ -15,7 +15,7 @@ function cors(origin) {
   return {
     'Access-Control-Allow-Origin': origin === ORIGIN ? ORIGIN : 'null',
     'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Edit-Key',
     'Access-Control-Max-Age': '3600',
     'Vary': 'Origin',
     'Cache-Control': 'no-store',
@@ -103,12 +103,95 @@ async function authLimit(env,request,username){
   const result=await env.AUTH_LIMITER.limit({key});
   return result.success;
 }
+
+/** Anonymous project capabilities: edit keys never appear in public URLs. */
+function guestKey(request){
+ const key=request.headers.get('X-Edit-Key')||'';
+ return /^[a-f0-9]{64}$/.test(key)?key:null;
+}
+async function guestOwner(request,env,id){
+ const key=guestKey(request);
+ if(!key)return null;
+ return env.DB.prepare('SELECT id,title,payload,svg,revision,share_id AS shareId,updated_at AS updatedAt FROM guest_projects WHERE id=? AND edit_hash=?')
+  .bind(id,await sha256(key)).first();
+}
+async function guestQuota(request,env,kind,limit,seconds){
+ // Persist only a daily/hourly bucket digest, not the original IP.
+ const ip=request.headers.get('CF-Connecting-IP')||'unknown';
+ const windowId=Math.floor(now()/seconds);
+ const bucket=await sha256('gs-guest-v1:'+kind+':'+windowId+':'+ip);
+ const expires=(windowId+1)*seconds;
+ const result=await env.DB.prepare(
+  'INSERT INTO guest_rate_limits(bucket,used,expires_at) VALUES(?,1,?) ON CONFLICT(bucket) DO UPDATE SET used=guest_rate_limits.used+1 WHERE guest_rate_limits.used < ?'
+ ).bind(bucket,expires,limit).run();
+ return (result.meta?.changes||0)>0;
+}
+function guestValidated(input){
+ const result=validateProject(input);
+ if(encoder.encode(result.payload).byteLength>400_000||encoder.encode(result.svg).byteLength>150_000)
+  throw {status:413,message:'Креслення завелике для безкоштовної хмари. Збережи його як JSON.'};
+ return result;
+}
+async function handleGuest(request,env,path,method,origin){
+ if(path==='/api/guest/projects'&&method==='POST'){
+  if(!await guestQuota(request,env,'create',12,86400))
+   return error(429,'Вичерпано ліміт нових креслень на сьогодні. Локальне збереження доступне.',origin);
+  const input=guestValidated(await jsonBody(request));
+  const total=await env.DB.prepare('SELECT COUNT(*) AS total FROM guest_projects').first();
+  if(total?.total>=500)return error(507,'Безкоштовне хмарне сховище заповнене. Локальна копія працює.',origin);
+  const id=crypto.randomUUID(),editKey=randomHex(32),time=now();
+  await env.DB.prepare(
+   'INSERT INTO guest_projects(id,edit_hash,title,payload,svg,revision,created_at,updated_at) VALUES(?,?,?,?,?,1,?,?)'
+  ).bind(id,await sha256(editKey),input.title,input.payload,input.svg,time,time).run();
+  return output({id,editKey,revision:1,shareId:null,updatedAt:time},201,origin);
+ }
+ const share=path.match(/^\/api\/guest\/projects\/([a-f0-9-]{36})\/share$/i);
+ if(share&&method==='POST'){
+  const owner=await guestOwner(request,env,share[1]);
+  if(!owner)return error(403,'Немає приватного ключа редагування.',origin);
+  const data=await jsonBody(request);
+  if(typeof data.enabled!=='boolean')return error(400,'Параметр enabled має бути true або false.',origin);
+  const shareId=data.enabled?(owner.shareId||crypto.randomUUID()):null;
+  await env.DB.prepare('UPDATE guest_projects SET share_id=?,updated_at=? WHERE id=? AND edit_hash=?')
+   .bind(shareId,now(),share[1],await sha256(guestKey(request))).run();
+  return output({id:share[1],shareId},200,origin);
+ }
+ const item=path.match(/^\/api\/guest\/projects\/([a-f0-9-]{36})$/i);
+ if(item){
+  const id=item[1];
+  const owner=await guestOwner(request,env,id);
+  if(!owner)return error(403,'Немає приватного ключа редагування.',origin);
+  if(method==='GET')
+   return output({id,title:owner.title,snapshot:JSON.parse(owner.payload),svg:owner.svg,
+    revision:owner.revision,shareId:owner.shareId,updatedAt:owner.updatedAt},200,origin);
+  if(method==='PUT'){
+   if(!await guestQuota(request,env,'write',120,3600))
+    return error(429,'Забагато збережень. Локальне креслення залишилося.',origin);
+   const body=await jsonBody(request),input=guestValidated(body),revision=Number(body.revision);
+   if(!Number.isInteger(revision)||revision<1)return error(400,'Некоректна версія креслення.',origin);
+   const result=await env.DB.prepare(
+    'UPDATE guest_projects SET title=?,payload=?,svg=?,revision=revision+1,updated_at=? WHERE id=? AND edit_hash=? AND revision=?'
+   ).bind(input.title,input.payload,input.svg,now(),id,await sha256(guestKey(request)),revision).run();
+   if(!result.meta?.changes)return error(409,'Є новіша версія креслення. Локальну копію не змінено.',origin);
+   return output({id,revision:revision+1},200,origin);
+  }
+  if(method==='DELETE'){
+   await env.DB.prepare('DELETE FROM guest_projects WHERE id=? AND edit_hash=?')
+    .bind(id,await sha256(guestKey(request))).run();
+   return output(null,204,origin);
+  }
+ }
+ return error(404,'Невідомий запит.',origin);
+}
+
 async function handle(request,env,origin){
   if(!env.DB)return error(503,'Базу D1 ще не підключено.',origin);
   const url=new URL(request.url),path=url.pathname.replace(/\/+$/,'')||'/';
   const method=request.method.toUpperCase();
   if(path==='/api/health'&&method==='GET')
     return output({ok:true,service:'geometry-studio-cloud',version:1},200,origin);
+  const guestRoute=path.startsWith('/api/guest/');
+  if(guestRoute)return handleGuest(request,env,path,method,origin);
 
   if(path==='/api/auth/register'&&method==='POST'){
     if(!env.INVITE_CODE||env.INVITE_CODE.length<16)
@@ -145,6 +228,10 @@ async function handle(request,env,origin){
 
   const shared=path.match(/^\/api\/share\/([a-f0-9-]{36})$/i);
   if(shared&&method==='GET'){
+    const guest=await env.DB.prepare(
+      'SELECT title,svg,updated_at FROM guest_projects WHERE share_id=?'
+    ).bind(shared[1]).first();
+    if(guest)return output({title:guest.title,svg:guest.svg,updatedAt:guest.updated_at},200,origin);
     const row=await env.DB.prepare(
       'SELECT title,svg,updated_at FROM projects WHERE share_id=?'
     ).bind(shared[1]).first();
